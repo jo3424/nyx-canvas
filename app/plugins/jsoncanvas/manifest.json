@@ -1,0 +1,40 @@
+{
+  "id": "jsoncanvas",
+  "version": "1.0.0",
+  "author": "Nyx",
+  "name": "JSON Canvas (Obsidian)",
+  "icon": "file-json",
+  "category": "Εισαγωγή/Εξαγωγή",
+  "permissions": [
+    "board",
+    "files"
+  ],
+  "description": "Εξαγωγή του πίνακα σε .canvas (ανοιχτό format του Obsidian) και εισαγωγή .canvas αρχείων ως νέο πίνακα.",
+  "homepage": "https://jsoncanvas.org",
+  "license": "MIT (spec)",
+  "actions": [
+    {
+      "id": "export",
+      "label": "Εξαγωγή .canvas",
+      "icon": "download"
+    },
+    {
+      "id": "import",
+      "label": "Εισαγωγή .canvas",
+      "icon": "upload"
+    }
+  ],
+  "name_en": "JSON Canvas (Obsidian)",
+  "description_en": "Exports the board to .canvas (Obsidian's open format) and imports .canvas files as a new board.",
+  "i18n_en": {
+    "category": "Import/Export",
+    "actions": {
+      "export": {
+        "label": "Export .canvas"
+      },
+      "import": {
+        "label": "Import .canvas"
+      }
+    }
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "id": "markets",
+  "version": "1.0.0",
+  "author": "Nyx",
+  "name": "Crypto & αγορές",
+  "icon": "chart-candlestick",
+  "category": "Widgets",
+  "permissions": [
+    "net",
+    "widget"
+  ],
+  "description": "Τιμές crypto (CoinGecko, χωρίς κλειδί) σε €, με μεταβολή 24ώρου. Προαιρετικά στο pill του widget.",
+  "homepage": "https://www.coingecko.com/en/api",
+  "config": [
+    {
+      "key": "ids",
+      "label": "CoinGecko ids (κόμμα)",
+      "type": "text",
+      "default": "bitcoin,ethereum,solana"
+    },
+    {
+      "key": "vs",
+      "label": "Νόμισμα",
+      "type": "select",
+      "options": [
+        "eur",
+        "usd"
+      ],
+      "default": "eur"
+    },
+    {
+      "key": "pill",
+      "label": "Πρώτο στο widget pill",
+      "type": "checkbox",
+      "default": false
+    }
+  ],
+  "cards": [
+    {
+      "type": "prices",
+      "name": "Τιμές",
+      "w": 300,
+      "h": 260,
+      "every": 10
+    }
+  ],
+  "name_en": "Crypto & markets",
+  "description_en": "Crypto prices (CoinGecko, no key) in €, with 24h change. Optionally in the widget pill.",
+  "i18n_en": {
+    "category": "Widgets",
+    "config": {
+      "ids": "CoinGecko ids (comma)",
+      "vs": "Currency",
+      "pill": "First one in the widget pill"
+    },
+    "cards": {
+      "prices": "Prices"
+    }
+  }
+}

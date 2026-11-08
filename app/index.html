@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' file:; font-src 'self' file: data:; object-src 'none'; base-uri 'none'; form-action 'none'; manifest-src 'none'; img-src 'self' file: data: blob: nyx-img:; media-src 'self' file: data: blob:; connect-src 'self' file: data: blob:; worker-src 'self' file: blob:; frame-src 'none'">
+<title>Nyx Canvas</title>
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="v2.css">
+<link rel="stylesheet" href="v25.css">
+</head>
+<body data-theme="midnight">
+<div id="bgfx"><canvas id="stars"></canvas><div class="aurora a1"></div><div class="aurora a2"></div><div class="scan"></div><div class="vignette"></div></div>
+
+<div id="viewport" tabindex="0">
+  <div id="world"><div id="frames-layer"></div><div id="items-layer"></div><svg id="live-ink" class="live-ink"></svg></div>
+  <div id="sel-layer"></div>
+  <div id="marquee" hidden></div>
+  <div id="guides"></div>
+</div>
+
+<header id="titlebar">
+  <div class="brand" title="Nyx Canvas"><img src="assets/icon.png" alt=""><span>Nyx</span></div>
+  <div id="tabs" class="tabs"></div>
+  <button class="tb-btn add-tab" id="btn-add-tab" data-tip="tab_new"></button>
+  <div class="drag-fill"></div>
+  <div class="tb-right">
+    <button class="tb-btn search-pill" id="btn-search"><i data-i="search"></i><span data-t="search_ph"></span><kbd>Ctrl K</kbd></button>
+    <button class="tb-btn" id="btn-reminders" data-tip="reminders"><i data-i="bell"></i><b class="badge" id="rem-badge" hidden></b></button>
+    <button class="tb-btn" id="btn-subs" data-tip="subs"><i data-i="credit-card"></i></button>
+    <button class="tb-btn" id="btn-widget" data-tip="widget"><i data-i="app-window"></i></button>
+    <button class="tb-btn" id="btn-theme" data-tip="themes"><i data-i="palette"></i></button>
+    <button class="tb-btn" id="btn-settings" data-tip="settings"><i data-i="settings-2"></i></button>
+  </div>
+</header>
+
+<nav id="dock" class="dock"></nav>
+<div id="toolopts" class="floatbar" hidden></div>
+<div id="stylebar" class="floatbar stylebar" hidden></div>
+
+<div id="corner">
+  <canvas id="minimap" width="220" height="140"></canvas>
+  <div class="zoombar">
+    <button id="z-out" data-tip="zoom_out"><i data-i="minus"></i></button>
+    <button id="z-val">100%</button>
+    <button id="z-in" data-tip="zoom_in"><i data-i="plus"></i></button>
+    <button id="z-fit" data-tip="zoom_fit"><i data-i="maximize"></i></button>
+    <button id="z-map" data-tip="minimap"><i data-i="map"></i></button>
+  </div>
+</div>
+
+<aside id="drawer" class="drawer" hidden><div class="drawer-head"><h2 id="drawer-title"></h2><button class="icon-btn" id="drawer-close"><i data-i="x"></i></button></div><div id="drawer-body" class="drawer-body"></div></aside>
+<div id="palette" class="palette" hidden><div class="pal-box"><div class="pal-input"><i data-i="search"></i><input id="pal-q" autocomplete="off" spellcheck="false"></div><div id="pal-list" class="pal-list"></div></div></div>
+<div id="modal" class="modal" hidden><div class="modal-box"><div class="modal-head"><h3 id="modal-title"></h3><button class="icon-btn" id="modal-close"><i data-i="x"></i></button></div><div id="modal-body"></div></div></div>
+<div id="ctxmenu" class="ctxmenu" hidden></div>
+<div id="toasts"></div>
+<div id="tip" hidden></div>
+<div id="dropzone" hidden><div><i data-i="download"></i><span data-t="drop_here"></span></div></div>
+<div id="recbar" hidden><span class="dot"></span><span id="rec-time">0:00</span><canvas id="rec-wave" width="160" height="28"></canvas><button id="rec-stop"></button><button id="rec-cancel"></button></div>
+
+<script src="assets/data/lucide.js"></script>
+<script src="vendor/perfect-freehand.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/util.js"></script>
+<script src="js/themes.js"></script>
+<script src="js/store.js"></script>
+<script src="js/v2/core.js"></script>
+<script src="js/items.js"></script>
+<script src="js/canvas.js"></script>
+<script src="js/tools.js"></script>
+<script src="js/panels.js"></script>
+<script src="js/features.js"></script>
+<script src="js/app.js"></script>
+<script src="js/v2/hub.js"></script>
+<script src="js/v2/assistant.js"></script>
+<script src="js/v2/search.js"></script>
+<script src="js/v2/browser.js"></script>
+<script src="js/v2/video.js"></script>
+<script src="js/v2/plugins-ui.js"></script>
+<script src="js/v2/extras.js"></script>
+<script src="js/v26/dnd.js"></script>
+<script src="js/v2/boot.js"></script>
+<script src="js/v25/core.js"></script>
+<script src="js/v25/attach.js"></script>
+<script src="js/v25/webtools.js"></script>
+<script src="js/v25/agent.js"></script>
+</body>
+</html>

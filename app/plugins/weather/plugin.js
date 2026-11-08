@@ -1,0 +1,11 @@
+const W = { 0: ['☀️', 'Αίθριος'], 1: ['🌤️', 'Κυρίως αίθριος'], 2: ['⛅', 'Λίγα σύννεφα'], 3: ['☁️', 'Συννεφιά'], 45: ['🌫️', 'Ομίχλη'], 48: ['🌫️', 'Ομίχλη'], 51: ['🌦️', 'Ψιχάλα'], 53: ['🌦️', 'Ψιχάλα'], 55: ['🌦️', 'Ψιχάλα'], 61: ['🌧️', 'Βροχή'], 63: ['🌧️', 'Βροχή'], 65: ['🌧️', 'Δυνατή βροχή'], 71: ['🌨️', 'Χιόνι'], 73: ['🌨️', 'Χιόνι'], 75: ['❄️', 'Πολύ χιόνι'], 80: ['🌦️', 'Μπόρες'], 81: ['🌧️', 'Μπόρες'], 82: ['⛈️', 'Ισχυρές μπόρες'], 95: ['⛈️', 'Καταιγίδα'], 96: ['⛈️', 'Καταιγίδα/χαλάζι'], 99: ['⛈️', 'Καταιγίδα/χαλάζι'] };
+const w = (c) => W[c] || ['🌡️', ''];
+module.exports = { cards: { now: { async refresh(cfg, nyx) {
+  const city = nyx.config.city || 'Αθήνα'; let geo = nyx.storage.get('geo');
+  if (!geo || geo.q !== city) { const g = await (await nyx.fetch('https://geocoding-api.open-meteo.com/v1/search?count=1&language=el&name=' + encodeURIComponent(city))).json(); const r = g.results && g.results[0]; if (!r) throw new Error('Δεν βρέθηκε η πόλη ' + city); geo = { q: city, lat: r.latitude, lon: r.longitude, name: r.name }; nyx.storage.set('geo', geo); }
+  const j = await (await nyx.fetch(`https://api.open-meteo.com/v1/forecast?latitude=${geo.lat}&longitude=${geo.lon}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=6`)).json();
+  const c = j.current; const [ic, tx] = w(c.weather_code);
+  try { nyx.setShared('weather', ic + ' ' + Math.round(c.temperature_2m) + '° ' + geo.name); } catch (e) {}
+  const D = j.daily; const rows = D.time.slice(1).map((d, i) => ({ icon: w(D.weather_code[i + 1])[0], label: new Date(d).toLocaleDateString('el-GR', { weekday: 'long' }), value: Math.round(D.temperature_2m_min[i + 1]) + '° / ' + Math.round(D.temperature_2m_max[i + 1]) + '°', sub: D.precipitation_probability_max[i + 1] != null ? '☔ ' + D.precipitation_probability_max[i + 1] + '%' : '' }));
+  return { title: ic + ' ' + geo.name + ' · ' + Math.round(c.temperature_2m) + '°C', text: `${tx} · αίσθηση ${Math.round(c.apparent_temperature)}° · 💧${c.relative_humidity_2m}% · 💨${Math.round(c.wind_speed_10m)} km/h`, rows, footer: 'Open-Meteo' };
+} } } };

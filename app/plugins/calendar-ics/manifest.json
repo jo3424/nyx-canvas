@@ -1,0 +1,62 @@
+{
+  "id": "calendar-ics",
+  "version": "1.0.0",
+  "author": "Nyx",
+  "name": "Ημερολόγιο (ICS)",
+  "icon": "calendar-days",
+  "category": "Παραγωγικότητα",
+  "permissions": [
+    "net",
+    "board"
+  ],
+  "description": "Δείχνει τα επόμενα γεγονότα από Google/Outlook/iCloud ημερολόγιο μέσω μυστικού συνδέσμου .ics. Εισαγωγή ως υπενθυμίσεις.",
+  "long": "Google Calendar → Ρυθμίσεις ημερολογίου → «Μυστική διεύθυνση σε μορφή iCal». Outlook → Κοινή χρήση → Δημοσίευση → ICS.\nΤα επαναλαμβανόμενα (RRULE) δείχνουν μόνο την πρώτη εμφάνιση.",
+  "config": [
+    {
+      "key": "urls",
+      "label": "Σύνδεσμοι .ics (ένας ανά γραμμή)",
+      "type": "textarea",
+      "required": true
+    },
+    {
+      "key": "days",
+      "label": "Ημέρες μπροστά",
+      "type": "number",
+      "default": 14
+    }
+  ],
+  "cards": [
+    {
+      "type": "agenda",
+      "name": "Ατζέντα",
+      "w": 340,
+      "h": 320,
+      "every": 30
+    }
+  ],
+  "actions": [
+    {
+      "id": "import",
+      "label": "Εισαγωγή ως υπενθυμίσεις (7 ημ.)",
+      "icon": "bell-plus"
+    }
+  ],
+  "name_en": "Calendar (ICS)",
+  "description_en": "Shows upcoming events from a Google/Outlook/iCloud calendar through a secret .ics link. Import as reminders.",
+  "i18n_en": {
+    "category": "Productivity",
+    "long": "Google Calendar → Calendar settings → “Secret address in iCal format”. Outlook → Sharing → Publish → ICS.\nRecurring events (RRULE) show only the first occurrence.",
+    "config": {
+      "urls": "ICS links (one per line)",
+      "days": "Days ahead"
+    },
+    "cards": {
+      "agenda": "Agenda"
+    },
+    "actions": {
+      "import": {
+        "label": "Import as reminders (7 days)"
+      }
+    }
+  }
+}

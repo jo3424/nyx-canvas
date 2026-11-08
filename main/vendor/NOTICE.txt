@@ -1,0 +1,2 @@
+Bundled third-party code
+- sogni.js: @sogni-ai/sogni-client 5.71.1 (ISC) + its dependencies (ethers MIT, ws MIT, lodash MIT, jwt-decode MIT, js-cookie MIT, @lukeed/uuid MIT), bundled with esbuild. Loaded only when Sogni is configured.

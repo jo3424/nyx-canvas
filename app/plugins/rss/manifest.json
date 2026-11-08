@@ -1,0 +1,50 @@
+{
+  "id": "rss",
+  "version": "1.0.0",
+  "author": "Nyx",
+  "name": "RSS / Atom",
+  "icon": "rss",
+  "category": "Ειδήσεις",
+  "permissions": [
+    "net",
+    "notify"
+  ],
+  "description": "Κάρτα με τα τελευταία άρθρα από RSS/Atom feeds (blogs, subreddits, YouTube κανάλια, GitHub releases). Ειδοποίηση για νέα.",
+  "long": "Παραδείγματα: `https://www.reddit.com/r/LocalLLaMA/.rss`, `https://github.com/ggml-org/llama.cpp/releases.atom`, YouTube: `https://www.youtube.com/feeds/videos.xml?channel_id=…`",
+  "config": [
+    {
+      "key": "feeds",
+      "label": "Feeds (ένα ανά γραμμή)",
+      "type": "textarea",
+      "default": "https://www.reddit.com/r/LocalLLaMA/.rss\nhttps://github.com/ggml-org/llama.cpp/releases.atom"
+    },
+    {
+      "key": "notify",
+      "label": "Ειδοποίηση για νέα άρθρα",
+      "type": "checkbox",
+      "default": false
+    }
+  ],
+  "cards": [
+    {
+      "type": "feed",
+      "name": "Feed",
+      "w": 360,
+      "h": 380,
+      "every": 30
+    }
+  ],
+  "name_en": "RSS / Atom",
+  "description_en": "A card with the latest articles from RSS/Atom feeds (blogs, subreddits, YouTube channels, GitHub releases). Notification for new ones.",
+  "i18n_en": {
+    "category": "News",
+    "long": "Examples: `https://www.reddit.com/r/LocalLLaMA/.rss`, `https://github.com/ggml-org/llama.cpp/releases.atom`, YouTube: `https://www.youtube.com/feeds/videos.xml?channel_id=…`",
+    "config": {
+      "feeds": "Feeds (one per line)",
+      "notify": "Notify about new articles"
+    },
+    "cards": {
+      "feed": "Feed"
+    }
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "id": "mcp-server",
+  "version": "1.0.0",
+  "author": "Nyx",
+  "name": "Nyx MCP server",
+  "icon": "server",
+  "category": "AI",
+  "permissions": [
+    "server",
+    "board"
+  ],
+  "description": "Εκθέτει τον καμβά ως MCP server (HTTP, μόνο 127.0.0.1, με token) για LM Studio, Claude Desktop, Cursor κ.λπ.: αναζήτηση, ανάγνωση, δημιουργία καρτών.",
+  "long": "Μετά την ενεργοποίηση πάτα «Ρυθμίσεις σύνδεσης» για να πάρεις το JSON για `mcp.json` (LM Studio → Program → Install → Edit mcp.json). Κάθε αίτημα χωρίς σωστό `Authorization: Bearer <token>` απορρίπτεται, όπως και αιτήματα από ιστοσελίδες (Origin).",
+  "config": [
+    {
+      "key": "port",
+      "label": "Θύρα",
+      "type": "number",
+      "default": 7801
+    },
+    {
+      "key": "write",
+      "label": "Επέτρεψε δημιουργία καρτών",
+      "type": "checkbox",
+      "default": true
+    }
+  ],
+  "actions": [
+    {
+      "id": "info",
+      "label": "Ρυθμίσεις σύνδεσης",
+      "icon": "plug"
+    },
+    {
+      "id": "rotate",
+      "label": "Νέο token",
+      "icon": "key-round"
+    }
+  ],
+  "name_en": "Nyx MCP server",
+  "description_en": "Exposes the canvas as an MCP server (HTTP, 127.0.0.1 only, with a token) for LM Studio, Claude Desktop, Cursor etc.: search, read, create cards.",
+  "i18n_en": {
+    "category": "AI",
+    "long": "After enabling, press “Connection settings” to get the JSON for `mcp.json` (LM Studio → Program → Install → Edit mcp.json). Every request without the correct `Authorization: Bearer <token>` is rejected, as are requests from web pages (Origin).",
+    "config": {
+      "port": "Port",
+      "write": "Allow creating cards"
+    },
+    "actions": {
+      "info": {
+        "label": "Connection settings"
+      },
+      "rotate": {
+        "label": "New token"
+      }
+    }
+  }
+}

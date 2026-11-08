@@ -1,0 +1,31 @@
+{
+  "id": "eortologio",
+  "version": "1.0.0",
+  "author": "Nyx",
+  "name": "Εορτολόγιο & αργίες",
+  "icon": "party-popper",
+  "category": "Widgets",
+  "permissions": [
+    "widget"
+  ],
+  "description": "Ποιοι γιορτάζουν σήμερα/αύριο (κύριες ονομαστικές, και κινητές του Πάσχα) και οι επόμενες επίσημες αργίες. Εντελώς offline.",
+  "long": "Περιλαμβάνει τις πιο συχνές ονομαστικές εορτές (όχι πλήρες εορτολόγιο). Το Πάσχα υπολογίζεται (Ορθόδοξο). Ο Άγιος Γεώργιος μεταφέρεται τη Δευτέρα του Πάσχα όταν πέφτει πριν.",
+  "cards": [
+    {
+      "type": "today",
+      "name": "Γιορτές",
+      "w": 320,
+      "h": 300,
+      "every": 360
+    }
+  ],
+  "name_en": "Greek name days & holidays",
+  "description_en": "Who celebrates their name day today/tomorrow (main name days, plus the movable Easter ones) and the next public holidays. Fully offline.",
+  "i18n_en": {
+    "category": "Widgets",
+    "long": "Includes the most common name days (not a full calendar). Easter is calculated (Orthodox). St. George moves to Easter Monday when it falls before Easter.",
+    "cards": {
+      "today": "Name days"
+    }
+  }
+}

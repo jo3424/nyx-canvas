@@ -1,0 +1,86 @@
+{
+  "id": "clipboard-inbox",
+  "version": "1.0.0",
+  "author": "Nyx",
+  "name": "Clipboard Inbox",
+  "icon": "clipboard-list",
+  "category": "Παραγωγικότητα",
+  "permissions": [
+    "clipboard",
+    "board",
+    "widget"
+  ],
+  "description": "Ιστορικό προχείρου με αυτόματες κατηγορίες (σύνδεσμοι, κώδικας, email, τηλέφωνα, χρώματα, αριθμοί, κείμενο) και καθάρισμα tracking παραμέτρων (utm, fbclid, gclid, si…) από links.",
+  "long": "Εμπνευσμένο από το «Copy Haste». Κρατά τα τελευταία 300 τοπικά (όχι κωδικούς: αγνοεί ό,τι μοιάζει με token/κωδικό). Αν ενεργοποιήσεις «Γράψε πίσω καθαρό link», όταν αντιγράφεις link με tracking το πρόχειρο αντικαθίσταται με την καθαρή εκδοχή.",
+  "config": [
+    {
+      "key": "strip",
+      "label": "Γράψε πίσω καθαρό link στο πρόχειρο",
+      "type": "checkbox",
+      "default": true
+    },
+    {
+      "key": "ignore",
+      "label": "Αγνόησε κείμενα που περιέχουν (κόμμα)",
+      "type": "text",
+      "default": "password,κωδικός"
+    }
+  ],
+  "cards": [
+    {
+      "type": "inbox",
+      "name": "Πρόχειρο",
+      "w": 360,
+      "h": 400,
+      "every": 1
+    }
+  ],
+  "actions": [
+    {
+      "id": "toBoard",
+      "label": "Τα 10 τελευταία στον καμβά",
+      "icon": "layout-grid"
+    },
+    {
+      "id": "clear",
+      "label": "Καθάρισμα ιστορικού",
+      "icon": "eraser"
+    },
+    {
+      "id": "clean",
+      "label": "Καθάρισε link",
+      "icon": "link",
+      "hidden": true,
+      "args": [
+        {
+          "key": "url",
+          "label": "URL"
+        }
+      ]
+    }
+  ],
+  "name_en": "Clipboard Inbox",
+  "description_en": "Clipboard history with automatic categories (links, code, emails, phones, colors, numbers, text) and removal of tracking parameters (utm, fbclid, gclid, si…) from links.",
+  "i18n_en": {
+    "category": "Productivity",
+    "long": "Inspired by “Copy Haste”. Keeps the last 300 locally (no passwords: ignores anything that looks like a token/password). If you enable “Write the clean link back”, copying a link with tracking replaces the clipboard with the clean version.",
+    "config": {
+      "strip": "Write the clean link back to the clipboard",
+      "ignore": "Ignore texts that contain (comma)"
+    },
+    "cards": {
+      "inbox": "Clipboard"
+    },
+    "actions": {
+      "toBoard": {
+        "label": "Last 10 to the canvas"
+      },
+      "clear": {
+        "label": "Clear history"
+      },
+      "clean": {
+        "label": "Clean link"
+      }
+    }
+  }
+}

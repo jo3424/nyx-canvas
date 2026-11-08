@@ -1,0 +1,47 @@
+{
+  "id": "hf-trending",
+  "version": "1.0.0",
+  "author": "Nyx",
+  "name": "Hugging Face trending",
+  "icon": "flame",
+  "category": "AI",
+  "permissions": [
+    "net"
+  ],
+  "description": "Τα μοντέλα που ανεβαίνουν στο Hugging Face (π.χ. μόνο GGUF για LM Studio/llama.cpp).",
+  "homepage": "https://huggingface.co/models?sort=trending",
+  "config": [
+    {
+      "key": "filter",
+      "label": "Φίλτρο (library/tag)",
+      "type": "text",
+      "default": "gguf"
+    },
+    {
+      "key": "search",
+      "label": "Αναζήτηση (π.χ. qwen)",
+      "type": "text"
+    }
+  ],
+  "cards": [
+    {
+      "type": "models",
+      "name": "Trending",
+      "w": 360,
+      "h": 380,
+      "every": 180
+    }
+  ],
+  "name_en": "Hugging Face trending",
+  "description_en": "Models trending on Hugging Face (e.g. GGUF only for LM Studio/llama.cpp).",
+  "i18n_en": {
+    "category": "AI",
+    "config": {
+      "filter": "Filter (library/tag)",
+      "search": "Search (e.g. qwen)"
+    },
+    "cards": {
+      "models": "Trending"
+    }
+  }
+}

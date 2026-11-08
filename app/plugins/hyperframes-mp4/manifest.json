@@ -1,0 +1,74 @@
+{
+  "id": "hyperframes-mp4",
+  "version": "1.0.0",
+  "author": "Nyx",
+  "name": "Canvas → MP4 (HyperFrames)",
+  "icon": "clapperboard",
+  "category": "Βίντεο",
+  "permissions": [
+    "board",
+    "files",
+    "exec"
+  ],
+  "verified": false,
+  "requires": {
+    "text": "Node.js 22+, FFmpeg και HyperFrames CLI (`npx hyperframes`, HeyGen, Apache-2.0).",
+    "url": "https://github.com/heygen-com/hyperframes"
+  },
+  "homepage": "https://github.com/heygen-com/hyperframes",
+  "license": "Apache-2.0",
+  "description": "Μετατρέπει τον πίνακα σε σενάριο βίντεο (storyboard + κείμενα + εικόνες) μέσα σε project HyperFrames και κάνει render σε MP4 τοπικά.",
+  "long": "Ροή: **Νέο project** → διαλέγεις φάκελο, το Nyx γράφει `NYX-STORYBOARD.md` (σκηνές από τις κάρτες) και τρέχει `npx hyperframes init`. Μετά άνοιξε τον φάκελο στο Cursor/Claude Code και πες «Using /hyperframes, make the video from NYX-STORYBOARD.md». **Render** τρέχει `npx hyperframes render` στον φάκελο.\n\n⚠️ Μη επαληθευμένο: δεν δοκιμάστηκε με πραγματικό HyperFrames σε Windows. Χρειάζεται άδεια εκτέλεσης εντολών.",
+  "config": [
+    {
+      "key": "dir",
+      "label": "Φάκελος project (συμπληρώνεται αυτόματα)",
+      "type": "text"
+    },
+    {
+      "key": "secs",
+      "label": "Δευτερόλεπτα ανά σκηνή",
+      "type": "number",
+      "default": 3
+    }
+  ],
+  "actions": [
+    {
+      "id": "project",
+      "label": "Νέο project από τον πίνακα",
+      "icon": "folder-plus"
+    },
+    {
+      "id": "preview",
+      "label": "Preview",
+      "icon": "eye"
+    },
+    {
+      "id": "render",
+      "label": "Render MP4",
+      "icon": "film"
+    }
+  ],
+  "name_en": "Canvas → MP4 (HyperFrames)",
+  "description_en": "Turns the board into a video script (storyboard + texts + images) inside a HyperFrames project and renders an MP4 locally.",
+  "i18n_en": {
+    "category": "Video",
+    "long": "Flow: **New project** → pick a folder, Nyx writes `NYX-STORYBOARD.md` (scenes from the cards) and runs `npx hyperframes init`. Then open the folder in Cursor/Claude Code and say “Using /hyperframes, make the video from NYX-STORYBOARD.md”. **Render** runs `npx hyperframes render` in the folder.\n\n⚠️ Unverified: not tested with a real HyperFrames on Windows. Needs the run-programs permission.",
+    "requires": "Node.js 22+, FFmpeg and the HyperFrames CLI (`npx hyperframes`, HeyGen, Apache-2.0).",
+    "config": {
+      "dir": "Project folder (filled in automatically)",
+      "secs": "Seconds per scene"
+    },
+    "actions": {
+      "project": {
+        "label": "New project from the board"
+      },
+      "preview": {
+        "label": "Preview"
+      },
+      "render": {
+        "label": "Render MP4"
+      }
+    }
+  }
+}

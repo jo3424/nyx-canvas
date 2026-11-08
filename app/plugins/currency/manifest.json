@@ -1,0 +1,83 @@
+{
+  "id": "currency",
+  "version": "1.0.0",
+  "author": "Nyx",
+  "name": "Ισοτιμίες",
+  "icon": "euro",
+  "category": "Widgets",
+  "permissions": [
+    "net"
+  ],
+  "description": "Ισοτιμίες ΕΚΤ (Frankfurter, δωρεάν) και γρήγορη μετατροπή ποσών.",
+  "homepage": "https://frankfurter.dev",
+  "config": [
+    {
+      "key": "base",
+      "label": "Βάση",
+      "type": "text",
+      "default": "EUR"
+    },
+    {
+      "key": "to",
+      "label": "Νομίσματα",
+      "type": "text",
+      "default": "USD,GBP,CHF,TRY,JPY"
+    }
+  ],
+  "cards": [
+    {
+      "type": "rates",
+      "name": "Ισοτιμίες",
+      "w": 280,
+      "h": 260,
+      "every": 180
+    }
+  ],
+  "actions": [
+    {
+      "id": "convert",
+      "label": "Μετατροπή",
+      "icon": "arrow-left-right",
+      "args": [
+        {
+          "key": "amount",
+          "label": "Ποσό",
+          "type": "number",
+          "default": 100
+        },
+        {
+          "key": "from",
+          "label": "Από",
+          "default": "EUR"
+        },
+        {
+          "key": "to",
+          "label": "Σε",
+          "default": "USD"
+        }
+      ]
+    }
+  ],
+  "name_en": "Exchange rates",
+  "description_en": "ECB exchange rates (Frankfurter, free) and quick amount conversion.",
+  "i18n_en": {
+    "category": "Widgets",
+    "config": {
+      "base": "Base",
+      "to": "Currencies"
+    },
+    "cards": {
+      "rates": "Exchange rates"
+    },
+    "actions": {
+      "convert": {
+        "label": "Convert",
+        "args": {
+          "amount": "Amount",
+          "from": "From",
+          "to": "To"
+        }
+      }
+    }
+  }
+}

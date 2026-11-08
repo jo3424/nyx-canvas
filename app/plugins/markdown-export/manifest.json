@@ -1,0 +1,38 @@
+{
+  "id": "markdown-export",
+  "version": "1.0.0",
+  "author": "Nyx",
+  "name": "Markdown export",
+  "icon": "file-text",
+  "category": "Εισαγωγή/Εξαγωγή",
+  "permissions": [
+    "board",
+    "files"
+  ],
+  "description": "Εξάγει τον πίνακα σε Markdown: ένα αρχείο ή φάκελο με ένα .md ανά κάρτα (με front-matter, tags) — έτοιμο για Obsidian/Logseq.",
+  "actions": [
+    {
+      "id": "one",
+      "label": "Ένα αρχείο .md",
+      "icon": "file-down"
+    },
+    {
+      "id": "folder",
+      "label": "Φάκελος (.md ανά κάρτα)",
+      "icon": "folder-down"
+    }
+  ],
+  "name_en": "Markdown export",
+  "description_en": "Exports the board to Markdown: one file, or a folder with one .md per card (with front-matter, tags) — ready for Obsidian/Logseq.",
+  "i18n_en": {
+    "category": "Import/Export",
+    "actions": {
+      "one": {
+        "label": "One .md file"
+      },
+      "folder": {
+        "label": "Folder (.md per card)"
+      }
+    }
+  }
+}

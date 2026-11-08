@@ -1,0 +1,49 @@
+{
+  "id": "webhooks",
+  "version": "1.0.0",
+  "author": "Nyx",
+  "name": "Webhooks",
+  "icon": "webhook",
+  "category": "Αυτοματισμοί",
+  "permissions": [
+    "server",
+    "board",
+    "net"
+  ],
+  "description": "Εισερχόμενα: POST σε http://127.0.0.1:7802/note με token → κάρτα (για iOS Shortcuts μέσω Tailscale, n8n, scripts). Εξερχόμενα: POST σε δικό σου URL όταν προστίθεται κάρτα.",
+  "long": "`curl -H \"Authorization: Bearer TOKEN\" -d \"{\\\"text\\\":\\\"γεια\\\"}\" http://127.0.0.1:7802/note`",
+  "config": [
+    {
+      "key": "port",
+      "label": "Θύρα",
+      "type": "number",
+      "default": 7802
+    },
+    {
+      "key": "out",
+      "label": "Εξερχόμενο URL (προαιρετικό)",
+      "type": "text"
+    }
+  ],
+  "actions": [
+    {
+      "id": "info",
+      "label": "Token & παράδειγμα",
+      "icon": "key-round"
+    }
+  ],
+  "name_en": "Webhooks",
+  "description_en": "Incoming: POST to http://127.0.0.1:7802/note with a token → card (for iOS Shortcuts via Tailscale, n8n, scripts). Outgoing: POST to your own URL when a card is added.",
+  "i18n_en": {
+    "category": "Automations",
+    "config": {
+      "port": "Port",
+      "out": "Outgoing URL (optional)"
+    },
+    "actions": {
+      "info": {
+        "label": "Token & example"
+      }
+    }
+  }
+}

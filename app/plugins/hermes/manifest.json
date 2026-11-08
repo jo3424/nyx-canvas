@@ -1,0 +1,75 @@
+{
+  "id": "hermes",
+  "version": "1.0.0",
+  "author": "Nyx",
+  "name": "Hermes Agent",
+  "icon": "bot",
+  "category": "AI",
+  "permissions": [
+    "net"
+  ],
+  "verified": false,
+  "description": "Στέλνει εργασίες στο Hermes Agent (Nous Research) μέσω του OpenAI-συμβατού API του, και φέρνει την απάντηση ως κάρτα.",
+  "long": "Ενεργοποίησε το API server του Hermes (π.χ. `API_SERVER_ENABLED=true`, θύρα 8642) και βάλε τη διεύθυνση εδώ. **Μη επαληθευμένο**: δεν δοκιμάστηκε με πραγματικό Hermes — αν το endpoint διαφέρει, άλλαξε το URL.",
+  "homepage": "https://github.com/NousResearch/hermes-agent",
+  "config": [
+    {
+      "key": "url",
+      "label": "Base URL",
+      "type": "text",
+      "default": "http://127.0.0.1:8642/v1"
+    },
+    {
+      "key": "key",
+      "label": "API key (αν χρειάζεται)",
+      "type": "password"
+    },
+    {
+      "key": "model",
+      "label": "Model",
+      "type": "text",
+      "default": "hermes-agent"
+    }
+  ],
+  "actions": [
+    {
+      "id": "ask",
+      "label": "Ρώτα τον Hermes",
+      "icon": "send",
+      "args": [
+        {
+          "key": "prompt",
+          "label": "Εργασία",
+          "type": "textarea"
+        }
+      ]
+    },
+    {
+      "id": "ping",
+      "label": "Έλεγχος",
+      "icon": "plug"
+    }
+  ],
+  "name_en": "Hermes Agent",
+  "description_en": "Sends tasks to Hermes Agent (Nous Research) through its OpenAI-compatible API and brings the answer back as a card.",
+  "i18n_en": {
+    "category": "AI",
+    "long": "Enable the Hermes API server (e.g. `API_SERVER_ENABLED=true`, port 8642) and put the address here. **Unverified**: not tested with a real Hermes — if the endpoint differs, change the URL.",
+    "config": {
+      "url": "Base URL",
+      "key": "API key (if needed)",
+      "model": "Model"
+    },
+    "actions": {
+      "ask": {
+        "label": "Ask Hermes",
+        "args": {
+          "prompt": "Task"
+        }
+      },
+      "ping": {
+        "label": "Check"
+      }
+    }
+  }
+}

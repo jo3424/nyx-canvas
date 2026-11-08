@@ -1,0 +1,55 @@
+{
+  "id": "status-pill",
+  "version": "1.0.0",
+  "author": "Nyx",
+  "name": "Status pill / Focus",
+  "icon": "pill",
+  "category": "Widgets",
+  "permissions": [
+    "widget",
+    "notify"
+  ],
+  "description": "Βάζει δικό σου status με αντίστροφη μέτρηση στο «νησάκι» του widget (π.χ. «Deep work · έως 11:30»), με ειδοποίηση στο τέλος.",
+  "actions": [
+    {
+      "id": "set",
+      "label": "Νέο status",
+      "icon": "play",
+      "args": [
+        {
+          "key": "text",
+          "label": "Κείμενο",
+          "default": "🎯 Deep work"
+        },
+        {
+          "key": "min",
+          "label": "Λεπτά",
+          "type": "number",
+          "default": 50
+        }
+      ]
+    },
+    {
+      "id": "clear",
+      "label": "Καθάρισμα",
+      "icon": "x"
+    }
+  ],
+  "name_en": "Status pill / Focus",
+  "description_en": "Puts your own status with a countdown in the widget's “island” (e.g. “Deep work · until 11:30”), with a notification at the end.",
+  "i18n_en": {
+    "category": "Widgets",
+    "actions": {
+      "set": {
+        "label": "New status",
+        "args": {
+          "text": "Text",
+          "min": "Minutes"
+        }
+      },
+      "clear": {
+        "label": "Clear"
+      }
+    }
+  }
+}

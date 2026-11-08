@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' file:; font-src 'self' file: data:; object-src 'none'; base-uri 'none'; form-action 'none'; manifest-src 'none'; img-src 'self' file: data: blob: nyx-img:; media-src 'self' file: data: blob:; connect-src 'none'; frame-src 'none'">
+<title>Nyx Widget</title>
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="widget.css">
+</head>
+<body class="widget" data-theme="midnight">
+<div id="w" class="wbox">
+  <header class="w-head">
+    <div class="brand"><img src="assets/icon.png" alt=""><span>Nyx</span></div>
+    <div class="w-clock" id="w-clock"></div>
+    <div class="w-btns">
+      <button id="w-top" data-l-title="html.w_top"><i data-i="pin"></i></button>
+      <button id="w-ghost" data-l-title="html.w_ghost"><i data-i="mouse-pointer-click"></i></button>
+      <button id="w-open" data-l-title="html.w_open"><i data-i="maximize-2"></i></button>
+      <button id="w-close" data-l-title="html.w_close"><i data-i="x"></i></button>
+    </div>
+  </header>
+  <div id="w-pill" class="w-pill" hidden></div>
+  <div class="w-note">
+    <button id="w-day" class="w-day" data-l-title="v23.w_day_tip"></button>
+    <textarea id="w-q" rows="2" data-l-ph="v23.w_note_ph" placeholder=""></textarea>
+    <div class="w-nbtns"><button id="w-mic" class="w-mic" data-l-title="v23.w_mic"><i data-i="mic"></i></button><button id="w-send" data-l-title="html.w_send"><i data-i="send"></i></button></div>
+  </div>
+  <div class="w-scroll">
+    <section id="w-pins-sec"><h5><i data-i="pin" data-s="13"></i> <span data-l="html.w_pinned"></span></h5><div id="w-pins" class="w-pins"></div></section>
+    <section><h5><i data-i="alarm-clock" data-s="13"></i> <span data-l="html.w_up"></span></h5><div id="w-up" class="w-list"></div></section>
+    <section class="w-calsec"><h5><i data-i="calendar-days" data-s="13"></i> <span id="w-month"></span> <span class="w-calnav"><button id="w-ctoday" data-l-title="v23.w_today"><i data-i="locate" data-s="12"></i></button><button id="w-cprev">‹</button><button id="w-cnext">›</button></span></h5><div id="w-cal" class="w-cal"></div>
+      <div id="w-dayp" class="w-dayp"></div></section>
+    <section><h5><i data-i="credit-card" data-s="13"></i> <span data-l="html.w_subs"></span> <b id="w-subtotal"></b></h5><div id="w-subs" class="w-list"></div></section>
+  </div>
+</div>
+<script src="assets/data/lucide.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/util.js"></script>
+<script src="js/themes.js"></script>
+<script src="widget.js"></script>
+</body>
+</html>

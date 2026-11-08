@@ -1,0 +1,43 @@
+{
+  "id": "weather",
+  "version": "1.0.0",
+  "author": "Nyx",
+  "name": "Καιρός",
+  "icon": "cloud-sun",
+  "category": "Widgets",
+  "permissions": [
+    "net",
+    "widget"
+  ],
+  "description": "Καιρός τώρα + 5 ημέρες από Open-Meteo (δωρεάν, χωρίς κλειδί). Δείχνει τη θερμοκρασία στο pill του widget.",
+  "homepage": "https://open-meteo.com",
+  "license": "CC-BY 4.0 data",
+  "config": [
+    {
+      "key": "city",
+      "label": "Πόλη",
+      "type": "text",
+      "default": "Αθήνα"
+    }
+  ],
+  "cards": [
+    {
+      "type": "now",
+      "name": "Καιρός",
+      "w": 320,
+      "h": 300,
+      "every": 30
+    }
+  ],
+  "name_en": "Weather",
+  "description_en": "Weather now + 5 days from Open-Meteo (free, no key). Shows the temperature in the widget pill.",
+  "i18n_en": {
+    "category": "Widgets",
+    "config": {
+      "city": "City"
+    },
+    "cards": {
+      "now": "Weather"
+    }
+  }
+}

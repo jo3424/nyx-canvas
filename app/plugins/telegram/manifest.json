@@ -1,0 +1,94 @@
+{
+  "id": "telegram",
+  "version": "1.0.0",
+  "author": "Nyx",
+  "name": "Telegram bot",
+  "icon": "send",
+  "category": "Επικοινωνία",
+  "permissions": [
+    "net",
+    "board",
+    "assistant",
+    "notify"
+  ],
+  "description": "Στείλε σημειώσεις/εντολές στο Nyx από το κινητό μέσω του δικού σου Telegram bot. Απαντά ο βοηθός.",
+  "long": "1. Στο Telegram μίλα στον **@BotFather** → `/newbot` → πάρε το token.\n2. Βάλε το token εδώ και στείλε `/start` στο bot σου: θα σου απαντήσει με το chat id σου.\n3. Βάλε το chat id στο «Επιτρεπτά chat ids». Μόνο αυτά εξυπηρετούνται.\n\nΚείμενο → σημείωση στον καμβά. `/ask …` (ή λειτουργία «βοηθός») → εντολή στον βοηθό και απάντηση πίσω.",
+  "verified": false,
+  "homepage": "https://core.telegram.org/bots",
+  "config": [
+    {
+      "key": "token",
+      "label": "Bot token",
+      "type": "password",
+      "required": true
+    },
+    {
+      "key": "chatId",
+      "label": "Επιτρεπτά chat ids (κόμμα)",
+      "type": "text"
+    },
+    {
+      "key": "mode",
+      "label": "Απλό μήνυμα =",
+      "type": "select",
+      "options": [
+        [
+          "note",
+          "Σημείωση στον καμβά"
+        ],
+        [
+          "assistant",
+          "Εντολή στον βοηθό"
+        ]
+      ],
+      "default": "note"
+    }
+  ],
+  "actions": [
+    {
+      "id": "send",
+      "label": "Αποστολή",
+      "icon": "send",
+      "args": [
+        {
+          "key": "text",
+          "label": "Μήνυμα",
+          "type": "textarea"
+        }
+      ]
+    },
+    {
+      "id": "test",
+      "label": "Δοκιμή σύνδεσης",
+      "icon": "plug"
+    }
+  ],
+  "name_en": "Telegram bot",
+  "description_en": "Send notes/commands to Nyx from your phone through your own Telegram bot. The assistant replies.",
+  "i18n_en": {
+    "category": "Communication",
+    "long": "1. In Telegram talk to **@BotFather** → `/newbot` → get the token.\n2. Put the token here and send `/start` to your bot: it will reply with your chat id.\n3. Put the chat id in “Allowed chat ids”. Only those are served.\n\nText → note on the canvas. `/ask …` (or “assistant” mode) → command to the assistant and the reply back.",
+    "config": {
+      "token": "Bot token",
+      "chatId": "Allowed chat ids (comma)",
+      "mode": {
+        "label": "Plain message =",
+        "options": {
+          "note": "Note on the canvas",
+          "assistant": "Command to the assistant"
+        }
+      }
+    },
+    "actions": {
+      "send": {
+        "label": "Send",
+        "args": {
+          "text": "Message"
+        }
+      },
+      "test": {
+        "label": "Test connection"
+      }
+    }
+  }
+}

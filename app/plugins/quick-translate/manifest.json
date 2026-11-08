@@ -1,0 +1,48 @@
+{
+  "id": "quick-translate",
+  "version": "1.0.0",
+  "author": "Nyx",
+  "name": "Μετάφραση με AI",
+  "icon": "languages",
+  "category": "AI",
+  "permissions": [
+    "assistant"
+  ],
+  "description": "Μεταφράζει κείμενο (ή επιλεγμένες κάρτες) σε όποια γλώσσα θες με το δικό σου μοντέλο (LM Studio/cloud) και το βάζει σε νέα κάρτα.",
+  "actions": [
+    {
+      "id": "tr",
+      "label": "Μετάφραση",
+      "icon": "languages",
+      "args": [
+        {
+          "key": "text",
+          "label": "Κείμενο (κενό = επιλεγμένες κάρτες)",
+          "type": "textarea"
+        },
+        {
+          "key": "lang",
+          "label": "Σε",
+          "default": "Αγγλικά"
+        }
+      ]
+    }
+  ],
+  "name_en": "AI translation",
+  "description_en": "Translates text (or selected cards) into any language with your own model (LM Studio/cloud) and puts it in a new card.",
+  "i18n_en": {
+    "category": "AI",
+    "actions": {
+      "tr": {
+        "label": "Translate",
+        "args": {
+          "text": "Text (empty = selected cards)",
+          "lang": "To"
+        },
+        "defaults": {
+          "lang": "English"
+        }
+      }
+    }
+  }
+}

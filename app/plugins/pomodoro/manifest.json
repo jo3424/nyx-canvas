@@ -1,0 +1,27 @@
+{
+  "id": "pomodoro",
+  "version": "1.0.0",
+  "author": "Nyx",
+  "name": "Pomodoro",
+  "icon": "timer",
+  "category": "Παραγωγικότητα",
+  "permissions": [],
+  "rendererCard": "pomodoro",
+  "description": "Κάρτα Pomodoro (25/5) πάνω στον καμβά, με μέτρηση στο pill του widget και ειδοποίηση.",
+  "cards": [
+    {
+      "type": "pomodoro",
+      "name": "Pomodoro",
+      "w": 240,
+      "h": 220
+    }
+  ],
+  "name_en": "Pomodoro",
+  "description_en": "A Pomodoro card (25/5) on the canvas, with the countdown in the widget pill and a notification.",
+  "i18n_en": {
+    "category": "Productivity",
+    "cards": {
+      "pomodoro": "Pomodoro"
+    }
+  }
+}

@@ -1,0 +1,55 @@
+'use strict';
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
+// v2.2: IPC errors arrive as "Error invoking remote method 'ch': Error: msg" → keep only the human message.
+const cleanErr = (e) => { const m = String(e?.message || e || '').replace(/^Error invoking remote method '[^']*':\s*/, '').replace(/^(?:[A-Z][A-Za-z]*Error|Error):\s*/, ''); const n = new Error(m); n.code = e?.code; throw n; };
+const I = (ch, ...a) => ipcRenderer.invoke(ch, ...a).catch(cleanErr);
+const on = (ch) => (cb) => { const h = (_e, ...a) => cb(...a); ipcRenderer.on(ch, h); return () => ipcRenderer.removeListener(ch, h); };
+contextBridge.exposeInMainWorld('nyxAPI', {
+  load: () => I('state:load'),
+  save: (text) => I('state:save', text),
+  saveSync: (text) => ipcRenderer.sendSync('state:saveSync', text), onFlush: on('state:flush'),
+  getState: () => I('state:get'),
+  pathForFile: (f) => { try { return webUtils.getPathForFile(f); } catch (e) { return ''; } },
+  importPath: (p) => I('media:importPath', p),
+  importBuffer: (name, buf) => I('media:importBuffer', name, buf),
+  download: (url, hint) => I('media:download', url, hint),
+  thumb: (file) => I('media:thumb', file),
+  pickFiles: (kind) => I('media:pickFiles', kind),
+  pickFolderImages: () => I('media:pickFolderImages'),
+  exportBackup: (text) => I('backup:export', text),
+  importBackup: () => I('backup:import'),
+  fetch: (url, opts) => I('web:fetch', url, opts),
+  linkInfo: (url) => I('web:linkInfo', url),
+  checkTracker: (item) => I('tracker:check', item),
+  runTrackers: () => I('trackers:runAll'),
+  openExternal: (url) => I('open:external', url),
+  openMedia: (file) => I('open:media', file),
+  openDataFolder: () => I('open:dataFolder'),
+  notify: (t, b) => I('notify', t, b),
+  toggleWidget: (force) => I('widget:toggle', force),
+  widgetClickThrough: (on) => I('widget:clickThrough', on),
+  widgetOnTop: (on) => I('widget:setOnTop', on),
+  closeWidget: () => I('widget:close'),
+  quickNote: (text) => I('widget:quickNote', text),
+  agenda: (op) => I('widget:agenda', op),
+  showMain: (focusId) => I('main:show', focusId),
+  setTitlebar: (c) => I('main:titlebar', c),
+  toggleFullscreen: () => I('main:fullscreen'),
+  setLogin: (on) => I('login:set', on),
+  readClipboardImage: () => I('clipboard:readImage'),
+  ackSub: (key) => I('sub:ack', key),
+  onReminder: on('reminder-fire'), onSubFire: on('sub-fire'), onTracker: on('tracker-result'), onFocusItem: on('focus-item'),
+  onQuickNote: on('quick-note'), onAgendaOp: on('agenda-op'), onWidgetBounds: on('widget-bounds'), onWidgetState: on('widget-state'), onState: on('state'), onClickThrough: on('click-through'),
+  // ---- v2
+  inv: (ch, ...a) => { if (!/^(secret|ai|stt|tts|proc|sys|video|web|file|plugins|snap|sticky|capture|viewer|data|app|upd|perf|models|faces|sogni|sd|photo|att|mem):/.test(ch)) throw new Error('blocked channel'); return I(ch, ...a); },
+  startDrag: (files) => ipcRenderer.send('drag:start', files),
+  opResult: (r) => ipcRenderer.send('plugin:opResult', r),
+  dispatch: (ev, data) => ipcRenderer.send('plugin:dispatch', ev, data),
+  onPluginOp: on('plugin:op'), onPluginEvent: on('plugin:event'), onToast: on('toast'), onProcStatus: on('proc:status'),
+  onBrowserNewTab: on('browser:newTab'), onBrowserDrag: on('browser:drag'), onBrowserKey: on('browser:key'), onBrowserDownload: on('browser:download'), onAssistantOpen: on('assistant:open'),
+  onUpdProgress: on('upd:progress'), onFacesProgress: on('faces:progress'), onSogniProgress: on('sogni:progress'), onPhotoProgress: on('photo:progress'), onScanProgress: on('sys:scanProgress'), onScanDone: on('sys:scanDone'),
+  locale: (lang) => ipcRenderer.sendSync('i18n:get', lang),
+  setLang: (lang) => ipcRenderer.send('i18n:set', lang),
+  onStickyBounds: on('sticky:bounds'), onStickyClosed: on('sticky:closed'), onStickyUpdate: on('sticky:update'), onCapture: on('capture:submit'),
+  query: () => Object.fromEntries(new URLSearchParams(location.search))
+});

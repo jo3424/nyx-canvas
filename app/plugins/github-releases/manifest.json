@@ -1,0 +1,47 @@
+{
+  "id": "github-releases",
+  "version": "1.0.0",
+  "author": "Nyx",
+  "name": "GitHub releases",
+  "icon": "github",
+  "category": "Dev",
+  "permissions": [
+    "net",
+    "notify"
+  ],
+  "description": "Παρακολουθεί νέες εκδόσεις των εργαλείων σου (llama.cpp, whisper.cpp, LM Studio, ComfyUI κ.ά.) και σε ειδοποιεί.",
+  "config": [
+    {
+      "key": "repos",
+      "label": "Repos (owner/repo, ένα ανά γραμμή)",
+      "type": "textarea",
+      "default": "ggml-org/llama.cpp\nggml-org/whisper.cpp\nlmstudio-ai/lms\nheygen-com/hyperframes\nlightpanda-io/browser"
+    },
+    {
+      "key": "token",
+      "label": "GitHub token (προαιρετικό, για όριο κλήσεων)",
+      "type": "password"
+    }
+  ],
+  "cards": [
+    {
+      "type": "rel",
+      "name": "Releases",
+      "w": 360,
+      "h": 340,
+      "every": 120
+    }
+  ],
+  "name_en": "GitHub releases",
+  "description_en": "Watches for new releases of your tools (llama.cpp, whisper.cpp, LM Studio, ComfyUI and more) and notifies you.",
+  "i18n_en": {
+    "category": "Dev",
+    "config": {
+      "repos": "Repos (owner/repo, one per line)",
+      "token": "GitHub token (optional, for the rate limit)"
+    },
+    "cards": {
+      "rel": "Releases"
+    }
+  }
+}

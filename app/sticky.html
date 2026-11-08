@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="el"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' file:; font-src 'self' file: data:; object-src 'none'; base-uri 'none'; form-action 'none'; manifest-src 'none'; img-src 'self' file: data:; connect-src 'none'; frame-src 'none'">
+<title>Nyx sticky</title><link rel="stylesheet" href="fonts.css">
+<style>
+html,body{margin:0;height:100%;background:transparent;overflow:hidden}
+.s{position:absolute;inset:6px;border-radius:6px 6px 14px 6px;background:var(--p,#ffe66d);color:#1d1d1f;box-shadow:0 10px 30px rgba(0,0,0,.45);display:flex;flex-direction:column}
+.bar{height:22px;-webkit-app-region:drag;display:flex;justify-content:flex-end;align-items:center;gap:2px;padding:0 4px;opacity:.35;transition:.15s}
+.s:hover .bar{opacity:.9}
+.bar button{-webkit-app-region:no-drag;border:0;background:rgba(0,0,0,.08);border-radius:5px;width:20px;height:18px;cursor:pointer;font-size:12px;line-height:1;color:#222}
+.t{flex:1;overflow:auto;padding:4px 14px 12px;outline:none;font:18px/1.35 'Playpen Sans',system-ui;word-wrap:break-word}
+.t::-webkit-scrollbar{width:6px}.t::-webkit-scrollbar-thumb{background:rgba(0,0,0,.2);border-radius:3px}
+</style></head>
+<body><div class="s" id="s"><div class="bar"><button id="b-open" data-l-title="html.st_open">↗</button><button id="b-x" data-l-title="html.st_close">✕</button></div><div class="t" id="t" contenteditable="true" spellcheck="false"></div></div>
+<script src="js/i18n.js"></script>
+<script src="sticky.js"></script></body></html>
