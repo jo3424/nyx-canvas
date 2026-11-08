@@ -44,11 +44,25 @@ const Hub = {
   open() {
     Panels.openDrawer('ai', t('hub.004', { v0: iconSvg('brain', 20) }), (body) => this.build(body));
   },
+  // v2.6.3: one recommendation card: what it is for, exact files + sizes, link to the model page (opens in your browser), «Τι σημαίνει;». No downloads.
+  recFiles(files) {
+    const gb = (n) => (LANG === 'el' ? n.toFixed(2).replace('.', ',') : n.toFixed(2)) + ' GB';
+    return h('ul', { class: 'rec-files' }, ...(files || []).map(([f, size, tag]) => h('li', {}, h('code', {}, f), ' · ' + gb(size), tag ? h('span', { class: 'chip' }, t('core.r_tag_' + tag)) : null,
+      h('button', { class: 'icon-btn', title: t('core.r_copy'), html: iconSvg('copy', 13), onclick: () => { navigator.clipboard.writeText(f.split('/').pop()).then(() => toast('📋 ' + f.split('/').pop()), () => {}); } }))));
+  },
+  recCard(r) {
+    const link = (url) => h('button', { class: 'btn sm ghost', onclick: () => API.openExternal(url) }, iconSvg('external-link', 14), t('core.r_open'));
+    return h('div', { class: 'rec' + (r.star ? ' star' : ''), 'data-rec': r.id || '' }, h('b', {}, r.name), h('span', { class: 'chip' }, r.role), h('p', { class: 'muted small' }, r.note),
+      r.files ? this.recFiles(r.files) : null,
+      r.url ? h('div', { class: 'row gap wrap' }, link(r.url)) : null,
+      r.alt ? h('div', { class: 'rec-alt' }, h('small', {}, t('core.r_alt') + ': ', h('b', {}, r.alt.name)), h('p', { class: 'muted small' }, r.alt.note), this.recFiles(r.alt.files), h('div', { class: 'row gap wrap' }, link(r.alt.url))) : null,
+      r.why ? h('details', { class: 'rec-why' }, h('summary', {}, t('core.r_why')), h('p', { class: 'small' }, r.why)) : null);
+  },
   build(body) {
     const A = Store.state.settings.ai;
     // recommendations
-    body.append(this.sec(t('hub.005'), h('div', { class: 'recs' }, ...MODEL_RECS.map(r => h('div', { class: 'rec' + (r.star ? ' star' : '') }, h('b', {}, r.name), h('span', { class: 'chip' }, r.role), h('p', { class: 'muted small' }, r.note)))),
-      h('p', { class: 'muted small' }, t('hub.006'))));
+    body.append(this.sec(t('hub.005'), h('div', { class: 'recs' }, ...MODEL_RECS.map(r => this.recCard(r))),
+      h('p', { class: 'muted small' }, MODEL_FIT_NOTE), h('p', { class: 'muted small' }, t('hub.006'))));
     // providers
     const plist = h('div', { class: 'prov-list' });
     for (const p of A.providers) plist.append(this.provRow(p));

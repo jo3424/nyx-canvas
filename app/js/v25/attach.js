@@ -1,6 +1,6 @@
 'use strict';
 // v2.5 — assistant attachments: drop / paperclip any file, local-first understanding.
-// Images → vision (local Gemma 4 via the Router, else Groq vision) + Windows OCR; audio/video → whisper + ffmpeg keyframes;
+// Images → vision (local Qwen3.8-27B + mmproj via the Router «vision» slot, else Groq vision) + Windows OCR; audio/video → whisper + ffmpeg keyframes;
 // PDF → pdf.js; DOCX/XLSX/PPTX/ODT/CSV/TXT/MD/code → text (main/attach.js); ZIP → safe extract + recursion.
 // Big texts are chunked and summarised (map-reduce). Unreadable files are reported clearly.
 const Att = {
@@ -72,7 +72,7 @@ const Att = {
     try { const d = await this.vision(e.media, t('v25.at_vprompt')); if (d) { parts.unshift(t('v25.at_desc') + ': ' + d); ok = true; e.via = this._via; } } catch (er) { e.note = t('v25.at_novision'); }
     e.text = parts.join('\n\n'); if (!ok && !e.note) e.note = t('v25.at_novision');
   },
-  // local vision first (task "vision" → Router/Gemma 4), then Groq vision (free plan) as fallback
+  // local vision first (task "vision" → Router vision slot), then Groq vision (free plan) as fallback
   async vision(file, prompt) {
     try { const r = await AI.vision(file, prompt); this._via = AI.last.vision || 'local'; return stripThink(r).trim(); }
     catch (e1) {

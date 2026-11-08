@@ -1,246 +1,268 @@
 {
- "2.6.3": {
-  "el": [
-   "Ενημέρωση ασφαλείας της 2.6.2 — ίδια θωράκιση με την 2.5.1, όλες οι λειτουργίες της 2.6 (σύρσιμο μέσα/έξω, Firefox/Brave, πρόσθετα, τοποθεσία δεδομένων) παραμένουν",
-   "Ενημέρωση ασφαλείας: Electron 45.2.1 (Chromium 156, Node 24) και pdf.js 6· npm audit χωρίς ευπάθειες",
-   "Όλα τα παράθυρα τρέχουν απομονωμένα (contextIsolation, sandbox, χωρίς Node στη σελίδα, webSecurity ενεργό) με αυστηρό Content-Security-Policy· εικόνες από το web περνούν από ασφαλή μεσολαβητή",
-   "Νέα παράθυρα (window.open) απαγορεύονται και η πλοήγηση του κύριου παραθύρου μπλοκάρεται· σύνδεσμοι http/https/mailto ανοίγουν στον εξωτερικό browser",
-   "Κεντρικός έλεγχος IPC: κάθε κλήση ελέγχεται για αποστολέα και ορίσματα",
-   "Electron fuses: RunAsNode, NODE_OPTIONS και --inspect κλειστά· έλεγχος ακεραιότητας του app.asar και των αρχείων app.asar.unpacked· η εφαρμογή φορτώνει μόνο από το app.asar",
-   "Οι ενημερώσεις κώδικα ελέγχονται με υπογραφή και σε κάθε εκκίνηση· η εφαρμογή αρνείται να ξεκινήσει με απενεργοποιημένο sandbox",
-   "Ρυθμίσεις → Ενημερώσεις: εμφανίζονται οι εκδόσεις Electron / Chromium / Node",
-   "Τα νέα κανάλια της 2.6 (σύρσιμο έξω, εικόνες από browser, εγκατάσταση πρόσθετου από φάκελο) ελέγχονται κι αυτά για αποστολέα και ορίσματα· τα scripts δοκιμών τρέχουν πάντα με sandbox"
-  ],
-  "en": [
-   "Security update of 2.6.2 — the same hardening as 2.5.1; every 2.6 feature (drag in/out, Firefox/Brave, plugins, data location) is kept",
-   "Security update: Electron 45.2.1 (Chromium 156, Node 24) and pdf.js 6; npm audit reports no vulnerabilities",
-   "Every window is isolated (contextIsolation, sandbox, no Node in pages, webSecurity on) with a strict Content-Security-Policy; web images go through a safe proxy",
-   "window.open is denied and navigation of the app window is blocked; http/https/mailto links open in the external browser",
-   "Central IPC guard: every call is checked for sender and arguments",
-   "Electron fuses: RunAsNode, NODE_OPTIONS and --inspect disabled; app.asar and app.asar.unpacked integrity checked; the app loads only from app.asar",
-   "Code updates are signature-checked at every start; the app refuses to start with the sandbox switched off",
-   "Settings → Updates shows the Electron / Chromium / Node versions",
-   "The new 2.6 channels (drag out, browser images, plugin install from a folder) are checked for sender and arguments too; test scripts always run with the sandbox on"
-  ]
- },
- "2.6.2": {
-  "el": [
-   "Σύρσιμο από Firefox και Brave στον καμβά: περνούν πλέον σύνδεσμοι, εικόνες και επιλεγμένο κείμενο, όπως από τον Chrome",
-   "Εικόνες: αναγνωρίζονται από το ίδιο το περιεχόμενο του αρχείου και όχι από το όνομα ή την κατάληξη (ο Firefox δίνει προσωρινό αντίγραφο που σβήνεται αμέσως μετά το άφημα, ο Brave συχνά αρχείο χωρίς κατάληξη). Η εικόνα διαβάζεται τη στιγμή που την αφήνεις, κι αν το αρχείο έχει ήδη σβηστεί, κατεβαίνει από τη διεύθυνσή της",
-   "Το Nyx δοκιμάζει με τη σειρά όλους τους τρόπους που στέλνει ο browser (αρχείο → εικόνα από τη σελίδα → σύνδεσμος → κείμενο) μέχρι να πετύχει κάποιος· αν η εικόνα δεν κατέβει, μπαίνει τουλάχιστον ο σύνδεσμος και βλέπεις μήνυμα",
-   "Συντομεύσεις .url (και χωρίς κατάληξη) γίνονται κάρτα συνδέσμου, όχι αρχείο",
-   "Σύρσιμο έξω: οι κάρτες συνδέσμων φεύγουν πλέον ως κανονικός σύνδεσμος, άρα ο Firefox/Brave/Chrome τον ανοίγουν· οι εικόνες, τα αρχεία και τα κείμενα φεύγουν όπως πριν",
-   "Αν κάτι δεν περνάει: Ctrl+Alt+Shift+D αντιγράφει τι περιείχαν τα τελευταία αφήματα (τύποι δεδομένων, χωρίς περιεχόμενο αρχείων), για να μας το στείλεις"
-  ],
-  "en": [
-   "Drag from Firefox and Brave onto the canvas: links, images and selected text now work, as they do from Chrome",
-   "Images are recognised by their content (magic bytes), not by name or extension (Firefox hands over a temporary copy that is deleted right after the drop, Brave often a file without an extension). The image is read at the moment of the drop, and if the file is already gone it is downloaded from its address",
-   "Nyx now tries every representation the browser sends, in order (file → image from the page → link → text), until one works; if the image cannot be downloaded, at least the link is added and a message is shown",
-   ".url shortcuts (also without an extension) become link cards, not file cards",
-   "Drag out: link cards now leave as a real link, so Firefox/Brave/Chrome open it; images, files and text leave as before",
-   "If something does not come through: Ctrl+Alt+Shift+D copies what the last drops contained (data types, no file contents) so you can send it to us"
-  ]
- },
- "2.6.1": {
-  "el": [
-   "Σύρσιμο από το web στον καμβά: από Chrome/Edge (και Firefox) περνούν πλέον σύνδεσμοι, εικόνες (και χωρίς κατάληξη στο όνομα, και με srcset — παίρνει τη μεγαλύτερη), εικόνες data:, εικόνες μέσα σε σύνδεσμο και επιλεγμένο κείμενο. Η κάρτα μπαίνει εκεί που άφησες το ποντίκι",
-   "Οι εικόνες από το web κατεβαίνουν με ασφάλεια: μόνο δημόσιες διευθύνσεις (όχι τοπικό δίκτυο/router), έως 30 MB, και ελέγχεται ότι είναι πραγματικά εικόνα. Αν δεν κατέβει, μπαίνει ως σύνδεσμος και βλέπεις μήνυμα",
-   "Σύρσιμο από τον browser του Nyx: όταν αρχίζεις να σέρνεις κάτι από μια σελίδα, εμφανίζεται αριστερά η λωρίδα «Άφησέ το εδώ → μπαίνει στον καμβά» (ο browser σκέπαζε όλο τον καμβά, γι' αυτό δεν δούλευε)",
-   "Σύρσιμο έξω (Explorer, επιφάνεια εργασίας, άλλες εφαρμογές): το στρογγυλό χερούλι υπάρχει πλέον σε εικόνες, βίντεο, ήχους, αρχεία, σημειώσεις/κείμενα (γίνονται αρχείο .txt) και συνδέσμους (γίνονται συντόμευση .url), με το κανονικό όνομα του αρχείου. Με Shift σέρνεται ως σκέτο κείμενο",
-   "Διόρθωση: σε επιλεγμένη κάρτα το χερούλι «σύρε έξω» κρυβόταν κάτω από τη λαβή αλλαγής μεγέθους, άρα δεν έπιανε· μετακινήθηκε",
-   "Νέο (Windows): τράβα μια κάρτα πέρα από την άκρη του παραθύρου και γίνεται σύρσιμο έξω (η κάρτα μένει στη θέση της στον καμβά)",
-   "Ασφάλεια: ένα αρχείο που πέφτει κατά λάθος έξω από τον καμβά δεν μπορεί πια να «αντικαταστήσει» την εφαρμογή ή μια σελίδα του browser"
-  ],
-  "en": [
-   "Drag from the web onto the canvas: links, images (also without a file extension, srcset picks the largest), data: images, linked images and selected text now work from Chrome/Edge (and Firefox). The card lands where you release the mouse",
-   "Web images are downloaded safely: public addresses only (no local network/router), up to 30 MB, and checked to really be an image. If the download fails it is added as a link and you get a message",
-   "Drag from the Nyx browser: when you start dragging something from a page, a 'Drop it here → it goes onto the canvas' strip appears on the left (the browser covered the whole canvas, which is why it did not work)",
-   "Drag out (Explorer, desktop, other apps): the round handle now exists on images, videos, audio, files, notes/text (become a .txt file) and links (become a .url shortcut), with the real file name. Hold Shift to drag as plain text",
-   "Fix: on a selected card the drag-out handle was hidden under the resize handle, so it could not be grabbed; it was moved",
-   "New (Windows): pull a card past the edge of the window to drag it out (the card stays where it was on the canvas)",
-   "Security: a file accidentally dropped outside the canvas can no longer replace the app or a browser page"
-  ]
- },
- "2.6.0": {
-  "el": [
-   "Ασφάλεια ενημερώσεων: νέο κλειδί υπογραφής· το Nyx δέχεται πλέον ενημερώσεις υπογεγραμμένες με το παλιό ή το νέο κλειδί",
-   "Plugins από φάκελο: εγκαθίστανται μόνο αφού δεις και εγκρίνεις τα δικαιώματα· έλεγχος ονόματος (id) ώστε ένα plugin να μη γράφει έξω από τον φάκελό του ή να παριστάνει ενσωματωμένο",
-   "MCP server: δέχεται μόνο τοπικές συνδέσεις χωρίς Origin (καμία ιστοσελίδα), σωστό Host, σύγκριση token σταθερού χρόνου· το token εμφανίζεται μόνο σε σένα, ποτέ στο AI",
-   "Αποθήκευση: οι γρήγορες διαδοχικές αλλαγές δεν χάνονται πια· ασφαλής (ατομική) εγγραφή του nyx.json, της μνήμης, των κωδικών (secrets) και της λίστας plugins, με ανάκτηση από αντίγραφο αν το αρχείο χαλάσει",
-   "Θέματα «Minimal Light» και «Retro OS»: διορθώθηκε το σφάλμα που χαλούσε το φόντο",
-   "Μεταφορά φακέλου δεδομένων: μεταφέρονται όλα (μνήμη, πρόσωπα, plugins, μοντέλα, στιγμιότυπα), δεν γράφει πάνω σε υπάρχοντα, δεν επιτρέπει φάκελο μέσα στον τρέχοντα",
-   "Web agent: δεν ανοίγει πια τοπικές/ιδιωτικές διευθύνσεις (localhost, δίκτυο σπιτιού) ούτε μετά από ανακατεύθυνση· οι φωτογραφίες HEIC δεν αναγνωρίζονται ως βίντεο",
-   "Router: δεν φορτώνει δύο μοντέλα ταυτόχρονα όταν στέλνεις γρήγορα πολλά μηνύματα",
-   "Κάρτα στην επιφάνεια εργασίας (Ctrl+K): δουλεύει με την επιλεγμένη κάρτα αντί να βγάζει σφάλμα",
-   "Μνήμη βοηθού: αποθηκεύεται και στο κλείσιμο· αν το αρχείο χαλάσει, κρατιέται αντίγραφο και γίνεται επαναφορά",
-   "Τοπικοί servers: τα αρχεία .bat/.cmd ξεκινούν ξανά και σταματούν μαζί με όλες τις υπο-διεργασίες τους",
-   "Εκκίνηση με τα Windows: το παράθυρο δεν αναβοσβήνει πια· λήψεις και drag κειμένου δεν γράφουν πάνω σε άλλα αρχεία· backup με υποφακέλους media· trackers χωρίς διπλές ειδοποιήσεις· η μαζική βελτίωση φωτογραφιών δεν κολλάει αν πέσει ο worker",
-   "Λιγότερος θόρυβος στο log: το LM Studio κλειστό δεν γράφει πια stack trace"
-  ],
-  "en": [
-   "Update security: new signing key; Nyx now accepts updates signed with either the old or the new key",
-   "Folder plugins: installed only after you review and approve their permissions; plugin ids are validated so a plugin can't write outside its folder or pose as a built-in one",
-   "MCP server: accepts only local connections without an Origin (no web pages), a correct Host and constant-time token checks; the token is shown only to you, never to the AI",
-   "Saving: rapid successive edits are no longer lost; atomic writes for nyx.json, memory, secrets and the plugin list, with recovery from a backup if a file is corrupted",
-   "Themes “Minimal Light” and “Retro OS”: fixed the error that broke the background",
-   "Moving the data folder: everything moves (memory, faces, plugins, models, snapshots), nothing is overwritten, a folder inside the current one is refused",
-   "Web agent: no longer opens local/private addresses (localhost, home network), not even after a redirect; HEIC photos are no longer detected as video",
-   "Router: no longer loads two models at once when you send several messages quickly",
-   "Card on the desktop (Ctrl+K): uses the selected card instead of failing",
-   "Assistant memory: also saved on exit; a corrupted file is kept aside and restored from a backup",
-   "Local servers: .bat/.cmd launchers start again and stop together with all their child processes",
-   "Start with Windows: the window no longer flashes; downloads and text drags don't overwrite other files; backups include media sub-folders; trackers without duplicate notifications; batch photo enhance no longer hangs if the worker dies",
-   "Less log noise: LM Studio being off no longer prints a stack trace"
-  ]
- },
- "2.5.0": {
-  "el": [
-   "Γρηγορότερη εκκίνηση: τα νέα πάνελ (Απόδοση, Μοντέλα, Πρόσωπα, Θέματα v2, Φωτογράφος, AI Hub v2.5) φορτώνουν μόνο όταν τα ανοίξεις· χρόνοι στο AI Hub → «Χρόνος εκκίνησης»",
-   "Απόδοση (Ctrl+Shift+M): RAM, VRAM, φόρτος GPU και θερμοκρασία (Windows· η θερμοκρασία GPU θέλει LibreHardwareMonitor), μνήμη ανά διεργασία του Nyx και των servers",
-   "Router v2: ρόλοι γρήγορο / όραση / χωρίς λογοκρισία (Qwen3.6, Qwen3.8, Gemma 4 στο llama-server) με αυτόματη εφεδρεία στο Groq — ανενεργό μέχρι να το ρυθμίσεις",
-   "«Ιδιωτικό» (μάσκα στον βοηθό): συνομιλία μόνο στη μνήμη, δεν αποθηκεύεται πουθενά, σβήνει όταν βγεις· τοπικό μοντέλο ή Venice (με επιβεβαίωση κόστους)",
-   "sd-server (stable-diffusion.cpp, Vulkan): Εκκίνηση / Διακοπή από το AI Hub, φάκελοι μοντέλων και LoRA, δικό του web UI, μόνο τοπικά (127.0.0.1)",
-   "Πρόσωπα v1 (Ctrl+Shift+U): τοπική αναγνώριση προσώπων (YuNet / SFace), ονομάζεις άτομα και τα βρίσκεις με Ctrl+K — πρώτα συναίνεση, τα μοντέλα κατεβαίνουν μόνο με κλικ, τίποτα δεν φεύγει από τον υπολογιστή",
-   "Πίνακας μοντέλων: όλα τα GGUF στον δίσκο με quant, «χωράει στα 24 GB;», μέγιστο context, διπλότυπα (χαμένα GB), φόρτωση με ένα κλικ",
-   "Θέματα v2: επεξεργαστής χρωμάτων (αποθήκευση ως δικό σου θέμα, εισαγωγή/εξαγωγή JSON) και πρόγραμμα ημέρας/νύχτας με ανατολή-δύση ή σταθερές ώρες",
-   "Φωτογράφος: LoRA με ρυθμιστικά έντασης, έργα/φωτογραφίσεις με φόρμα συναίνεσης, σύγκριση πριν/μετά, μαζική βελτίωση (μεγέθυνση, ευκρίνεια, χρώμα) — έμφαση στο φωτορεαλισμό",
-   "Βοηθός σαν agent: τοπική μνήμη, δεξιότητες, αναίρεση ενεργειών, συνημμένα αρχεία (εικόνες, PDF, κείμενο, ήχος) και ασφαλές web agent (δεν συμπληρώνει ποτέ κωδικούς, κάρτες ή OTP)",
-   "Sogni (προαιρετικό): εικόνα→βίντεο και επεξεργασίες με συναίνεση· σεξουαλικές επεξεργασίες πραγματικών προσώπων απορρίπτονται πάντα",
-   "Πίνακας υπηρεσιών στο AI Hub με σύσταση για καθεμία (Sogni, Venice, xAI, Groq, Claude/ChatGPT, R2, Workers AI, GitHub, VPS, hex, ComfyUI)",
-   "Διορθώσεις: σωστή ένδειξη «σταμάτησε» όταν ένας server τερματίζεται με σήμα, το πρόγραμμα θεμάτων δεν δείχνει πια σε ανύπαρκτο θέμα"
-  ],
-  "en": [
-   "Faster startup: the new panels (Performance, Models, Faces, Themes v2, Photographer, AI Hub v2.5) load only when opened; times in AI Hub → «Startup timing»",
-   "Performance (Ctrl+Shift+M): RAM, VRAM, GPU load and temperature (Windows; GPU temperature needs LibreHardwareMonitor), memory per Nyx process and server",
-   "Router v2: fast / vision / uncensored roles (Qwen3.6, Qwen3.8, Gemma 4 on llama-server) with automatic Groq fallback — off until configured",
-   "«Private» (mask in the assistant): memory-only chat, never saved, wiped when you leave; local model or Venice (with a cost confirmation)",
-   "sd-server (stable-diffusion.cpp, Vulkan): Start / Stop from the AI Hub, model and LoRA folders, its own web UI, localhost only",
-   "Faces v1 (Ctrl+Shift+U): local face recognition (YuNet / SFace), name people and find them with Ctrl+K — consent first, models download only on click, nothing leaves the PC",
-   "Models table: every GGUF on disk with quant, «fits in 24 GB?», max context, duplicates (wasted GB), one-click load",
-   "Themes v2: colour editor (save as your own theme, JSON import/export) and a day/night schedule by sunrise/sunset or fixed times",
-   "Photographer: LoRAs with strength sliders, projects/shoots with a consent form, before/after compare, batch enhance (upscale, sharpen, colour) — photorealism first",
-   "Agent-like assistant: local memory, skills, undo, attachments (images, PDF, text, audio) and a safe web agent (never fills passwords, cards or OTP)",
-   "Sogni (optional): image→video and consented edits; sexual edits of real people are always refused",
-   "Services table in the AI Hub with a verdict for each (Sogni, Venice, xAI, Groq, Claude/ChatGPT, R2, Workers AI, GitHub, VPS, hex, ComfyUI)",
-   "Fixes: a server killed by a signal now shows as stopped; the theme schedule no longer points at a missing theme"
-  ]
- },
- "2.4.0": {
-  "el": [
-   "Υπογραμμιστής, στυλό, μαρκαδόρος: σημειώνουν ΠΑΝΩ σε χαρτάκια, κάρτες, εικόνες και σχήματα (όχι μόνο στον άδειο καμβά) — η γραμμή κολλάει στο χαρτί και ακολουθεί μετακίνηση και αλλαγή μεγέθους",
-   "Ο υπογραμμιστής πάνω σε χαρτί «βάφει» σαν αληθινός μαρκαδόρος (διαφάνεια με ανάμειξη)· στον άδειο καμβά μένει κάτω από τα αντικείμενα",
-   "Σχήματα και βέλη που ζωγραφίζεις πάνω σε σημείωμα κολλάνε σε αυτό· η γόμα σβήνει γραμμές πάνω σε χαρτάκια χωρίς να πειράζει το χαρτάκι",
-   "Βοηθός: δεν σκεπάζει ΠΟΤΕ τις Ρυθμίσεις ή άλλο πλαϊνό πάνελ — μπαίνει δίπλα· σε στενό παράθυρο το πάνελ στενεύει ή μπαίνουν το ένα πάνω από το άλλο",
-   "Βοηθός: μετακινείται (σύρε την μπάρα τίτλου) και αλλάζει μέγεθος (γωνία πάνω αριστερά)· μένει πάντα μέσα στο παράθυρο· διπλό κλικ στον τίτλο = επαναφορά",
-   "Φωνή: δεν «συλλαβίζει» πια τα ελληνικά — διαλέγει αυτόματα ελληνική φωνή (Chromium, Windows SAPI5 ή OneCore π.χ. «Stefanos») με βάση τη γλώσσα του κειμένου",
-   "Φωνή: επιλογή φωνής με τη γλώσσα της δίπλα (ελληνικές πρώτες), ρυθμιστικά ταχύτητας και τόνου",
-   "Φωνή: αν δεν υπάρχει ελληνική φωνή στα Windows, εμφανίζεται οδηγία (Ρυθμίσεις Windows → Ώρα και γλώσσα → Γλώσσα → Ελληνικά → ομιλία) με κουμπί που ανοίγει τη σωστή σελίδα",
-   "Φωνή: δεν διαβάζει σύμβολα markdown, συνδέσμους, κώδικα και emoji",
-   "vs-engine (GPU-Voice-Studio): νέα λειτουργία server — το Nyx το ξεκινά κρυφά με δικό του τυχαίο token (VS_ENGINE_TOKEN, φυλαγμένο κρυπτογραφημένα), βρίσκει τη θύρα, δοκιμάζει endpoints και δείχνει τις ακατέργαστες απαντήσεις στη «Δοκιμή»· πεδία --device, --port, --no-fa, --clamp-fp16, φωνή αναφοράς (wav) και χειροκίνητο endpoint",
-   "Groq: νέος πάροχος AI (δωρεάν κλειδί) — λίστα μοντέλων, προεπιλογή llama-3.3-70b-versatile, εργαλεία (tool calling)",
-   "Groq Whisper: γρήγορη αναγνώριση ομιλίας στα ελληνικά (whisper-large-v3-turbo ή whisper-large-v3)",
-   "Όρια δωρεάν πλάνων (429): σύντομη αναμονή γίνεται αυτόματα· αλλιώς καθαρό μήνυμα στα ελληνικά με το πόση ώρα να περιμένεις",
-   "Επιπλέον διορθώσεις από έλεγχο: η γόμα δεν αφήνει «ορφανά» κολλημένα αντικείμενα όταν σβήνει σχήμα, ο υπογραμμιστής δεν έχει πια σκούρο κουτί γύρω του, το πλαϊνό πάνελ επανέρχεται στο κανονικό πλάτος όταν κλείσει ο βοηθός, προστασία από κυκλικές «κολλήσεις» αντικειμένων"
-  ],
-  "en": [
-   "Highlighter, pen, marker draw ON notes, cards, images and shapes (not only the bare canvas) — strokes attach and follow move/resize",
-   "Highlighter on paper blends like a real marker; on the bare canvas it stays under items",
-   "Shapes and arrows drawn on a note attach to it; the eraser erases strokes on notes without touching the note",
-   "Assistant never covers Settings or any side panel — docks beside it; on narrow windows the panel shrinks or they stack",
-   "Assistant can be moved (drag title) and resized (top-left corner), always clamped to the window; double-click title resets",
-   "Speech: Greek is no longer spelled out — an el-GR voice is picked automatically (Chromium, Windows SAPI5 or OneCore e.g. Stefanos) by the text's language",
-   "Speech: voice picker showing each voice's language (Greek first), rate and pitch sliders",
-   "Speech: if no Greek voice is installed, a hint with a button to the right Windows settings page",
-   "Speech: markdown symbols, links, code and emoji are not read aloud",
-   "vs-engine (GPU-Voice-Studio): server mode — started hidden with a random token (VS_ENGINE_TOKEN, stored encrypted), port detected, endpoints probed and raw answers shown in Test; --device, --port, --no-fa, --clamp-fp16, reference voice wav and manual endpoint",
-   "Groq: new AI provider (free key) — model list, default llama-3.3-70b-versatile, tool calling",
-   "Groq Whisper speech-to-text in Greek (whisper-large-v3-turbo or whisper-large-v3)",
-   "Free-tier limits (429): short waits are retried automatically, otherwise a clear message with how long to wait",
-   "Extra fixes found in review: erasing a shape detaches its attachments, no dark box around highlighter strokes, side panel width restored when the assistant closes, guard against attachment cycles"
-  ]
- },
- "2.3.0": {
-  "el": [
-   "Μηνύματα (toasts): φεύγουν μόνα τους (σφάλματα λίγο αργότερα) και έχουν ✕ για κλείσιμο",
-   "Βοηθός: δεν λέει πια «Δεν έχει οριστεί μοντέλο» — παίρνει αυτόματα τον πρώτο ενεργό server (π.χ. llama-server) και δεν δείχνει τον απενεργοποιημένο LM Studio· απλές εντολές δουλεύουν και χωρίς μοντέλο",
-   "Βοηθός: ανοίγει δίπλα στα συρτάρια (AI μοντέλα, ρυθμίσεις…) αντί να τα σκεπάζει",
-   "Φωνή: η «Δοκιμή φωνής» των Windows (SAPI) μιλάει πραγματικά",
-   "Εργαλεία: η Python εμφανίζεται μία φορά (όχι δύο διαδρομές)",
-   "Widget → μικρό ταμπλό: καρφιτσωμένα, επόμενες υπενθυμίσεις/αντίστροφες μετρήσεις, συνδρομές, γρήγορη σημείωση και φωνητικό μήνυμα, ημερολόγιο με κλικ σε οποιαδήποτε μέρα",
-   "Νέα Ατζέντα: οι σημειώσεις του widget μπαίνουν στην ατζέντα της μέρας (Υπενθυμίσεις) — όχι χαρτάκια στον καμβά· «→ καμβάς» μόνο όταν το θέλεις",
-   "Ημερομηνίες παντού σε μορφή ΗΗ/ΜΜ (π.χ. 30/11)",
-   "Εργαλείο Κείμενο: κλικ σε σημείωμα γράφει μέσα του (εκεί που πάτησες)· κλικ σε εικόνα/κάρτα φτιάχνει κείμενο κολλημένο πάνω της",
-   "Η γραμματοσειρά/μέγεθος αλλάζει ζωντανά ενώ γράφεις",
-   "Κείμενο, λουκέτο και σήματα ακολουθούν το χαρτί/την κάρτα όταν τη μετακινείς",
-   "Χαρτιά: 10 είδη (ριγέ, τετράδιο, κουκκίδες, kraft, μιλιμετρέ…) και 16 χρώματα",
-   "Βίντεο: οπτικός κόφτης κομματιού στην μπάρα — λαβές αρχής/τέλους, μικρογραφίες, πλήκτρα I/O, καρέ-καρέ (←/→), ζωντανή διάρκεια, εξαγωγή MP4 / νέα κάρτα / highlight",
-   "Καρτέλες πινάκων: διορθώθηκε το bug στο νέο tab και το ✕ κλεισίματος",
-   "Θέματα: τα διαστημικά κρατούν τα αστέρια τους· μεγαλύτερη οθόνη καλωσορίσματος· 8 νέα κινούμενα θέματα χωρίς αστέρια (Wooden Desk, Glass Light, Ocean Deep, Firefly Forest, Minimal Light, Retro OS, Sakura, Cyberpunk Rain)",
-   "Browser: κουμπί + για νέα καρτέλα, Ctrl+T / Ctrl+W, κλείσιμο, ελαχιστοποίηση (μένει «χάπι» για επαναφορά) και μεγιστοποίηση· φαίνεται μόνο η επιλεγμένη καρτέλα",
-   "Υπενθυμίσεις: ✕ για διαγραφή με «Αναίρεση» και σωστοί τίτλοι",
-   "Επιπλέον διορθώσεις που βρέθηκαν σε έλεγχο: νέο κείμενο σε κάρτα δεν σβήνεται πια αμέσως, η ατζέντα ανανεώνεται ενώ γράφεις, ο βοηθός που κλείνει δεν «τρώει» κλικ, κλικ στο επιλεγμένο κομμάτι του κόφτη μετακινεί τη θέση"
-  ],
-  "en": [
-   "Toasts auto-dismiss (errors stay a bit longer) and have a ✕",
-   "Assistant: no more “No model set” — uses the first enabled server automatically (e.g. llama-server), hides disabled LM Studio; simple commands work offline",
-   "Assistant docks beside open drawers instead of covering them",
-   "Voice: Windows SAPI voice test actually speaks",
-   "Tools: Python listed once",
-   "Widget is now a mini dashboard: pinned items, upcoming reminders/countdowns, subscriptions, quick note + voice memo, clickable calendar days",
-   "New Agenda: widget notes go to the day's agenda (Reminders drawer), not papers on the canvas; “→ canvas” on demand",
-   "Dates shown as DD/MM everywhere",
-   "Text tool writes inside notes at the caret; on images/cards it creates attached text",
-   "Font/size changes apply live while typing",
-   "Attached text, lock icon and badges follow the paper/card",
-   "Papers: 10 kinds and 16 colours",
-   "Video: visual trimmer on the bar — handles, thumbnails, I/O keys, frame step, live duration; export MP4 / new card / highlight",
-   "Board tabs: new-tab bug and close ✕ fixed",
-   "Themes: space themes keep their stars; bigger welcome board; 8 new animated non-space themes",
-   "Browser: + tab, Ctrl+T/Ctrl+W, close, minimize (restore pill), maximize; only the selected tab is visible",
-   "Reminders: ✕ delete with Undo, proper titles",
-   "Self-found fixes: new text on a card no longer vanishes, agenda refreshes while typing, closing assistant no longer swallows clicks, clicking the trimmer selection seeks"
-  ]
- },
- "2.2.0": {
-  "el": [
-   "AI Hub: ακριβή μηνύματα σύνδεσης (αρνήθηκε / timeout / λάθος διαδρομή /v1 / λάθος API key) αντί για το γενικό «Δεν απαντά ο server»",
-   "localhost ↔ 127.0.0.1 ↔ ::1 και διεύθυνση χωρίς /v1: δοκιμάζονται αυτόματα και διορθώνεται η διεύθυνση που δουλεύει",
-   "LM Studio: οδηγία «Developer → Start Server» και κουμπί εκκίνησης server μέσω lms· llama.cpp: κουμπί εκκίνησης llama-server από το Hub",
-   "whisper-server / llama-server: αυτόματη εύρεση μοντέλων (.bin/.gguf) με λίστα επιλογής, κουμπί 📁 σε κάθε διαδρομή, έλεγχος πριν την εκκίνηση (αρχείο, θύρα)",
-   "Καθαρά μηνύματα σφάλματος χωρίς «Error invoking remote method…» σε όλη την εφαρμογή",
-   "Φωνή (TTS): έτοιμα πρότυπα για VS engine / omnivoice.cpp / Piper, κουμπί Δοκιμή που δείχνει το πραγματικό σφάλμα της μηχανής και κουμπί --help",
-   "Προαιρετική αυτόματη εκκίνηση των τοπικών servers με το άνοιγμα της εφαρμογής",
-   "Ασφαλέστερη αποθήκευση: τίποτα δεν χάνεται αν κλείσεις την εφαρμογή αμέσως μετά από αλλαγή",
-   "Ο βοηθός πέφτει σωστά στον offline ελληνικό αναλυτή όταν ο server είναι κλειστός"
-  ],
-  "en": [
-   "AI Hub: precise connection errors (refused / timeout / wrong /v1 path / wrong API key) instead of the generic “server not responding”",
-   "localhost ↔ 127.0.0.1 ↔ ::1 and a base URL without /v1 are tried automatically and the working address is fixed for you",
-   "LM Studio: “Developer → Start Server” hint and a start-server button via lms; llama.cpp: start llama-server from the Hub",
-   "whisper-server / llama-server: automatic model search (.bin/.gguf) with a picker, a 📁 button on every path, pre-start checks (file, port)",
-   "Clean error messages without “Error invoking remote method…” everywhere",
-   "Voice (TTS): presets for VS engine / omnivoice.cpp / Piper, a Test button that shows the engine's real error, and a --help button",
-   "Optional auto-start of local servers when the app opens",
-   "Safer saving: nothing is lost if you quit right after a change",
-   "The assistant correctly falls back to the offline Greek parser when the server is down"
-  ]
- },
- "2.1.0": {
-  "el": [
-   "Ενημερώσεις μέσα από τις Ρυθμίσεις: μικρά υπογεγραμμένα πακέτα κώδικα, χωρίς να ξανακατεβάζεις όλο το zip",
-   "Κουμπί επαναφοράς στην προηγούμενη έκδοση + αυτόματη επαναφορά αν η νέα δεν ξεκινά",
-   "Νέο πάνελ «Εργαλεία & διαδρομές»: ffmpeg, Vulkan (runtime/SDK), όλες οι Python, git, llama.cpp, whisper.cpp, ComfyUI, LM Studio, Ollama, HF cache",
-   "Βαθιά σάρωση για .gguf/.safetensors με ακύρωση και αποθήκευση αποτελεσμάτων",
-   "Πλήρης αγγλική μετάφραση (Ρυθμίσεις → Γλώσσα)",
-   "Γρηγορότερη εκκίνηση: lazy φόρτωση πάνελ και plugins, cache ανίχνευσης εργαλείων"
-  ],
-  "en": [
-   "Updates from Settings: small signed code packages, no need to re-download the whole zip",
-   "Roll back to the previous version + automatic rollback if a new version fails to start",
-   "New “Tools & paths” panel: ffmpeg, Vulkan (runtime/SDK), all Pythons, git, llama.cpp, whisper.cpp, ComfyUI, LM Studio, Ollama, HF cache",
-   "Deep scan for .gguf/.safetensors with cancel and cached results",
-   "Full English translation (Settings → Language)",
-   "Faster startup: lazy-loaded panels and plugins, cached tool detection"
-  ]
- }
+  "2.6.4": {
+    "el": [
+      "Μοντέλα & οδηγίες: νέες προτάσεις στο AI Hub για RX 7900 XTX (Windows 11, Vulkan) με ακριβή ονόματα αρχείων, μεγέθη και κουμπί «Σελίδα στο Hugging Face». Το Nyx δεν κατεβάζει τίποτα μόνο του",
+      "Γρήγορο: Qwen3.8-27B UD-Q4_K_M της unsloth (16,46 GB) με προαιρετικό MTP (1,37 GB)· Όραση: το ίδιο μοντέλο + mmproj-F16 (0,93 GB)· Χωρίς λογοκρισία: Qwen3.8-27B-Uncensored Q4_K_M της orcarouter (16,81 GB), εναλλακτικά huihui UD-DW-Q4_K_M χωρίς λογαριασμό",
+      "Ελληνικά: Llama-Krikri-8B q4_k_m (5,04 GB) για κείμενα· ομιλία σε κείμενο: whisper ggml-large-v3 (3,10 GB), λιγότερα λάθη στα ελληνικά από το turbo",
+      "Κάθε πρόταση έχει «Τι σημαίνει;» με απλή εξήγηση και πώς τη ρυθμίζεις, και σημείωση ότι το Γρήγορο και το Χωρίς λογοκρισία δεν χωράνε μαζί, οπότε ο Router τα εναλλάσσει",
+      "Router: η «Όραση» προειδοποιεί όταν λείπει το --mmproj (χωρίς αυτό το μοντέλο δεν βλέπει εικόνες)· διορθώθηκαν τα κείμενα που έλεγαν ότι η όραση έρχεται από το Gemma 4",
+      "Το HauhauCS δεν είναι πια η σύσταση για το «Χωρίς λογοκρισία» (αν το έχεις, συνεχίζει να δουλεύει)",
+      "Ασφάλεια: Electron 45.2.3 (Chromium 156.0.8078.80), η πρόσβαση στο πρόχειρο επιτρέπεται μόνο στα παράθυρα του Nyx και όχι σε ιστοσελίδες",
+      "Τα δύο κλειδιά υπογραφής ενημερώσεων (παλιό και νέο) ισχύουν και τα δύο"
+    ],
+    "en": [
+      "Models & hints: new AI Hub picks for RX 7900 XTX (Windows 11, Vulkan) with exact file names, sizes and a «Hugging Face page» button. Nyx downloads nothing by itself",
+      "Fast: unsloth Qwen3.8-27B UD-Q4_K_M (16.46 GB) with optional MTP (1.37 GB); Vision: the same model + mmproj-F16 (0.93 GB); Uncensored: orcarouter Qwen3.8-27B-Uncensored Q4_K_M (16.81 GB), alternatively huihui UD-DW-Q4_K_M without an account",
+      "Greek: Llama-Krikri-8B q4_k_m (5.04 GB) for texts; speech to text: whisper ggml-large-v3 (3.10 GB), fewer Greek errors than turbo",
+      "Every pick has «What does this mean?» with a plain explanation and how to set it up, plus a note that Fast and Uncensored do not fit together, so the Router swaps them",
+      "Router: «Vision» warns when --mmproj is missing (without it the model cannot see images); fixed texts that said vision comes from Gemma 4",
+      "HauhauCS is no longer the «Uncensored» pick (if you have it, it keeps working)",
+      "Security: Electron 45.2.3 (Chromium 156.0.8078.80); clipboard access is granted only to Nyx's own windows, not to web pages",
+      "Both update signing keys (legacy and current) stay trusted"
+    ]
+  },
+  "2.6.3": {
+    "el": [
+      "Ενημέρωση ασφαλείας της 2.6.2 — ίδια θωράκιση με την 2.5.1, όλες οι λειτουργίες της 2.6 (σύρσιμο μέσα/έξω, Firefox/Brave, πρόσθετα, τοποθεσία δεδομένων) παραμένουν",
+      "Ενημέρωση ασφαλείας: Electron 45.2.1 (Chromium 156, Node 24) και pdf.js 6· npm audit χωρίς ευπάθειες",
+      "Όλα τα παράθυρα τρέχουν απομονωμένα (contextIsolation, sandbox, χωρίς Node στη σελίδα, webSecurity ενεργό) με αυστηρό Content-Security-Policy· εικόνες από το web περνούν από ασφαλή μεσολαβητή",
+      "Νέα παράθυρα (window.open) απαγορεύονται και η πλοήγηση του κύριου παραθύρου μπλοκάρεται· σύνδεσμοι http/https/mailto ανοίγουν στον εξωτερικό browser",
+      "Κεντρικός έλεγχος IPC: κάθε κλήση ελέγχεται για αποστολέα και ορίσματα",
+      "Electron fuses: RunAsNode, NODE_OPTIONS και --inspect κλειστά· έλεγχος ακεραιότητας του app.asar και των αρχείων app.asar.unpacked· η εφαρμογή φορτώνει μόνο από το app.asar",
+      "Οι ενημερώσεις κώδικα ελέγχονται με υπογραφή και σε κάθε εκκίνηση· η εφαρμογή αρνείται να ξεκινήσει με απενεργοποιημένο sandbox",
+      "Ρυθμίσεις → Ενημερώσεις: εμφανίζονται οι εκδόσεις Electron / Chromium / Node",
+      "Τα νέα κανάλια της 2.6 (σύρσιμο έξω, εικόνες από browser, εγκατάσταση πρόσθετου από φάκελο) ελέγχονται κι αυτά για αποστολέα και ορίσματα· τα scripts δοκιμών τρέχουν πάντα με sandbox"
+    ],
+    "en": [
+      "Security update of 2.6.2 — the same hardening as 2.5.1; every 2.6 feature (drag in/out, Firefox/Brave, plugins, data location) is kept",
+      "Security update: Electron 45.2.1 (Chromium 156, Node 24) and pdf.js 6; npm audit reports no vulnerabilities",
+      "Every window is isolated (contextIsolation, sandbox, no Node in pages, webSecurity on) with a strict Content-Security-Policy; web images go through a safe proxy",
+      "window.open is denied and navigation of the app window is blocked; http/https/mailto links open in the external browser",
+      "Central IPC guard: every call is checked for sender and arguments",
+      "Electron fuses: RunAsNode, NODE_OPTIONS and --inspect disabled; app.asar and app.asar.unpacked integrity checked; the app loads only from app.asar",
+      "Code updates are signature-checked at every start; the app refuses to start with the sandbox switched off",
+      "Settings → Updates shows the Electron / Chromium / Node versions",
+      "The new 2.6 channels (drag out, browser images, plugin install from a folder) are checked for sender and arguments too; test scripts always run with the sandbox on"
+    ]
+  },
+  "2.6.2": {
+    "el": [
+      "Σύρσιμο από Firefox και Brave στον καμβά: περνούν πλέον σύνδεσμοι, εικόνες και επιλεγμένο κείμενο, όπως από τον Chrome",
+      "Εικόνες: αναγνωρίζονται από το ίδιο το περιεχόμενο του αρχείου και όχι από το όνομα ή την κατάληξη (ο Firefox δίνει προσωρινό αντίγραφο που σβήνεται αμέσως μετά το άφημα, ο Brave συχνά αρχείο χωρίς κατάληξη). Η εικόνα διαβάζεται τη στιγμή που την αφήνεις, κι αν το αρχείο έχει ήδη σβηστεί, κατεβαίνει από τη διεύθυνσή της",
+      "Το Nyx δοκιμάζει με τη σειρά όλους τους τρόπους που στέλνει ο browser (αρχείο → εικόνα από τη σελίδα → σύνδεσμος → κείμενο) μέχρι να πετύχει κάποιος· αν η εικόνα δεν κατέβει, μπαίνει τουλάχιστον ο σύνδεσμος και βλέπεις μήνυμα",
+      "Συντομεύσεις .url (και χωρίς κατάληξη) γίνονται κάρτα συνδέσμου, όχι αρχείο",
+      "Σύρσιμο έξω: οι κάρτες συνδέσμων φεύγουν πλέον ως κανονικός σύνδεσμος, άρα ο Firefox/Brave/Chrome τον ανοίγουν· οι εικόνες, τα αρχεία και τα κείμενα φεύγουν όπως πριν",
+      "Αν κάτι δεν περνάει: Ctrl+Alt+Shift+D αντιγράφει τι περιείχαν τα τελευταία αφήματα (τύποι δεδομένων, χωρίς περιεχόμενο αρχείων), για να μας το στείλεις"
+    ],
+    "en": [
+      "Drag from Firefox and Brave onto the canvas: links, images and selected text now work, as they do from Chrome",
+      "Images are recognised by their content (magic bytes), not by name or extension (Firefox hands over a temporary copy that is deleted right after the drop, Brave often a file without an extension). The image is read at the moment of the drop, and if the file is already gone it is downloaded from its address",
+      "Nyx now tries every representation the browser sends, in order (file → image from the page → link → text), until one works; if the image cannot be downloaded, at least the link is added and a message is shown",
+      ".url shortcuts (also without an extension) become link cards, not file cards",
+      "Drag out: link cards now leave as a real link, so Firefox/Brave/Chrome open it; images, files and text leave as before",
+      "If something does not come through: Ctrl+Alt+Shift+D copies what the last drops contained (data types, no file contents) so you can send it to us"
+    ]
+  },
+  "2.6.1": {
+    "el": [
+      "Σύρσιμο από το web στον καμβά: από Chrome/Edge (και Firefox) περνούν πλέον σύνδεσμοι, εικόνες (και χωρίς κατάληξη στο όνομα, και με srcset — παίρνει τη μεγαλύτερη), εικόνες data:, εικόνες μέσα σε σύνδεσμο και επιλεγμένο κείμενο. Η κάρτα μπαίνει εκεί που άφησες το ποντίκι",
+      "Οι εικόνες από το web κατεβαίνουν με ασφάλεια: μόνο δημόσιες διευθύνσεις (όχι τοπικό δίκτυο/router), έως 30 MB, και ελέγχεται ότι είναι πραγματικά εικόνα. Αν δεν κατέβει, μπαίνει ως σύνδεσμος και βλέπεις μήνυμα",
+      "Σύρσιμο από τον browser του Nyx: όταν αρχίζεις να σέρνεις κάτι από μια σελίδα, εμφανίζεται αριστερά η λωρίδα «Άφησέ το εδώ → μπαίνει στον καμβά» (ο browser σκέπαζε όλο τον καμβά, γι' αυτό δεν δούλευε)",
+      "Σύρσιμο έξω (Explorer, επιφάνεια εργασίας, άλλες εφαρμογές): το στρογγυλό χερούλι υπάρχει πλέον σε εικόνες, βίντεο, ήχους, αρχεία, σημειώσεις/κείμενα (γίνονται αρχείο .txt) και συνδέσμους (γίνονται συντόμευση .url), με το κανονικό όνομα του αρχείου. Με Shift σέρνεται ως σκέτο κείμενο",
+      "Διόρθωση: σε επιλεγμένη κάρτα το χερούλι «σύρε έξω» κρυβόταν κάτω από τη λαβή αλλαγής μεγέθους, άρα δεν έπιανε· μετακινήθηκε",
+      "Νέο (Windows): τράβα μια κάρτα πέρα από την άκρη του παραθύρου και γίνεται σύρσιμο έξω (η κάρτα μένει στη θέση της στον καμβά)",
+      "Ασφάλεια: ένα αρχείο που πέφτει κατά λάθος έξω από τον καμβά δεν μπορεί πια να «αντικαταστήσει» την εφαρμογή ή μια σελίδα του browser"
+    ],
+    "en": [
+      "Drag from the web onto the canvas: links, images (also without a file extension, srcset picks the largest), data: images, linked images and selected text now work from Chrome/Edge (and Firefox). The card lands where you release the mouse",
+      "Web images are downloaded safely: public addresses only (no local network/router), up to 30 MB, and checked to really be an image. If the download fails it is added as a link and you get a message",
+      "Drag from the Nyx browser: when you start dragging something from a page, a 'Drop it here → it goes onto the canvas' strip appears on the left (the browser covered the whole canvas, which is why it did not work)",
+      "Drag out (Explorer, desktop, other apps): the round handle now exists on images, videos, audio, files, notes/text (become a .txt file) and links (become a .url shortcut), with the real file name. Hold Shift to drag as plain text",
+      "Fix: on a selected card the drag-out handle was hidden under the resize handle, so it could not be grabbed; it was moved",
+      "New (Windows): pull a card past the edge of the window to drag it out (the card stays where it was on the canvas)",
+      "Security: a file accidentally dropped outside the canvas can no longer replace the app or a browser page"
+    ]
+  },
+  "2.6.0": {
+    "el": [
+      "Ασφάλεια ενημερώσεων: νέο κλειδί υπογραφής· το Nyx δέχεται πλέον ενημερώσεις υπογεγραμμένες με το παλιό ή το νέο κλειδί",
+      "Plugins από φάκελο: εγκαθίστανται μόνο αφού δεις και εγκρίνεις τα δικαιώματα· έλεγχος ονόματος (id) ώστε ένα plugin να μη γράφει έξω από τον φάκελό του ή να παριστάνει ενσωματωμένο",
+      "MCP server: δέχεται μόνο τοπικές συνδέσεις χωρίς Origin (καμία ιστοσελίδα), σωστό Host, σύγκριση token σταθερού χρόνου· το token εμφανίζεται μόνο σε σένα, ποτέ στο AI",
+      "Αποθήκευση: οι γρήγορες διαδοχικές αλλαγές δεν χάνονται πια· ασφαλής (ατομική) εγγραφή του nyx.json, της μνήμης, των κωδικών (secrets) και της λίστας plugins, με ανάκτηση από αντίγραφο αν το αρχείο χαλάσει",
+      "Θέματα «Minimal Light» και «Retro OS»: διορθώθηκε το σφάλμα που χαλούσε το φόντο",
+      "Μεταφορά φακέλου δεδομένων: μεταφέρονται όλα (μνήμη, πρόσωπα, plugins, μοντέλα, στιγμιότυπα), δεν γράφει πάνω σε υπάρχοντα, δεν επιτρέπει φάκελο μέσα στον τρέχοντα",
+      "Web agent: δεν ανοίγει πια τοπικές/ιδιωτικές διευθύνσεις (localhost, δίκτυο σπιτιού) ούτε μετά από ανακατεύθυνση· οι φωτογραφίες HEIC δεν αναγνωρίζονται ως βίντεο",
+      "Router: δεν φορτώνει δύο μοντέλα ταυτόχρονα όταν στέλνεις γρήγορα πολλά μηνύματα",
+      "Κάρτα στην επιφάνεια εργασίας (Ctrl+K): δουλεύει με την επιλεγμένη κάρτα αντί να βγάζει σφάλμα",
+      "Μνήμη βοηθού: αποθηκεύεται και στο κλείσιμο· αν το αρχείο χαλάσει, κρατιέται αντίγραφο και γίνεται επαναφορά",
+      "Τοπικοί servers: τα αρχεία .bat/.cmd ξεκινούν ξανά και σταματούν μαζί με όλες τις υπο-διεργασίες τους",
+      "Εκκίνηση με τα Windows: το παράθυρο δεν αναβοσβήνει πια· λήψεις και drag κειμένου δεν γράφουν πάνω σε άλλα αρχεία· backup με υποφακέλους media· trackers χωρίς διπλές ειδοποιήσεις· η μαζική βελτίωση φωτογραφιών δεν κολλάει αν πέσει ο worker",
+      "Λιγότερος θόρυβος στο log: το LM Studio κλειστό δεν γράφει πια stack trace"
+    ],
+    "en": [
+      "Update security: new signing key; Nyx now accepts updates signed with either the old or the new key",
+      "Folder plugins: installed only after you review and approve their permissions; plugin ids are validated so a plugin can't write outside its folder or pose as a built-in one",
+      "MCP server: accepts only local connections without an Origin (no web pages), a correct Host and constant-time token checks; the token is shown only to you, never to the AI",
+      "Saving: rapid successive edits are no longer lost; atomic writes for nyx.json, memory, secrets and the plugin list, with recovery from a backup if a file is corrupted",
+      "Themes “Minimal Light” and “Retro OS”: fixed the error that broke the background",
+      "Moving the data folder: everything moves (memory, faces, plugins, models, snapshots), nothing is overwritten, a folder inside the current one is refused",
+      "Web agent: no longer opens local/private addresses (localhost, home network), not even after a redirect; HEIC photos are no longer detected as video",
+      "Router: no longer loads two models at once when you send several messages quickly",
+      "Card on the desktop (Ctrl+K): uses the selected card instead of failing",
+      "Assistant memory: also saved on exit; a corrupted file is kept aside and restored from a backup",
+      "Local servers: .bat/.cmd launchers start again and stop together with all their child processes",
+      "Start with Windows: the window no longer flashes; downloads and text drags don't overwrite other files; backups include media sub-folders; trackers without duplicate notifications; batch photo enhance no longer hangs if the worker dies",
+      "Less log noise: LM Studio being off no longer prints a stack trace"
+    ]
+  },
+  "2.5.0": {
+    "el": [
+      "Γρηγορότερη εκκίνηση: τα νέα πάνελ (Απόδοση, Μοντέλα, Πρόσωπα, Θέματα v2, Φωτογράφος, AI Hub v2.5) φορτώνουν μόνο όταν τα ανοίξεις· χρόνοι στο AI Hub → «Χρόνος εκκίνησης»",
+      "Απόδοση (Ctrl+Shift+M): RAM, VRAM, φόρτος GPU και θερμοκρασία (Windows· η θερμοκρασία GPU θέλει LibreHardwareMonitor), μνήμη ανά διεργασία του Nyx και των servers",
+      "Router v2: ρόλοι γρήγορο / όραση / χωρίς λογοκρισία (Qwen3.6, Qwen3.8, Gemma 4 στο llama-server) με αυτόματη εφεδρεία στο Groq — ανενεργό μέχρι να το ρυθμίσεις",
+      "«Ιδιωτικό» (μάσκα στον βοηθό): συνομιλία μόνο στη μνήμη, δεν αποθηκεύεται πουθενά, σβήνει όταν βγεις· τοπικό μοντέλο ή Venice (με επιβεβαίωση κόστους)",
+      "sd-server (stable-diffusion.cpp, Vulkan): Εκκίνηση / Διακοπή από το AI Hub, φάκελοι μοντέλων και LoRA, δικό του web UI, μόνο τοπικά (127.0.0.1)",
+      "Πρόσωπα v1 (Ctrl+Shift+U): τοπική αναγνώριση προσώπων (YuNet / SFace), ονομάζεις άτομα και τα βρίσκεις με Ctrl+K — πρώτα συναίνεση, τα μοντέλα κατεβαίνουν μόνο με κλικ, τίποτα δεν φεύγει από τον υπολογιστή",
+      "Πίνακας μοντέλων: όλα τα GGUF στον δίσκο με quant, «χωράει στα 24 GB;», μέγιστο context, διπλότυπα (χαμένα GB), φόρτωση με ένα κλικ",
+      "Θέματα v2: επεξεργαστής χρωμάτων (αποθήκευση ως δικό σου θέμα, εισαγωγή/εξαγωγή JSON) και πρόγραμμα ημέρας/νύχτας με ανατολή-δύση ή σταθερές ώρες",
+      "Φωτογράφος: LoRA με ρυθμιστικά έντασης, έργα/φωτογραφίσεις με φόρμα συναίνεσης, σύγκριση πριν/μετά, μαζική βελτίωση (μεγέθυνση, ευκρίνεια, χρώμα) — έμφαση στο φωτορεαλισμό",
+      "Βοηθός σαν agent: τοπική μνήμη, δεξιότητες, αναίρεση ενεργειών, συνημμένα αρχεία (εικόνες, PDF, κείμενο, ήχος) και ασφαλές web agent (δεν συμπληρώνει ποτέ κωδικούς, κάρτες ή OTP)",
+      "Sogni (προαιρετικό): εικόνα→βίντεο και επεξεργασίες με συναίνεση· σεξουαλικές επεξεργασίες πραγματικών προσώπων απορρίπτονται πάντα",
+      "Πίνακας υπηρεσιών στο AI Hub με σύσταση για καθεμία (Sogni, Venice, xAI, Groq, Claude/ChatGPT, R2, Workers AI, GitHub, VPS, hex, ComfyUI)",
+      "Διορθώσεις: σωστή ένδειξη «σταμάτησε» όταν ένας server τερματίζεται με σήμα, το πρόγραμμα θεμάτων δεν δείχνει πια σε ανύπαρκτο θέμα"
+    ],
+    "en": [
+      "Faster startup: the new panels (Performance, Models, Faces, Themes v2, Photographer, AI Hub v2.5) load only when opened; times in AI Hub → «Startup timing»",
+      "Performance (Ctrl+Shift+M): RAM, VRAM, GPU load and temperature (Windows; GPU temperature needs LibreHardwareMonitor), memory per Nyx process and server",
+      "Router v2: fast / vision / uncensored roles (Qwen3.6, Qwen3.8, Gemma 4 on llama-server) with automatic Groq fallback — off until configured",
+      "«Private» (mask in the assistant): memory-only chat, never saved, wiped when you leave; local model or Venice (with a cost confirmation)",
+      "sd-server (stable-diffusion.cpp, Vulkan): Start / Stop from the AI Hub, model and LoRA folders, its own web UI, localhost only",
+      "Faces v1 (Ctrl+Shift+U): local face recognition (YuNet / SFace), name people and find them with Ctrl+K — consent first, models download only on click, nothing leaves the PC",
+      "Models table: every GGUF on disk with quant, «fits in 24 GB?», max context, duplicates (wasted GB), one-click load",
+      "Themes v2: colour editor (save as your own theme, JSON import/export) and a day/night schedule by sunrise/sunset or fixed times",
+      "Photographer: LoRAs with strength sliders, projects/shoots with a consent form, before/after compare, batch enhance (upscale, sharpen, colour) — photorealism first",
+      "Agent-like assistant: local memory, skills, undo, attachments (images, PDF, text, audio) and a safe web agent (never fills passwords, cards or OTP)",
+      "Sogni (optional): image→video and consented edits; sexual edits of real people are always refused",
+      "Services table in the AI Hub with a verdict for each (Sogni, Venice, xAI, Groq, Claude/ChatGPT, R2, Workers AI, GitHub, VPS, hex, ComfyUI)",
+      "Fixes: a server killed by a signal now shows as stopped; the theme schedule no longer points at a missing theme"
+    ]
+  },
+  "2.4.0": {
+    "el": [
+      "Υπογραμμιστής, στυλό, μαρκαδόρος: σημειώνουν ΠΑΝΩ σε χαρτάκια, κάρτες, εικόνες και σχήματα (όχι μόνο στον άδειο καμβά) — η γραμμή κολλάει στο χαρτί και ακολουθεί μετακίνηση και αλλαγή μεγέθους",
+      "Ο υπογραμμιστής πάνω σε χαρτί «βάφει» σαν αληθινός μαρκαδόρος (διαφάνεια με ανάμειξη)· στον άδειο καμβά μένει κάτω από τα αντικείμενα",
+      "Σχήματα και βέλη που ζωγραφίζεις πάνω σε σημείωμα κολλάνε σε αυτό· η γόμα σβήνει γραμμές πάνω σε χαρτάκια χωρίς να πειράζει το χαρτάκι",
+      "Βοηθός: δεν σκεπάζει ΠΟΤΕ τις Ρυθμίσεις ή άλλο πλαϊνό πάνελ — μπαίνει δίπλα· σε στενό παράθυρο το πάνελ στενεύει ή μπαίνουν το ένα πάνω από το άλλο",
+      "Βοηθός: μετακινείται (σύρε την μπάρα τίτλου) και αλλάζει μέγεθος (γωνία πάνω αριστερά)· μένει πάντα μέσα στο παράθυρο· διπλό κλικ στον τίτλο = επαναφορά",
+      "Φωνή: δεν «συλλαβίζει» πια τα ελληνικά — διαλέγει αυτόματα ελληνική φωνή (Chromium, Windows SAPI5 ή OneCore π.χ. «Stefanos») με βάση τη γλώσσα του κειμένου",
+      "Φωνή: επιλογή φωνής με τη γλώσσα της δίπλα (ελληνικές πρώτες), ρυθμιστικά ταχύτητας και τόνου",
+      "Φωνή: αν δεν υπάρχει ελληνική φωνή στα Windows, εμφανίζεται οδηγία (Ρυθμίσεις Windows → Ώρα και γλώσσα → Γλώσσα → Ελληνικά → ομιλία) με κουμπί που ανοίγει τη σωστή σελίδα",
+      "Φωνή: δεν διαβάζει σύμβολα markdown, συνδέσμους, κώδικα και emoji",
+      "vs-engine (GPU-Voice-Studio): νέα λειτουργία server — το Nyx το ξεκινά κρυφά με δικό του τυχαίο token (VS_ENGINE_TOKEN, φυλαγμένο κρυπτογραφημένα), βρίσκει τη θύρα, δοκιμάζει endpoints και δείχνει τις ακατέργαστες απαντήσεις στη «Δοκιμή»· πεδία --device, --port, --no-fa, --clamp-fp16, φωνή αναφοράς (wav) και χειροκίνητο endpoint",
+      "Groq: νέος πάροχος AI (δωρεάν κλειδί) — λίστα μοντέλων, προεπιλογή llama-3.3-70b-versatile, εργαλεία (tool calling)",
+      "Groq Whisper: γρήγορη αναγνώριση ομιλίας στα ελληνικά (whisper-large-v3-turbo ή whisper-large-v3)",
+      "Όρια δωρεάν πλάνων (429): σύντομη αναμονή γίνεται αυτόματα· αλλιώς καθαρό μήνυμα στα ελληνικά με το πόση ώρα να περιμένεις",
+      "Επιπλέον διορθώσεις από έλεγχο: η γόμα δεν αφήνει «ορφανά» κολλημένα αντικείμενα όταν σβήνει σχήμα, ο υπογραμμιστής δεν έχει πια σκούρο κουτί γύρω του, το πλαϊνό πάνελ επανέρχεται στο κανονικό πλάτος όταν κλείσει ο βοηθός, προστασία από κυκλικές «κολλήσεις» αντικειμένων"
+    ],
+    "en": [
+      "Highlighter, pen, marker draw ON notes, cards, images and shapes (not only the bare canvas) — strokes attach and follow move/resize",
+      "Highlighter on paper blends like a real marker; on the bare canvas it stays under items",
+      "Shapes and arrows drawn on a note attach to it; the eraser erases strokes on notes without touching the note",
+      "Assistant never covers Settings or any side panel — docks beside it; on narrow windows the panel shrinks or they stack",
+      "Assistant can be moved (drag title) and resized (top-left corner), always clamped to the window; double-click title resets",
+      "Speech: Greek is no longer spelled out — an el-GR voice is picked automatically (Chromium, Windows SAPI5 or OneCore e.g. Stefanos) by the text's language",
+      "Speech: voice picker showing each voice's language (Greek first), rate and pitch sliders",
+      "Speech: if no Greek voice is installed, a hint with a button to the right Windows settings page",
+      "Speech: markdown symbols, links, code and emoji are not read aloud",
+      "vs-engine (GPU-Voice-Studio): server mode — started hidden with a random token (VS_ENGINE_TOKEN, stored encrypted), port detected, endpoints probed and raw answers shown in Test; --device, --port, --no-fa, --clamp-fp16, reference voice wav and manual endpoint",
+      "Groq: new AI provider (free key) — model list, default llama-3.3-70b-versatile, tool calling",
+      "Groq Whisper speech-to-text in Greek (whisper-large-v3-turbo or whisper-large-v3)",
+      "Free-tier limits (429): short waits are retried automatically, otherwise a clear message with how long to wait",
+      "Extra fixes found in review: erasing a shape detaches its attachments, no dark box around highlighter strokes, side panel width restored when the assistant closes, guard against attachment cycles"
+    ]
+  },
+  "2.3.0": {
+    "el": [
+      "Μηνύματα (toasts): φεύγουν μόνα τους (σφάλματα λίγο αργότερα) και έχουν ✕ για κλείσιμο",
+      "Βοηθός: δεν λέει πια «Δεν έχει οριστεί μοντέλο» — παίρνει αυτόματα τον πρώτο ενεργό server (π.χ. llama-server) και δεν δείχνει τον απενεργοποιημένο LM Studio· απλές εντολές δουλεύουν και χωρίς μοντέλο",
+      "Βοηθός: ανοίγει δίπλα στα συρτάρια (AI μοντέλα, ρυθμίσεις…) αντί να τα σκεπάζει",
+      "Φωνή: η «Δοκιμή φωνής» των Windows (SAPI) μιλάει πραγματικά",
+      "Εργαλεία: η Python εμφανίζεται μία φορά (όχι δύο διαδρομές)",
+      "Widget → μικρό ταμπλό: καρφιτσωμένα, επόμενες υπενθυμίσεις/αντίστροφες μετρήσεις, συνδρομές, γρήγορη σημείωση και φωνητικό μήνυμα, ημερολόγιο με κλικ σε οποιαδήποτε μέρα",
+      "Νέα Ατζέντα: οι σημειώσεις του widget μπαίνουν στην ατζέντα της μέρας (Υπενθυμίσεις) — όχι χαρτάκια στον καμβά· «→ καμβάς» μόνο όταν το θέλεις",
+      "Ημερομηνίες παντού σε μορφή ΗΗ/ΜΜ (π.χ. 30/11)",
+      "Εργαλείο Κείμενο: κλικ σε σημείωμα γράφει μέσα του (εκεί που πάτησες)· κλικ σε εικόνα/κάρτα φτιάχνει κείμενο κολλημένο πάνω της",
+      "Η γραμματοσειρά/μέγεθος αλλάζει ζωντανά ενώ γράφεις",
+      "Κείμενο, λουκέτο και σήματα ακολουθούν το χαρτί/την κάρτα όταν τη μετακινείς",
+      "Χαρτιά: 10 είδη (ριγέ, τετράδιο, κουκκίδες, kraft, μιλιμετρέ…) και 16 χρώματα",
+      "Βίντεο: οπτικός κόφτης κομματιού στην μπάρα — λαβές αρχής/τέλους, μικρογραφίες, πλήκτρα I/O, καρέ-καρέ (←/→), ζωντανή διάρκεια, εξαγωγή MP4 / νέα κάρτα / highlight",
+      "Καρτέλες πινάκων: διορθώθηκε το bug στο νέο tab και το ✕ κλεισίματος",
+      "Θέματα: τα διαστημικά κρατούν τα αστέρια τους· μεγαλύτερη οθόνη καλωσορίσματος· 8 νέα κινούμενα θέματα χωρίς αστέρια (Wooden Desk, Glass Light, Ocean Deep, Firefly Forest, Minimal Light, Retro OS, Sakura, Cyberpunk Rain)",
+      "Browser: κουμπί + για νέα καρτέλα, Ctrl+T / Ctrl+W, κλείσιμο, ελαχιστοποίηση (μένει «χάπι» για επαναφορά) και μεγιστοποίηση· φαίνεται μόνο η επιλεγμένη καρτέλα",
+      "Υπενθυμίσεις: ✕ για διαγραφή με «Αναίρεση» και σωστοί τίτλοι",
+      "Επιπλέον διορθώσεις που βρέθηκαν σε έλεγχο: νέο κείμενο σε κάρτα δεν σβήνεται πια αμέσως, η ατζέντα ανανεώνεται ενώ γράφεις, ο βοηθός που κλείνει δεν «τρώει» κλικ, κλικ στο επιλεγμένο κομμάτι του κόφτη μετακινεί τη θέση"
+    ],
+    "en": [
+      "Toasts auto-dismiss (errors stay a bit longer) and have a ✕",
+      "Assistant: no more “No model set” — uses the first enabled server automatically (e.g. llama-server), hides disabled LM Studio; simple commands work offline",
+      "Assistant docks beside open drawers instead of covering them",
+      "Voice: Windows SAPI voice test actually speaks",
+      "Tools: Python listed once",
+      "Widget is now a mini dashboard: pinned items, upcoming reminders/countdowns, subscriptions, quick note + voice memo, clickable calendar days",
+      "New Agenda: widget notes go to the day's agenda (Reminders drawer), not papers on the canvas; “→ canvas” on demand",
+      "Dates shown as DD/MM everywhere",
+      "Text tool writes inside notes at the caret; on images/cards it creates attached text",
+      "Font/size changes apply live while typing",
+      "Attached text, lock icon and badges follow the paper/card",
+      "Papers: 10 kinds and 16 colours",
+      "Video: visual trimmer on the bar — handles, thumbnails, I/O keys, frame step, live duration; export MP4 / new card / highlight",
+      "Board tabs: new-tab bug and close ✕ fixed",
+      "Themes: space themes keep their stars; bigger welcome board; 8 new animated non-space themes",
+      "Browser: + tab, Ctrl+T/Ctrl+W, close, minimize (restore pill), maximize; only the selected tab is visible",
+      "Reminders: ✕ delete with Undo, proper titles",
+      "Self-found fixes: new text on a card no longer vanishes, agenda refreshes while typing, closing assistant no longer swallows clicks, clicking the trimmer selection seeks"
+    ]
+  },
+  "2.2.0": {
+    "el": [
+      "AI Hub: ακριβή μηνύματα σύνδεσης (αρνήθηκε / timeout / λάθος διαδρομή /v1 / λάθος API key) αντί για το γενικό «Δεν απαντά ο server»",
+      "localhost ↔ 127.0.0.1 ↔ ::1 και διεύθυνση χωρίς /v1: δοκιμάζονται αυτόματα και διορθώνεται η διεύθυνση που δουλεύει",
+      "LM Studio: οδηγία «Developer → Start Server» και κουμπί εκκίνησης server μέσω lms· llama.cpp: κουμπί εκκίνησης llama-server από το Hub",
+      "whisper-server / llama-server: αυτόματη εύρεση μοντέλων (.bin/.gguf) με λίστα επιλογής, κουμπί 📁 σε κάθε διαδρομή, έλεγχος πριν την εκκίνηση (αρχείο, θύρα)",
+      "Καθαρά μηνύματα σφάλματος χωρίς «Error invoking remote method…» σε όλη την εφαρμογή",
+      "Φωνή (TTS): έτοιμα πρότυπα για VS engine / omnivoice.cpp / Piper, κουμπί Δοκιμή που δείχνει το πραγματικό σφάλμα της μηχανής και κουμπί --help",
+      "Προαιρετική αυτόματη εκκίνηση των τοπικών servers με το άνοιγμα της εφαρμογής",
+      "Ασφαλέστερη αποθήκευση: τίποτα δεν χάνεται αν κλείσεις την εφαρμογή αμέσως μετά από αλλαγή",
+      "Ο βοηθός πέφτει σωστά στον offline ελληνικό αναλυτή όταν ο server είναι κλειστός"
+    ],
+    "en": [
+      "AI Hub: precise connection errors (refused / timeout / wrong /v1 path / wrong API key) instead of the generic “server not responding”",
+      "localhost ↔ 127.0.0.1 ↔ ::1 and a base URL without /v1 are tried automatically and the working address is fixed for you",
+      "LM Studio: “Developer → Start Server” hint and a start-server button via lms; llama.cpp: start llama-server from the Hub",
+      "whisper-server / llama-server: automatic model search (.bin/.gguf) with a picker, a 📁 button on every path, pre-start checks (file, port)",
+      "Clean error messages without “Error invoking remote method…” everywhere",
+      "Voice (TTS): presets for VS engine / omnivoice.cpp / Piper, a Test button that shows the engine's real error, and a --help button",
+      "Optional auto-start of local servers when the app opens",
+      "Safer saving: nothing is lost if you quit right after a change",
+      "The assistant correctly falls back to the offline Greek parser when the server is down"
+    ]
+  },
+  "2.1.0": {
+    "el": [
+      "Ενημερώσεις μέσα από τις Ρυθμίσεις: μικρά υπογεγραμμένα πακέτα κώδικα, χωρίς να ξανακατεβάζεις όλο το zip",
+      "Κουμπί επαναφοράς στην προηγούμενη έκδοση + αυτόματη επαναφορά αν η νέα δεν ξεκινά",
+      "Νέο πάνελ «Εργαλεία & διαδρομές»: ffmpeg, Vulkan (runtime/SDK), όλες οι Python, git, llama.cpp, whisper.cpp, ComfyUI, LM Studio, Ollama, HF cache",
+      "Βαθιά σάρωση για .gguf/.safetensors με ακύρωση και αποθήκευση αποτελεσμάτων",
+      "Πλήρης αγγλική μετάφραση (Ρυθμίσεις → Γλώσσα)",
+      "Γρηγορότερη εκκίνηση: lazy φόρτωση πάνελ και plugins, cache ανίχνευσης εργαλείων"
+    ],
+    "en": [
+      "Updates from Settings: small signed code packages, no need to re-download the whole zip",
+      "Roll back to the previous version + automatic rollback if a new version fails to start",
+      "New “Tools & paths” panel: ffmpeg, Vulkan (runtime/SDK), all Pythons, git, llama.cpp, whisper.cpp, ComfyUI, LM Studio, Ollama, HF cache",
+      "Deep scan for .gguf/.safetensors with cancel and cached results",
+      "Full English translation (Settings → Language)",
+      "Faster startup: lazy-loaded panels and plugins, cached tool detection"
+    ]
+  }
 }

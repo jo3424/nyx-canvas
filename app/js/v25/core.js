@@ -82,6 +82,7 @@ const Router = {
     const S = Store.state.settings.ai.servers.llama; this.lastUse = Date.now();
     const cfg = { ...S, model: prof.model, ctx: +prof.ctx || S.ctx, extra: [S.extra, prof.extra].filter(Boolean).join(' ') };
     const key = JSON.stringify([cfg.model, cfg.ctx, cfg.extra]);
+    if (name === 'vision' && !/--mmproj\b/.test(cfg.extra) && !this._warnMm) { this._warnMm = true; toast('⚠️ ' + t('v25.rt_nommproj'), { ms: 9000 }); } // v2.6.3
     const st = await API.inv('proc:status', 'llama').catch(() => ({})); if (this.loaded === prof.model && this.loadedKey === key && st.running) return true;
     if (!st.running && !this.loaded && await this.health(S.port)) { if (!this._warnExt) { this._warnExt = true; toast(t('v25.rt_external'), { ms: 8000 }); } return false; } // someone else's llama-server: leave it alone
     this.busy = (async () => {

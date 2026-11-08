@@ -43,8 +43,11 @@ const Hub25 = {
   // ---------- Router v2 ----------
   routerSec() {
     const R = Store.state.settings.ai.router; const body = h('div', { class: 'rt-body', hidden: !R.enabled });
-    const prof = (k, ic) => { const P = R.profiles[k]; return h('div', { class: 'rt-prof' }, h('div', { class: 'row gap' }, h('span', { html: iconSvg(ic, 16) }), h('b', {}, t('v25.rt_' + k)), h('small', { class: 'muted' }, t('v25.rt_' + k + '_d'))),
-      Hub.pathRow(P, 'model', 'GGUF', 'file', { kind: 'llama' }), h('div', { class: 'row gap srv-nums' }, Hub.field('Context (-c)', Hub.inp(P, 'ctx', '8192', 'number')), Hub.field(t('hub.069'), Hub.inp(P, 'extra', k === 'vision' ? '--mmproj C:\\…\\mmproj.gguf' : '')))); };
+    // v2.6.3: the vision slot warns when --mmproj is missing (without it the model cannot see images)
+    const prof = (k, ic) => { const P = R.profiles[k]; const noMm = k === 'vision' ? h('p', { class: 'warn small', hidden: !P.model || /--mmproj\b/.test(P.extra || '') }, '⚠️ ' + t('v25.rt_nommproj')) : null;
+      const upd = () => { if (noMm) noMm.hidden = !P.model || /--mmproj\b/.test(P.extra || ''); };
+      return h('div', { class: 'rt-prof' }, h('div', { class: 'row gap' }, h('span', { html: iconSvg(ic, 16) }), h('b', {}, t('v25.rt_' + k)), h('small', { class: 'muted' }, t('v25.rt_' + k + '_d'))),
+      Hub.pathRow(P, 'model', 'GGUF', 'file', { kind: 'llama' }), h('div', { class: 'row gap srv-nums' }, Hub.field('Context (-c)', Hub.inp(P, 'ctx', '8192', 'number')), Hub.field(t('hub.069'), Hub.inp(P, 'extra', k === 'vision' ? '--mmproj C:\\…\\mmproj-F16.gguf' : '', 'text', upd))), noMm); };
     body.append(prof('fast', 'zap'), prof('vision', 'eye'), prof('uncensored', 'venetian-mask'),
       h('div', { class: 'row gap srv-nums' }, Hub.field(t('v25.rt_unload'), Hub.inp(R, 'unloadMin', '0', 'number'), t('v25.rt_unload_h')), Hub.field(t('v25.rt_timeout_l'), Hub.inp(R, 'timeout', '120', 'number'))),
       this.chk(R, 'groqFallback', t('v25.rt_groq')), h('p', { class: 'muted small' }, t('v25.rt_note')));

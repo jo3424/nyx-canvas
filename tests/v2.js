@@ -73,7 +73,7 @@ async function ask(win, text, { confirm } = {}) {
   const pst = await win.waitForFunction(() => /μοντέλα/.test(document.querySelector('.prov .pstat')?.textContent || '') && document.querySelector('.prov .pstat').textContent, null, { timeout: 8000 }).then(h => h.jsonValue()).catch(() => null);
   ok(/2 μοντέλα/.test(pst || ''), 'AI Hub: LM Studio ping lists stub models', pst);
   const hubTxt = await win.evaluate(() => document.body.textContent);
-  ok(/Qwen3\.6-35B-A3B/.test(hubTxt) && /Qwen3\.8-27B/.test(hubTxt) && /Δεδομένα/.test(hubTxt), 'Hub shows Qwen recommendations + data section');
+  ok(/Qwen3\.8-27B/.test(hubTxt) && /Δεδομένα/.test(hubTxt), 'Hub shows Qwen recommendations + data section');
   ok(/OpenRouter/.test(hubTxt) && /Venice/.test(hubTxt) && /xAI/.test(hubTxt) && /Custom/.test(hubTxt), 'Hub lists cloud providers');
   await snapShot(win, 'v2-hub.png');
   await win.evaluate(() => Panels.closeDrawer?.()); await win.keyboard.press('Escape'); await win.waitForTimeout(300);

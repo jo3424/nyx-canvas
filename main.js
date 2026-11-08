@@ -448,8 +448,11 @@ app.whenReady().then(() => {
   i18n.wire(ipcMain);
   ipcMain.on('i18n:set', (e, l) => { i18n.setLang(l); refreshTray(); });
   secure.wireSession({ scriptDir: path.join(__dirname, 'app') });
-  session.defaultSession.setPermissionRequestHandler((wc, perm, cb) => cb(['media', 'notifications', 'clipboard-read', 'clipboard-sanitized-write', 'fullscreen'].includes(perm)));
-  session.defaultSession.setPermissionCheckHandler((wc, perm) => ['media', 'notifications', 'clipboard-read', 'clipboard-sanitized-write', 'fullscreen'].includes(perm));
+  // v2.6.4: clipboard permissions only for the app's own windows (not <webview> / web pages).
+  const PERM_ALL = ['media', 'notifications', 'fullscreen'], PERM_APP = ['clipboard-read', 'clipboard-sanitized-write'];
+  const permOk = (wc, perm) => PERM_ALL.includes(perm) || (PERM_APP.includes(perm) && !!wc && secure.isAppWc(wc));
+  session.defaultSession.setPermissionRequestHandler((wc, perm, cb) => cb(permOk(wc, perm)));
+  session.defaultSession.setPermissionCheckHandler((wc, perm) => permOk(wc, perm));
   // v2.6 (B-14): next to the CSP (which on file:// treats every local file as 'self'), the app's own windows may
   // only load scripts from the app folder — a <script src="file:///…/Downloads/x.js"> is cancelled. v2.6.3: this rule is
   // part of secure.wireSession({ scriptDir }) above (one onBeforeRequest listener per session).

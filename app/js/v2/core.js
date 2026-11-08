@@ -15,13 +15,24 @@ const PROVIDERS_DEFAULT = [
   { id: 'custom', name: 'Custom (OpenAI-compatible)', kind: 'cloud', base: '', keyRef: 'key:custom', enabled: false, icon: 'plug' },
 ];
 const AI_TASKS = [['chat', t('core.001'), 'message-circle'], ['commands', t('core.002'), 'terminal'], ['vision', t('core.003'), 'scan-eye'], ['summarize', t('core.004'), 'list-collapse'], ['embed', t('core.005'), 'binary']];
+// v2.6.3: recommendations for RX 7900 XTX 24 GB (Windows 11, llama-server/whisper-server on Vulkan).
+// Only links + exact file names/sizes (checked on Hugging Face 02/11/2026). Nyx never downloads models by itself.
+const HF_URL = 'https://huggingface.co/';
 const MODEL_RECS = [
-  { name: t('core.006'), role: t('core.007'), note: t('core.008'), star: true },
-  { name: 'Qwen3.8-27B (vision) · Q4_K_XL', role: t('core.009'), note: t('core.010') },
-  { name: 'Gemma 4 12B (Q4_0 / QAT uncensored)', role: t('core.011'), note: t('core.012') },
-  { name: 'Llama-Krikri 8B q8_0', role: t('core.013'), note: t('core.014') },
-  { name: 'text-embedding-nomic / bge-m3 (LM Studio)', role: 'Embeddings', note: t('core.015') },
+  { id: 'fast', star: true, name: 'Qwen3.8-27B · unsloth UD-Q4_K_M', role: t('core.007'), note: t('core.008'), why: t('core.r_fast_why'), url: HF_URL + 'unsloth/Qwen3.8-27B-GGUF',
+    files: [['Qwen3.8-27B-UD-Q4_K_M.gguf', 16.46], ['MTP/mtp-Qwen3.8-27B-Q4_0.gguf', 1.37, 'opt']] },
+  { id: 'vision', name: 'Qwen3.8-27B + mmproj-F16', role: t('core.009'), note: t('core.010'), why: t('core.r_vision_why'), url: HF_URL + 'unsloth/Qwen3.8-27B-GGUF',
+    files: [['Qwen3.8-27B-UD-Q4_K_M.gguf', 16.46, 'same'], ['mmproj-F16.gguf', 0.93]] },
+  { id: 'uncensored', name: 'orcarouter Qwen3.8-27B-Uncensored · Q4_K_M', role: t('core.011'), note: t('core.012'), why: t('core.r_unc_why'), url: HF_URL + 'orcarouter/Qwen3.8-27B-Uncensored-GGUF',
+    files: [['Qwen3.8-27B-Uncensored-Q4_K_M.gguf', 16.81], ['mmproj-Qwen3.8-27B-Uncensored-f16.gguf', 0.93, 'opt']],
+    alt: { name: 'huihui-ai Huihui-Qwen3.8-27B-abliterated · UD-DW-Q4_K_M', note: t('core.r_unc_alt'), url: HF_URL + 'huihui-ai/Huihui-Qwen3.8-27B-abliterated-GGUF', files: [['Huihui-Qwen3.8-27B-abliterated-UD-DW-Q4_K_M.gguf', 16.55], ['mmproj-model-bf16.gguf', 0.93, 'opt']] } },
+  { id: 'greek', name: 'Llama-Krikri-8B-Instruct · q4_k_m', role: t('core.013'), note: t('core.014'), why: t('core.r_greek_why'), url: HF_URL + 'ilsp/Llama-Krikri-8B-Instruct-GGUF',
+    files: [['llama-krikri-8b-instruct-q4_k_m.gguf', 5.04], ['llama-krikri-8b-instruct-q8_0.gguf', 8.72, 'opt']] },
+  { id: 'stt', name: 'whisper.cpp · ggml-large-v3', role: t('core.r_stt_role'), note: t('core.r_stt_note'), why: t('core.r_stt_why'), url: HF_URL + 'ggerganov/whisper.cpp',
+    files: [['ggml-large-v3.bin', 3.10], ['ggml-large-v3-turbo.bin', 1.62, 'alt']] },
+  { id: 'embed', name: 'text-embedding-nomic / bge-m3 (LM Studio)', role: 'Embeddings', note: t('core.015') },
 ];
+const MODEL_FIT_NOTE = t('core.r_fit');
 function aiDefaults(info) {
   const g = (r) => info?.gvs ? info.gvs.replace(/[\\/]$/, '') + '\\' + r : '';
   const home = info?.home || '';
