@@ -20,7 +20,8 @@ const ddmm = (ts) => { const d = new Date(ts); const p = (n) => String(n).padSta
     await _load(); const S = this.state.settings; const A = S.ai;
     A.servers.sd = { exe: '', modelDir: '', loraDir: '', upscaleDir: '', port: 7860, extra: '', autoStart: false, ...(A.servers.sd || {}) };
     A.router = { enabled: false, groqFallback: true, unloadMin: 0, timeout: 120, ...(A.router || {}) };
-    A.router.profiles = { fast: { model: '', ctx: 8192, extra: '' }, vision: { model: '', ctx: 8192, extra: '' }, uncensored: { model: '', ctx: 8192, extra: '' }, ...(A.router.profiles || {}) };
+    A.router.profiles = { fast: { model: '', ctx: 0, extra: '' }, vision: { model: '', ctx: 0, extra: '' }, uncensored: { model: '', ctx: 0, extra: '' }, ...(A.router.profiles || {}) };
+    for (const k of ['fast', 'vision', 'uncensored']) { const pr = A.router.profiles[k]; if (pr && !pr.ctxUserSet && +pr.ctx === 8192) pr.ctx = 0; }
     A.private = { provider: 'llama', model: '', ack: false, ...(A.private || {}) };
     const xai = A.providers.find(p => p.id === 'xai'); if (xai && !xai.defModel) xai.defModel = 'grok-4.7';
     S.faces = { consentAck: false, ...(S.faces || {}) };
@@ -129,9 +130,10 @@ const Private = {
   },
   async run(text) {
     const { p, m } = await this.pick();
-    const msgs = [{ role: 'system', content: t('v25.pv_system') }, ...this.chat.slice(-13, -1).filter(x => x.content).map(x => ({ role: x.role, content: String(x.content).slice(0, 4000) })), { role: 'user', content: text }];
-    const r = await API.inv('ai:chat', p, { model: m, messages: msgs, temperature: 0.8, max_tokens: 2000 });
-    return { content: stripThink(r.message?.content || ''), model: r.model || m };
+    const msgs = [{ role: 'system', content: t('v25.pv_system') }, ...this.chat.slice(-80, -1).filter(x => x.content).map(x => ({ role: x.role, content: String(x.content) })), { role: 'user', content: text }];
+    const notices = [];
+    const r = await AI.chatTurn(p, { model: m, messages: msgs, temperature: 0.8 }, (kind, msg) => notices.push({ kind, text: msg }));
+    return { content: stripThink(r.message?.content || '', r.message?.reasoning_content || r.reasoning), model: r.model || m, reasoning: r.reasoning || '', truncated: !!r.truncated, notices };
   },
   async toggle(force) {
     const want = force ?? !this.on; const P = this.cfg();

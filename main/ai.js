@@ -5,6 +5,7 @@ const fs = require('fs'), fsp = fs.promises, path = require('path'), os = requir
 const { spawn } = require('child_process');
 const secrets = require('./secrets');
 const nyxPath = require('./paths');
+const limits = require('./limits');
 
 function headers(p) {
   const h = { 'Content-Type': 'application/json' };
@@ -149,14 +150,128 @@ function lmsServerStart() {
     ch.on('close', code => { clearTimeout(tm); res({ ok: code === 0, exe, code, out: out.slice(-1500), error: code === 0 ? '' : out.slice(-300) || ('exit ' + code) }); });
   });
 }
+const THINK_KEYS = ['chat_template_kwargs', 'reasoning_format', 'reasoning_effort', 'reasoning_budget'];
+const thinkCache = new Map(); // base → list of keys this server rejected
+function applyThink(req, body) {
+  const skip = new Set(thinkCache.get(trimBase(body._base || '')) || []);
+  for (const k of THINK_KEYS) if (body[k] != null && !skip.has(k)) req[k] = body[k];
+}
 async function chat(p, body) {
   const req = { model: body.model, messages: body.messages, temperature: body.temperature ?? 0.4, stream: false };
   if (body.max_tokens) req.max_tokens = body.max_tokens;
   if (body.tools?.length) { req.tools = body.tools; req.tool_choice = body.tool_choice || 'auto'; }
   if (body.response_format) req.response_format = body.response_format;
-  const j = await jfetch(baseOf(p) + '/chat/completions', { method: 'POST', headers: headers(p), body: JSON.stringify(req) }, body.timeout || 240000);
+  applyThink(req, body);
+  const url = baseOf(p) + '/chat/completions';
+  let j;
+  try {
+    j = await jfetch(url, { method: 'POST', headers: headers(p), body: JSON.stringify(req) }, body.timeout || 240000);
+  } catch (e) {
+    const usedThink = THINK_KEYS.some(k => k in req);
+    if (usedThink && limits.isUnknownParamError(e)) {
+      const key = trimBase(p.base);
+      thinkCache.set(key, THINK_KEYS);
+      const req2 = { ...req }; for (const k of THINK_KEYS) delete req2[k];
+      j = await jfetch(url, { method: 'POST', headers: headers(p), body: JSON.stringify(req2) }, body.timeout || 240000);
+      const ch0 = j?.choices?.[0]; if (!ch0) throw new Error(t('ai.004'));
+      const msg0 = ch0.message || { role: 'assistant', content: ch0.text || '' };
+      return { message: msg0, finish: ch0.finish_reason, usage: j.usage || null, model: j.model || body.model, thinkingIgnored: true };
+    }
+    throw e;
+  }
   const ch = j?.choices?.[0]; if (!ch) throw new Error(t('ai.004'));
-  return { message: ch.message || { role: 'assistant', content: ch.text || '' }, finish: ch.finish_reason, usage: j.usage || null, model: j.model || body.model };
+  const msg = ch.message || { role: 'assistant', content: ch.text || '' };
+  if (ch.reasoning_content && msg.reasoning_content == null) msg.reasoning_content = ch.reasoning_content;
+  return { message: msg, finish: ch.finish_reason, usage: j.usage || null, model: j.model || body.model, reasoning: msg.reasoning_content || null };
+}
+function rootVariants(p) {
+  const orig = trimBase(p.base);
+  const bases = [baseCache.get(orig), ...baseVariants(orig)].filter(Boolean);
+  const roots = [];
+  for (const b of bases) {
+    const r = limits.nativeBase(b);
+    roots.push(r);
+    if (!/\/v1$/i.test(b)) roots.push(b);
+  }
+  return [...new Set(roots)];
+}
+async function fetchNative(p, path, opts = {}, timeout = 4000) {
+  let first = null;
+  for (const root of rootVariants(p)) {
+    try {
+      const j = await jfetch(root + path, { headers: headers(p), ...opts }, timeout);
+      return { ok: true, json: j, root };
+    } catch (e) { if (!first) first = e; }
+  }
+  throw first || new Error(t('ai.019', { v0: trimBase(p.base), v1: path }));
+}
+async function props(p) {
+  const r = await fetchNative(p, '/props', {}, 4000);
+  const n_ctx = limits.parseNctx(r.json);
+  return { ok: true, n_ctx, raw: r.json, root: r.root, source: 'props' };
+}
+async function slots(p) {
+  const r = await fetchNative(p, '/slots', {}, 4000);
+  const n_ctx = limits.parseNctx(r.json);
+  return { ok: true, n_ctx, raw: r.json, root: r.root, source: 'slots' };
+}
+async function tokenize(p, content) {
+  const body = JSON.stringify({ content: String(content || '') });
+  let r, last;
+  for (const path of ['/tokenize', '/v1/tokenize']) {
+    try { r = await fetchNative(p, path, { method: 'POST', body }, 15000); break; } catch (e) { last = e; }
+  }
+  if (!r) throw last || new Error('tokenize');
+  const j = r.json;
+  const tokens = Array.isArray(j?.tokens) ? j.tokens : Array.isArray(j) ? j : (j?.ids || []);
+  if (!Array.isArray(tokens)) throw new Error('tokenize: unexpected response');
+  return { count: tokens.length, root: r.root };
+}
+async function contextInfo(p) {
+  const warnings = [];
+  let n_ctx = null, source = '', raw = null, root = '';
+  try { const r = await props(p); n_ctx = r.n_ctx; source = 'props'; raw = r.raw; root = r.root; }
+  catch (e) { warnings.push({ code: 'props_fail', message: String(e.message || e) }); }
+  if (n_ctx == null) {
+    try { const r = await slots(p); n_ctx = r.n_ctx; source = n_ctx ? 'slots' : source; raw = r.raw; root = r.root; }
+    catch (e) { warnings.push({ code: 'slots_fail', message: String(e.message || e) }); }
+  }
+  if (n_ctx == null) {
+    try {
+      const ms = await models(p);
+      n_ctx = limits.parseNctx({ data: ms }) || limits.parseNctx(ms);
+      if (n_ctx) source = 'models';
+    } catch (e) { warnings.push({ code: 'models_fail', message: String(e.message || e) }); }
+  }
+  return { n_ctx, source, root, warnings, raw };
+}
+async function prepare(p, opts = {}) {
+  const messages = opts.messages || [];
+  const warnings = [];
+  let nCtx = null, ctxSrc = '', promptTokens = null, tokSrc = 'none';
+  const local = limits.isLocalLlama(p) || p?.kind === 'local';
+  if (local) {
+    try {
+      const c = await contextInfo(p);
+      nCtx = c.n_ctx; ctxSrc = c.source; warnings.push(...(c.warnings || []));
+    } catch (e) { warnings.push({ code: 'context_fail', message: String(e.message || e) }); }
+    try {
+      const tok = await tokenize(p, limits.messagesToText(messages));
+      promptTokens = tok.count; tokSrc = 'tokenize';
+    } catch (e) {
+      promptTokens = limits.estimateTokens(messages); tokSrc = 'estimate';
+      warnings.push({ code: 'tokenize_fail', message: String(e.message || e), estimated: promptTokens });
+    }
+  } else {
+    promptTokens = limits.estimateTokens(messages); tokSrc = 'estimate';
+  }
+  const cloudMax = limits.cloudMaxOutput(p, opts.model);
+  const limit = limits.computeMaxTokens({ nCtx, promptTokens, reserve: opts.reserve, override: opts.maxTokensOverride, cloudMax, kind: p?.kind });
+  const think = limits.thinkingParams({ enabled: !!opts.thinking, budget: opts.thinkingBudget, effort: opts.thinkingEffort });
+  const body = {};
+  if (limit.max_tokens != null) body.max_tokens = limit.max_tokens;
+  Object.assign(body, think);
+  return { ...limit, n_ctx: nCtx, ctxSrc, promptTokens, tokSrc, warnings, cloudMax, body, thinking: !!opts.thinking };
 }
 async function embed(p, model, input) {
   const j = await jfetch(baseOf(p) + '/embeddings', { method: 'POST', headers: headers(p), body: JSON.stringify({ model, input }) }, 120000);
@@ -238,4 +353,4 @@ function exeHelp(exe) {
     ch.on('close', () => { clearTimeout(tm); res({ ok: true, out: out.slice(0, 6000) }); });
   });
 }
-module.exports = { parseWait, waitOf, jfetch, models, ping, chat, embed, transcribe, tts, runCmd, fillTemplate, buildTtsCmd, cmdQuote, exeHelp, netCode, netMessage, baseVariants, hintFor, findLms, lmsServerStart, _baseCache: baseCache };
+module.exports = { parseWait, waitOf, jfetch, models, ping, chat, prepare, props, slots, tokenize, contextInfo, embed, transcribe, tts, runCmd, fillTemplate, buildTtsCmd, cmdQuote, exeHelp, netCode, netMessage, baseVariants, hintFor, findLms, lmsServerStart, _baseCache: baseCache, _thinkCache: thinkCache };

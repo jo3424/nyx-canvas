@@ -3,15 +3,19 @@
     "el": [
       "Διαδρομές: οι προεπιλογές χρησιμοποιούν το %USERPROFILE% (στα Windows 11 ο χρήστης είναι admin, όχι Administrator). Το προεπιλεγμένο μοντέλο whisper είναι τώρα στο GPU-Voice-Studio\\models\\, όπως στην απογραφή",
       "Αποθηκευμένες διαδρομές δεν αλλάζουν, εκτός αν περιέχουν \\Users\\Administrator\\, δεν υπάρχουν στον δίσκο, και η αντίστοιχη διαδρομή στο προφίλ σου υπάρχει — τότε μεταφέρονται και το γεγονός γράφεται στο log",
-      "Διορθωμένος runner llama-bench (tools\\bench): VBS χωρίς BOM, καθαρά σφάλματα και logs, έλεγχος --list-devices, αυτόματη εύρεση hipblas.dll, χωρίς σιωπηλή πτώση στη CPU. Το peak VRAM είναι προαιρετικό και κλειστό",
-      "Τεστ αποδοχής v2.6.4 στα Windows 11 (tools\\accept) και προαιρετική συλλογή logs",
+      "Διόρθωση κοψίματος απάντησης: το όριο tokens υπολογίζεται από το πραγματικό n_ctx μείον το prompt, φαίνεται στο UI και αλλάζει από εσένα. Όταν finish_reason=length εμφανίζεται «Η απάντηση κόπηκε στο όριο — συνεχίζω…» και η συνέχεια γίνεται αυτόματα. Η σκέψη στη συνομιλία είναι κλειστή από προεπιλογή (με δικό της όριο αν την ανοίξεις). Ο έλεγχος LM Studio δεν τρέχει αυτόματα",
+      "Το Hub δείχνει το πραγματικό ctx του τρέχοντος llama-server («ctx του GVS: N» όταν είναι του GPU-Voice-Studio). Αν είναι <16K, εμφανίζονται οδηγίες για να το ανέβασεις εσύ. Η προεπιλογή εκκίνησης του Nyx είναι αυτόματο ctx (όσο χωράει στα 24 GB, με -fa on· το q8_0 KV είναι επιλογή). Υπολογισμένο, όχι μετρημένο",
+      "Ξεχωριστές ελληνικές οδηγίες για το -c του GPU-Voice-Studio: tools\\accept\\ΟΔΗΓΙΕΣ-GVS-ctx.txt (επιβεβαιωμένο / μη επαληθευμένο είναι χωριστά).",
+      "Τεστ αποδοχής v2.6.4 στα Windows 11 (tools\\accept) και προαιρετική συλλογή logs. Ο runner llama-bench βγήκε από τα παραδοτέα της 2.6.5 (το benchmark έγινε χειροκίνητα)",
       "Το Electron μένει 45.2.3, ώστε η ενημέρωση να είναι μικρό υπογεγραμμένο patch από την 2.6.4"
     ],
     "en": [
       "Paths: defaults use %USERPROFILE% (on Windows 11 the user is admin, not Administrator). The default whisper model is now under GPU-Voice-Studio\\models\\, matching the disk inventory",
       "Saved paths are left alone unless they contain \\Users\\Administrator\\, are missing on disk, and the matching path under your profile exists — then they are migrated and logged",
-      "Fixed llama-bench runner (tools\\bench): BOM-free VBS, clear errors and logs, --list-devices check, automatic hipblas.dll discovery, no silent CPU fallback. Peak VRAM sampling is optional and off",
-      "v2.6.4 acceptance checklist for Windows 11 (tools\\accept) and an optional log gatherer",
+      "Truncation fix: the token limit is computed from the real n_ctx minus the prompt, shown in the UI, and editable. On finish_reason=length a notice is shown and the answer continues automatically. Thinking in chat is off by default (with its own budget if you turn it on). LM Studio is not probed automatically",
+      "The Hub shows the running llama-server’s real ctx (“GVS ctx: N” when it is GPU-Voice-Studio’s). If it is below 16K, instructions for raising it are shown. Nyx’s own launch default is an auto-sized ctx (as much as fits in 24 GB, with -fa on; q8_0 KV is an option). Computed, not measured",
+      "Standalone Greek instructions for raising GPU-Voice-Studio’s -c: tools\\accept\\ΟΔΗΓΙΕΣ-GVS-ctx.txt (verified vs unverified labelled).",
+      "v2.6.4 acceptance checklist for Windows 11 (tools\\accept) and an optional log gatherer. The llama-bench runner is no longer a 2.6.5 deliverable (the benchmark was run by hand)",
       "Electron stays 45.2.3, so this update is a small signed patch from 2.6.4"
     ]
   },

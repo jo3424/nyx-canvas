@@ -38,6 +38,7 @@
     "test:v263unit": "node tests/v263-unit.js",
     "test:models": "node tests/models-unit.js",
     "test:paths": "node tests/paths-unit.js",
+    "test:v265unit": "node tests/v265-unit.js",
     "test:v264fused": "xvfb-run -a node tests/v264-fused.js"
   },
   "devDependencies": {

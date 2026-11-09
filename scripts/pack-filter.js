@@ -1,7 +1,7 @@
 'use strict';
 // Single source of truth for "what is app code": used by pack.js (electron packager ignore) and make-patch.js.
 const fs = require('fs'), path = require('path');
-const IGNORE = [/^\/(node_modules|tests|shots|dist|scripts|build|\.git)(\/|$)/, /\.md$/, /^\/\.gitignore$/, /^\/package-lock\.json$/];
+const IGNORE = [/^\/(node_modules|tests|shots|dist|scripts|build|\.git)(\/|$)/, /^\/tools\/bench(\/|$)/, /\.md$/, /^\/\.gitignore$/, /^\/package-lock\.json$/];
 const ignored = (rel) => { const p = '/' + rel.replace(/\\/g, '/'); return IGNORE.some(r => r.test(p)); };
 // Copy the app-code part of srcDir into outDir (fresh).
 function copyFiltered(srcDir, outDir) {

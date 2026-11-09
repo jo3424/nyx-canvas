@@ -98,6 +98,12 @@ const Hub = {
       h('label', { class: 'chk' }, h('input', { type: 'checkbox', class: 'toggle', checked: As.confirm ? true : null, onchange: (e) => { As.confirm = e.target.checked; Store.save(); } }), h('span', {}, t('hub.031'))),
       h('label', { class: 'chk' }, h('input', { type: 'checkbox', class: 'toggle', checked: A.autoTag ? true : null, onchange: (e) => { A.autoTag = e.target.checked; Store.save(); } }), h('span', {}, t('hub.032'))),
       h('label', { class: 'sfield' }, h('span', {}, t('hub.033')), h('input', { type: 'range', min: 0, max: 1.2, step: .1, value: As.temperature, oninput: (e) => { As.temperature = +e.target.value; Store.save(); } })),
+      h('label', { class: 'chk' }, h('input', { type: 'checkbox', class: 'toggle', id: 'hub-thinking', checked: As.thinking ? true : null, onchange: (e) => { As.thinking = e.target.checked; Store.save(); Assistant.syncThink?.(); } }), h('span', {}, t('v265.think'))),
+      h('div', { class: 'row gap wrap' },
+        this.field(t('v265.max_tokens'), h('input', { class: 'inp', type: 'number', min: 0, placeholder: t('v265.auto'), value: As.maxTokens || '', onchange: (e) => { As.maxTokens = +e.target.value || 0; Store.save(); } }), t('v265.max_tokens_help')),
+        this.field(t('v265.max_continue'), h('input', { class: 'inp', type: 'number', min: 0, value: As.maxContinue ?? 8, onchange: (e) => { As.maxContinue = Math.max(0, +e.target.value || 0); Store.save(); } }), t('v265.max_continue_help')),
+        this.field(t('v265.think_budget'), h('input', { class: 'inp', type: 'number', min: 0, placeholder: t('v265.auto'), value: As.thinkingBudget || '', onchange: (e) => { As.thinkingBudget = +e.target.value || 0; Store.save(); } }), t('v265.think_budget_help'))),
+      h('p', { class: 'muted small', id: 'hub-limit-live' }, t('v265.limit_hub')),
       h('label', { class: 'field' }, h('span', {}, t('hub.034')), h('textarea', { class: 'inp', rows: 3, onchange: (e) => { As.extra = e.target.value; Store.save(); } }, As.extra || ''))));
     // data location: portable / Syncthing
     const dl = h('div', { class: 'data-loc' }, h('p', { class: 'muted small' }, '…'));
@@ -137,14 +143,14 @@ const Hub = {
     const row = h('div', { class: 'prov' + (p.enabled ? '' : ' off'), 'data-prov': p.id },
       h('div', { class: 'prov-head' }, h('span', { html: iconSvg(p.icon || 'plug', 18) }), h('b', {}, p.name), h('span', { class: 'chip ' + (p.kind === 'local' ? 'loc' : 'cl') }, p.kind === 'local' ? t('hub.054') : 'cloud'), h('div', { class: 'grow' }),
         h('button', { class: 'btn ghost sm p-all', title: t('v23.use_all_tip'), onclick: () => this.useForAll(p) }, iconSvg('check-check', 14), t('v23.use_all')),
-        h('input', { type: 'checkbox', class: 'toggle', checked: p.enabled ? true : null, title: t('hub.055'), onchange: (e) => { p.enabled = e.target.checked; row.classList.toggle('off', !p.enabled);
+        h('input', { type: 'checkbox', class: 'toggle', checked: p.enabled ? true : null, title: t('hub.055'), onchange: (e) => { p.enabled = e.target.checked; if (p.id === 'lmstudio') p.userOn = !!p.enabled; row.classList.toggle('off', !p.enabled);
           // v2.3: switching a provider off clears its old error/fix box (no more stale red messages) and moves tasks to «auto»
           if (!p.enabled) { status.className = 'pstat'; status.textContent = t('hub.051'); status.title = ''; fix.hidden = true; fix.innerHTML = ''; for (const tk of Object.values(Store.state.settings.ai.tasks)) if (tk.p === p.id) { tk.p = ''; tk.m = ''; } }
           else { status.textContent = ''; setTimeout(test, 30); }
           delete AI.modelCache[p.id]; Store.save(); this.refreshTasks(); } })),
       h('div', { class: 'row gap' }, (() => { const bi = this.inp(p, 'base', 'https://…/v1', 'text', () => { status.textContent = ''; fix.hidden = true; }); bi.classList.add('grow', 'prov-base'); return bi; })(), keyIn, keyIn ? h('button', { class: 'btn sm', onclick: async () => { if (!keyIn.value.trim()) return; await API.inv('secret:set', p.keyRef, keyIn.value.trim()); keyIn.value = ''; keyIn.placeholder = t('hub.052'); toast(t('hub.056')); } }, t('hub.057')) : null,
         h('button', { class: 'btn ghost sm', onclick: test }, iconSvg('activity', 14), t('hub.058'))), status, fix, p.id === 'groq' ? h('p', { class: 'muted small groq-note' }, '⚡ ' + t('v24.groq_note')) : null);
-    if (p.enabled && p.kind === 'local') setTimeout(test, 50);
+    if (p.enabled && p.kind === 'local' && (p.id !== 'lmstudio' || p.userOn)) setTimeout(test, 50);
     return row;
   },
   // v2.3: «Αυτόματο» = first enabled & reachable provider; disabled providers can't be chosen; shows what will really be used
@@ -161,13 +167,13 @@ const Hub = {
       res.classList.toggle('bad', !r.p);
       dl.innerHTML = ''; if (r.p) try { const ms = await AI.models(r.p.id); for (const m of ms) dl.append(h('option', { value: m.id })); } catch (e) {}
     };
-    psel.onchange = () => { c.p = psel.value; c.m = ''; msel.value = ''; Store.save(); row._refresh(); Assistant.updModel?.(); };
+    psel.onchange = () => { c.p = psel.value; c.m = ''; msel.value = ''; if (c.p === 'lmstudio') { const lm = A.providers.find(x => x.id === 'lmstudio'); if (lm) { lm.enabled = true; lm.userOn = true; } } Store.save(); row._refresh(); Assistant.updModel?.(); };
     msel.onchange = () => { c.m = msel.value.trim(); if (c.m && !c.p) c.p = AI.task(k).p?.id || ''; Store.save(); if (k === 'embed') Search.index = {}; row._refresh(); Assistant.updModel?.(); };
     row._refresh(); return row;
   },
   refreshTasks() { $$('.task-row').forEach(x => x._refresh?.()); try { Assistant.updModel?.(); } catch (e) {} },
   useForAll(p) {
-    if (!p.enabled) { p.enabled = true; const r = $(`.prov[data-prov="${p.id}"]`); r?.classList.remove('off'); const tg = r?.querySelector('.prov-head .toggle'); if (tg) tg.checked = true; }
+    if (!p.enabled) { p.enabled = true; if (p.id === 'lmstudio') p.userOn = true; const r = $(`.prov[data-prov="${p.id}"]`); r?.classList.remove('off'); const tg = r?.querySelector('.prov-head .toggle'); if (tg) tg.checked = true; }
     const T = Store.state.settings.ai.tasks; for (const k of Object.keys(T)) { if (k === 'embed') { if (T.embed.p && T.embed.p !== p.id) { T.embed.p = ''; T.embed.m = ''; } continue; } T[k] = { p: p.id, m: '' }; }
     Store.save(); this.refreshTasks(); toast(t('v23.use_all_done', { v0: p.name }));
   },
@@ -215,11 +221,51 @@ const Hub = {
       h('button', { class: 'btn sm primary', onclick: go }, iconSvg('play', 14), t('hub.064')), h('button', { class: 'btn sm ghost', onclick: async () => upd(await API.inv('proc:stop', id)) }, iconSvg('square', 14), t('hub.065')),
       h('button', { class: 'btn sm ghost ico', title: 'Log', onclick: () => { log.hidden = !log.hidden; } }, iconSvg('scroll-text', 14)), h('button', { class: 'btn sm ghost ico', title: 'Health', onclick: async () => { const r = await API.inv('proc:health', this.healthUrl(id, cfg)); toast(r.ok ? '✓ ' + this.healthUrl(id, cfg) : t('hub.066') + this.healthUrl(id, cfg)); } }, iconSvg('heart-pulse', 14))),
       exeRow, modelRow,
-      h('div', { class: 'row gap srv-nums' }, this.field('Port', this.inp(cfg, 'port', '', 'number')), id === 'llama' ? this.field('GPU layers (-ngl)', this.inp(cfg, 'ngl', '99', 'number')) : this.field(t('hub.015'), this.inp(cfg, 'language', 'el')), id === 'llama' ? this.field('Context (-c)', this.inp(cfg, 'ctx', '8192', 'number')) : null),
+      h('div', { class: 'row gap srv-nums' }, this.field('Port', this.inp(cfg, 'port', '', 'number')), id === 'llama' ? this.field('GPU layers (-ngl)', this.inp(cfg, 'ngl', '99', 'number')) : this.field(t('hub.015'), this.inp(cfg, 'language', 'el')), id === 'llama' ? this.ctxField(cfg) : null),
+      id === 'llama' ? this.llamaCtxExtras(cfg) : null,
       this.field(t('hub.069'), this.inp(cfg, 'extra', id === 'llama' ? t('v22.ph_llama') : t('v22.ph_whisper')), t('v22.extra_help')),
       h('label', { class: 'chk' }, h('input', { type: 'checkbox', class: 'toggle', checked: cfg.autoStart ? true : null, onchange: (e) => { cfg.autoStart = e.target.checked; Store.save(); } }), h('span', {}, t('v22.autostart'))), log);
   },
+  ctxField(cfg) {
+    const i = h('input', { class: 'inp', type: 'number', min: 0, placeholder: t('v265.auto'), value: cfg.ctx || '', onchange: (e) => { const n = +e.target.value; cfg.ctx = n > 0 ? n : 0; cfg.ctxUserSet = n > 0; Store.save(); } });
+    return this.field('Context (-c)', i, t('v265.ctx_help'));
+  },
+  llamaCtxExtras(cfg) {
+    const live = h('div', { class: 'gvs-ctx', id: 'hub-gvs-ctx' }, h('p', { class: 'muted small' }, t('v265.ctx_loading')));
+    const recBox = h('div', { class: 'gvs-rec muted small' }, '');
+    const refresh = async () => {
+      const A = Store.state.settings.ai;
+      const p = A.providers.find(x => x.id === 'llama') || { id: 'llama', base: 'http://127.0.0.1:' + (cfg.port || 8080) + '/v1', kind: 'local' };
+      const base = p.base || ('http://127.0.0.1:' + (cfg.port || 8080) + '/v1');
+      let ctxR = null, rec = null, ext = false;
+      try { ctxR = await API.inv('ai:context', { ...p, base }); } catch (e) { ctxR = { warnings: [{ message: cleanErr(e) }] }; }
+      try { rec = cfg.model ? await API.inv('ai:recommendCtx', cfg.model, { vramGiB: 24, kvType: cfg.kvType || 'f16', fa: cfg.fa !== false }) : await API.inv('ai:recommendCtx', '', { weightsBytes: 6.71 * 2 ** 30, vramGiB: 24, kvType: cfg.kvType || 'f16' }); } catch (e) { rec = { readError: cleanErr(e) }; }
+      const mine = this.procState.llama?.running;
+      try { const hl = await API.inv('proc:health', this.healthUrl('llama', cfg)).catch(() => ({ ok: false })); ext = !mine && !!(hl.ok || hl.status); } catch (e) {}
+      const n = ctxR?.n_ctx;
+      live.innerHTML = '';
+      if (n) {
+        const label = ext ? t('v265.gvs_ctx', { v0: n }) : t('v265.srv_ctx', { v0: n });
+        live.append(h('p', { class: n < 16384 ? 'warn small' : 'small', 'data-gvs-ctx': String(n) }, label));
+        if (n < 16384) live.append(h('div', { class: 'warn small gvs-howto' }, t('v265.gvs_small', { v0: n }), h('details', {}, h('summary', {}, t('v265.gvs_how_sum')), h('div', { class: 'small', html: t('v265.gvs_how') }))));
+      } else {
+        live.append(h('p', { class: 'muted small', 'data-gvs-ctx': '' }, t('v265.ctx_unknown', { v0: (ctxR?.warnings || []).map(w => w.message).filter(Boolean).slice(0, 1).join(' ') || '—' })));
+      }
+      recBox.innerHTML = '';
+      if (rec && rec.ctx) {
+        recBox.append(h('p', {}, t('v265.rec_ctx', { v0: rec.ctx, v1: rec.maxCtx || '—', v2: rec.note === 'fallback_no_metadata' ? t('v265.rec_fallback') : t('v265.computed') })),
+          h('p', { class: 'muted' }, t('v265.rec_kv', { v0: rec.assumptions?.kvType || cfg.kvType || 'f16', v1: rec.fitsMax ? '256K' : rec.ctx })));
+      } else if (rec?.readError) recBox.append(h('p', { class: 'warn' }, t('v265.rec_fail', { v0: rec.readError })));
+    };
+    setTimeout(refresh, 80);
+    return h('div', { class: 'llama-ctx-x' },
+      h('div', { class: 'row gap wrap' },
+        h('label', { class: 'chk' }, h('input', { type: 'checkbox', class: 'toggle', checked: cfg.fa !== false ? true : null, onchange: (e) => { cfg.fa = e.target.checked; Store.save(); } }), h('span', {}, t('v265.fa_on'))),
+        selField(t('v265.kv_type'), [['f16', 'f16'], ['q8_0', 'q8_0']], cfg.kvType || 'f16', (v) => { cfg.kvType = v; Store.save(); refresh(); })),
+      live, recBox, h('button', { class: 'btn ghost sm', onclick: refresh }, iconSvg('refresh-cw', 14), t('v265.refresh_ctx')));
+  },
   // v2.2: TTS engines. omnivoice.cpp CLI is documented (README: --model --codec --lang -o, text on stdin);
+
   // vs-engine (GPU-Voice-Studio) has no public docs → keep editable + «Δοκιμή» (shows the real stderr) + «--help».
   TTS_PRESETS: {
     vsengine: '{exe} --model {model} --codec {tokenizer} --text-file {text_file} --output {out}',

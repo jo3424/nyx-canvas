@@ -3,7 +3,7 @@
 const V2 = { info: null, viewer: null };
 const GVS_REL = { llamaExe: 'third_party\\llama\\llama-server.exe', llamaModel: 'models\\llama-krikri-8b-instruct-q8_0.gguf', whisperExe: 'third_party\\whisper.cpp\\build-vulkan\\bin\\Release\\whisper-server.exe', whisperModel: 'models\\ggml-large-v3-turbo-q5_0.bin', tts: 'vs-engine\\engine\\build-vulkan\\Release\\vs-engine.exe' };
 const PROVIDERS_DEFAULT = [
-  { id: 'lmstudio', name: 'LM Studio', kind: 'local', base: 'http://localhost:1234/v1', enabled: true, icon: 'monitor' },
+  { id: 'lmstudio', name: 'LM Studio', kind: 'local', base: 'http://localhost:1234/v1', enabled: false, icon: 'monitor' },
   { id: 'llama', name: 'llama-server', kind: 'local', base: 'http://127.0.0.1:8080/v1', enabled: true, icon: 'cpu' },
   { id: 'ollama', name: 'Ollama', kind: 'local', base: 'http://localhost:11434/v1', enabled: false, icon: 'box' },
   { id: 'openrouter', name: 'OpenRouter', kind: 'cloud', base: 'https://openrouter.ai/api/v1', keyRef: 'key:openrouter', enabled: false, icon: 'route' },
@@ -39,10 +39,10 @@ function aiDefaults(info) {
   return {
     providers: structuredClone(PROVIDERS_DEFAULT),
     tasks: { chat: { p: '', m: '' }, commands: { p: '', m: '' }, vision: { p: '', m: '' }, summarize: { p: '', m: '' }, embed: { p: '', m: '' } }, // v2.3: '' = first enabled & reachable provider
-    servers: { llama: { exe: g(GVS_REL.llamaExe), model: g(GVS_REL.llamaModel), port: 8080, ngl: 99, ctx: 8192, extra: '', autoStart: false }, whisper: { exe: g(GVS_REL.whisperExe), model: g(GVS_REL.whisperModel), port: 8178, language: 'el', extra: '', autoStart: false } },
+    servers: { llama: { exe: g(GVS_REL.llamaExe), model: g(GVS_REL.llamaModel), port: 8080, ngl: 99, ctx: 0, fa: true, kvType: 'f16', extra: '', autoStart: false }, whisper: { exe: g(GVS_REL.whisperExe), model: g(GVS_REL.whisperModel), port: 8178, language: 'el', extra: '', autoStart: false } },
     stt: { kind: 'whispercpp', base: 'http://127.0.0.1:8178', language: 'el', autoSend: true, groqModel: 'whisper-large-v3-turbo' },
     tts: { mode: 'system', rate: 0, pitch: 0, device: 'Vulkan0', port: 0, refAudio: '', endpoint: '', exe: g(GVS_REL.tts), model: home ? home + '\\OmniVoice-Vulkan\\models\\omnivoice-base-Q8_0.gguf' : '', tokenizer: home ? home + '\\OmniVoice-Vulkan\\models\\omnivoice-tokenizer-Q8_0.gguf' : '', voice: '', template: '{exe} --model {model} --codec {tokenizer} --text-file {text_file} --output {out}', speak: false },
-    assistant: { mode: 'auto', confirm: true, temperature: 0.3, extra: '', maxRounds: 6 },
+    assistant: { mode: 'auto', confirm: true, temperature: 0.3, extra: '', maxRounds: 6, thinking: false, thinkingBudget: 0, maxTokens: 0, maxContinue: 8 },
     autoTag: false,
   };
 }
@@ -68,6 +68,10 @@ Store.load = async function () {
   const have = new Set((S.ai.providers || []).map(p => p.id)); for (const p of def.providers) if (!have.has(p.id)) S.ai.providers.push(p);
   // v2.3: a task pinned to a provider that is now switched off falls back to «auto» (first enabled) instead of failing
   for (const k of Object.keys(S.ai.tasks)) { const tk = S.ai.tasks[k] ||= { p: '', m: '' }; const pv = S.ai.providers.find(p => p.id === tk.p); if (tk.p && (!pv || !pv.enabled)) { tk.p = ''; tk.m = ''; } }
+  // v2.6.5: do not auto-probe LM Studio unless the user turned it on or pinned a task to it
+  NyxLimits.migrateLmStudio(S.ai.providers, S.ai.tasks);
+  // v2.6.5: 8192 was the old silent default — treat it as auto unless the user set ctxUserSet
+  const L = S.ai.servers.llama; if (L && !L.ctxUserSet && (+L.ctx === 8192 || L.ctx === '' || L.ctx == null)) { L.ctx = 0; S.ai._migratedCtxAuto = true; }
   S.tools ||= {}; S.browser ||= { home: 'https://duckduckgo.com', search: 'https://duckduckgo.com/?q=%s', tabs: [] };
   try {
     if (API && !V2.viewer && S.ai) {
@@ -122,7 +126,7 @@ const AI = {
   cfg() { return Store.state.settings.ai; },
   prov(id) { return this.cfg().providers.find(p => p.id === id); },
   // v2.3: never use a disabled provider. Order: task's provider (if enabled) → chat's provider (if enabled) → first enabled.
-  enabled() { return (this.cfg().providers || []).filter(p => p.enabled && /^https?:\/\//i.test(p.base || '')); },
+  enabled() { return (this.cfg().providers || []).filter(p => NyxLimits.mayAutoUse(p) && /^https?:\/\//i.test(p.base || '')); },
   task(t) {
     const T = this.cfg().tasks || {}; const c = T[t] || {}; const fb = T.chat || {}; const on = (id) => { const p = id && this.prov(id); return p && p.enabled ? p : null; };
     const p = on(c.p) || on(fb.p) || this.enabled()[0] || null;
@@ -145,17 +149,102 @@ const AI = {
     const err = new Error(cands.length ? t('v23.no_provider', { task: AI_TASKS.find(x => x[0] === task)?.[1] || task, v0: errs.join(' · ') }) : t('v23.no_enabled'));
     err.code = 'NOPROV'; throw err;
   },
-  last: {},
-  async chat(task, messages, opts = {}) { const { p, m } = await this.pickModel(task); return await API.inv('ai:chat', p, { model: m, messages, ...opts }); },
-  async text(task, prompt, system) { const r = await this.chat(task, [...(system ? [{ role: 'system', content: system }] : []), { role: 'user', content: prompt }], { temperature: 0.3 }); return stripThink(r.message.content || ''); },
+  last: {}, lastPrep: null,
+  async prepare(p, messages, extra = {}) {
+    const A = this.cfg().assistant || {};
+    const r = await API.inv('ai:prepare', p, { messages, model: extra.model, thinking: extra.thinking ?? A.thinking, thinkingBudget: extra.thinkingBudget ?? A.thinkingBudget, maxTokensOverride: extra.maxTokensOverride ?? A.maxTokens, reserve: extra.reserve });
+    this.lastPrep = r; return r;
+  },
+  async chatTurn(p, body, onNotice) { return chatTurn(p, body, onNotice); },
+  async chat(task, messages, opts = {}) { const { p, m } = await this.pickModel(task); return await this.chatTurn(p, { model: m, messages, ...opts }, opts.onNotice); },
+  async text(task, prompt, system) { const r = await this.chat(task, [...(system ? [{ role: 'system', content: system }] : []), { role: 'user', content: prompt }], { temperature: 0.3 }); return stripThink(r.message.content || '', r.message?.reasoning_content || r.reasoning); },
   async vision(file, prompt) {
     const url = await API.inv('ai:imageData', file);
-    const r = await this.chat('vision', [{ role: 'user', content: [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url } }] }], { temperature: 0.2, max_tokens: 400 });
-    return stripThink(r.message.content || '');
+    const r = await this.chat('vision', [{ role: 'user', content: [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url } }] }], { temperature: 0.2 });
+    return stripThink(r.message.content || '', r.message?.reasoning_content || r.reasoning);
   },
   async embed(texts) { const { p, m } = this.task('embed'); if (!m || !p) return null; try { return await API.inv('ai:embed', p, m, texts); } catch (e) { console.warn('embed', e); return null; } },
 };
-function stripThink(s) { return String(s || '').replace(/<think>[\s\S]*?<\/think>/g, '').replace(/^\s*<think>[\s\S]*$/, '').trim(); }
+const NyxLimits = {
+  mayAutoUse(p) { if (!p || !p.enabled) return false; if (p.id !== 'lmstudio') return true; return !!p.userOn; },
+  migrateLmStudio(providers, tasks) {
+    const p = (providers || []).find(x => x.id === 'lmstudio'); if (!p) return { changed: false };
+    const used = Object.values(tasks || {}).some(t => t && t.p === 'lmstudio');
+    const custom = !!(p.base && String(p.base).replace(/\/+$/, '') !== 'http://localhost:1234/v1');
+    if (p.userOn || used || custom) { if ((used || custom) && p.enabled && !p.userOn) { p.userOn = true; return { changed: true }; } return { changed: false }; }
+    if (p.enabled) { p.enabled = false; return { changed: true }; } return { changed: false };
+  },
+  extractThink(s, reasoningContent) {
+    let text = String(s || ''); const parts = []; if (reasoningContent) parts.push(String(reasoningContent).trim());
+    const take = (re) => { text = text.replace(re, (_, t) => { if (t && String(t).trim()) parts.push(String(t).trim()); return ''; }); };
+    take(/<think>([\s\S]*?)<\/think>/gi); take(/<thought>([\s\S]*?)<\/thought>/gi); take(/<reasoning>([\s\S]*?)<\/reasoning>/gi);
+    if (/^\s*<think>/i.test(text)) { parts.push(text.replace(/^\s*<think>/i, '').trim()); text = ''; }
+    if (/<\|channel\|?>\s*(thought|reasoning|analysis|final|response)\b/i.test(text)) {
+      const chunks = text.split(/<\|channel\|?>\s*/i).filter(Boolean); const visible = [];
+      for (const ch of chunks) {
+        const m = ch.match(/^(thought|reasoning|analysis|final|response)\b\s*/i);
+        if (!m) { visible.push(ch); continue; }
+        const body = ch.slice(m[0].length).trim();
+        if (/^(thought|reasoning|analysis)$/i.test(m[1])) { if (body) parts.push(body); } else visible.push(body);
+      }
+      text = visible.join('\n');
+    }
+    return { text: text.trim(), reasoning: parts.filter(Boolean).join('\n\n') };
+  },
+  stripThink(s, r) { return this.extractThink(s, r).text; },
+  shouldContinue(finish, round, maxContinue) {
+    const f = String(finish || '').toLowerCase();
+    const length = f === 'length' || f === 'max_tokens' || f === 'max_completion_tokens';
+    const cap = Math.max(0, Math.floor(+maxContinue || 0));
+    return { length, continue: length && round < cap, reachedCap: length && round >= cap, round, maxContinue: cap };
+  },
+  nextContinueMessages(messages, partial) { return [...(messages || []), { role: 'assistant', content: String(partial || '') }]; },
+  mergePieces(pieces) {
+    let out = '';
+    for (const raw of pieces || []) {
+      const x = String(raw || ''); if (!x) continue; if (!out) { out = x; continue; }
+      let k = Math.min(out.length, x.length, 80); while (k > 0 && out.slice(-k) !== x.slice(0, k)) k--; out += x.slice(k);
+    }
+    return out;
+  },
+};
+function stripThink(s, r) { return NyxLimits.stripThink(s, r); }
+async function chatTurn(p, body, onNotice) {
+  const A = Store.state.settings.ai.assistant || {};
+  const maxC = A.maxContinue ?? 8;
+  const origin = body.messages;
+  const pieces = []; const reasons = [];
+  let lastPrep = null, shownNoCap = false;
+  const hasTools = !!(body.tools && body.tools.length);
+  for (let i = 0; i <= maxC; i++) {
+    const msgs = i === 0 ? origin : NyxLimits.nextContinueMessages(origin, NyxLimits.mergePieces(pieces));
+    let prep = {};
+    try { prep = await AI.prepare(p, msgs, { model: body.model, thinking: body.thinking ?? A.thinking, thinkingBudget: body.thinkingBudget ?? A.thinkingBudget, maxTokensOverride: body.max_tokens || body.maxTokensOverride || A.maxTokens }); lastPrep = prep; }
+    catch (e) { if (onNotice) onNotice('err', t('v265.prep_fail', { v0: cleanErr(e) })); prep = {}; }
+    if (prep.reason === 'prompt_overflow') throw new Error(t('v265.prompt_overflow', { v0: prep.n_ctx, v1: prep.promptTokens }));
+    if (prep.omitted && !shownNoCap && onNotice) { shownNoCap = true; onNotice('info', t('v265.no_cap', { v0: prep.reason })); }
+    if (prep.warnings && onNotice) for (const w of prep.warnings) if (w.code === 'tokenize_fail' || w.code === 'props_fail') onNotice('info', t('v265.warn_' + (w.code === 'tokenize_fail' ? 'tokenize' : 'props')));
+    const r = await API.inv('ai:chat', p, { ...body, messages: msgs, ...(prep.body || {}) });
+    if (r.thinkingIgnored && onNotice) onNotice('info', t('v265.think_ignored'));
+    const calls = r.message?.tool_calls;
+    if (hasTools && calls && calls.length) { r._prep = prep; r.continued = i; return r; }
+    const ex = NyxLimits.extractThink(r.message?.content || '', r.message?.reasoning_content || r.reasoning);
+    if (ex.reasoning) reasons.push(ex.reasoning);
+    pieces.push(ex.text);
+    const sc = NyxLimits.shouldContinue(r.finish, i, maxC);
+    if (!sc.length) {
+      r.message = { ...(r.message || {}), content: NyxLimits.mergePieces(pieces), reasoning_content: reasons.join('\n\n') || undefined };
+      r.reasoning = reasons.join('\n\n'); r._prep = lastPrep; r.continued = i; return r;
+    }
+    if (sc.reachedCap) {
+      if (onNotice) onNotice('warn', t('v265.cont_cap', { v0: maxC }));
+      r.message = { ...(r.message || {}), content: NyxLimits.mergePieces(pieces), reasoning_content: reasons.join('\n\n') || undefined };
+      r.reasoning = reasons.join('\n\n'); r._prep = lastPrep; r.continued = i; r.truncated = true; return r;
+    }
+    if (onNotice) onNotice('cont', t('v265.cont_notice', { v0: i + 1, v1: maxC }));
+  }
+}
+
 function parseJsonLoose(s) {
   s = String(s); const cands = []; const fen = s.match(/```(?:json)?\s*([\s\S]*?)```/); if (fen) cands.push(fen[1]);
   for (const [o, c] of [['{', '}'], ['[', ']']]) { const a = s.indexOf(o), b = s.lastIndexOf(c); if (a >= 0 && b > a) cands.push(s.slice(a, b + 1)); }

@@ -187,7 +187,8 @@ const Assistant = {
   busy: false, el: null,
   init() {
     const el = this.el = h('div', { id: 'assistant', class: 'assistant', hidden: true },
-      h('div', { class: 'as-head' }, h('span', { class: 'as-logo', html: iconSvg('sparkles', 18) }), h('b', {}, t('assistant.061')), h('span', { class: 'as-model chip', id: 'as-model' }, '…'), h('div', { class: 'grow' }),
+      h('div', { class: 'as-head' }, h('span', { class: 'as-logo', html: iconSvg('sparkles', 18) }), h('b', {}, t('assistant.061')), h('span', { class: 'as-model chip', id: 'as-model' }, '…'), h('span', { class: 'as-limit muted small', id: 'as-limit', title: t('v265.limit_tip') }, ''), h('div', { class: 'grow' }),
+        h('button', { class: 'ib as-think', id: 'as-think', title: t('v265.think_tip'), onclick: () => this.toggleThink() }, t('v265.think')),
         h('button', { class: 'ib', title: t('assistant.062'), html: iconSvg('settings-2', 16), onclick: () => Hub.open() }), h('button', { class: 'ib', title: t('assistant.063'), html: iconSvg('eraser', 16), onclick: () => { Store.state.chat = []; Store.save(); this.render(); } }), h('button', { class: 'ib', title: t('assistant.064'), html: iconSvg('x', 16), onclick: () => this.hide() })),
       h('div', { class: 'as-msgs', id: 'as-msgs' }),
       h('div', { class: 'as-sugg', id: 'as-sugg' }, ...[t('assistant.065'), t('assistant.066'), t('assistant.067'), t('assistant.068'), t('assistant.069')].map(s => h('button', { class: 'chip', onclick: () => this.send(s) }, s))),
@@ -195,7 +196,7 @@ const Assistant = {
         h('textarea', { id: 'as-q', rows: 1, placeholder: t('assistant.071'), onkeydown: (e) => { e.stopPropagation(); if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.send(); } if (e.key === 'Escape') this.hide(); }, oninput: (e) => { e.target.style.height = 'auto'; e.target.style.height = Math.min(140, e.target.scrollHeight) + 'px'; } }),
         h('button', { class: 'ib send', title: t('assistant.072'), html: iconSvg('send', 18), onclick: () => this.send() })));
     el.append(h('div', { class: 'as-rs', title: t('v24.as_resize') }));
-    document.body.append(el); this.render();
+    document.body.append(el); this.render(); this.syncThink();
     API?.onAssistantOpen?.(() => this.show(true));
     this.initFrame();
   },
@@ -253,8 +254,19 @@ const Assistant = {
   toggle() { this.el.hidden ? this.show() : this.hide(); },
   async show(voice) { this.el.hidden = false; this.layout(); requestAnimationFrame(() => this.el.classList.add('in')); $('#as-q').focus(); $('#btn-assistant')?.classList.add('on'); this.updModel(); if (voice === true) this.mic(); },
   hide() { this._hid = Date.now(); this.el.classList.remove('in'); $('#btn-assistant')?.classList.remove('on'); setTimeout(() => { if (!this.el.classList.contains('in')) { this.el.hidden = true; this.layout(); } }, 180); },
+  toggleThink() { const A = Store.state.settings.ai.assistant; A.thinking = !A.thinking; Store.save(); this.syncThink(); },
+  syncThink() { const b = $('#as-think'); if (!b) return; const on = !!Store.state.settings.ai.assistant.thinking; b.classList.toggle('on', on); b.title = t('v265.think_tip'); b.setAttribute('aria-pressed', on ? 'true' : 'false'); },
+  showLimit(prep) {
+    const el = $('#as-limit'); if (!el) return;
+    if (!prep) { el.textContent = ''; return; }
+    const cap = prep.max_tokens != null ? prep.max_tokens : '—';
+    const ctx = prep.n_ctx != null ? prep.n_ctx : '—';
+    el.textContent = t('v265.limit_chip', { v0: cap, v1: ctx });
+    el.title = t('v265.limit_tip') + (prep.reason ? ' · ' + prep.reason : '') + (prep.clamped ? ' · ' + t('v265.clamped') : '');
+  },
   async updModel() { try { const el = $('#as-model'); if (!el) return; const r = AI.task('commands'); const p = (AI.last.commands && AI.prov(AI.last.commands)?.enabled && r.auto ? AI.prov(AI.last.commands) : r.p);
-    el.textContent = p ? p.name + (r.m && p === r.p ? ' · ' + r.m.split(/[\\/]/).pop().slice(0, 28) : t('assistant.073')) : '⚠️ ' + t('v23.offline_only'); el.classList.toggle('bad', !p); el.title = t('assistant.062'); el.onclick = () => Hub.open(); } catch (e) {} },
+    el.textContent = p ? p.name + (r.m && p === r.p ? ' · ' + r.m.split(/[\\/]/).pop().slice(0, 28) : t('assistant.073')) : '⚠️ ' + t('v23.offline_only'); el.classList.toggle('bad', !p); el.title = t('assistant.062'); el.onclick = () => Hub.open(); this.syncThink(); if (AI.lastPrep) this.showLimit(AI.lastPrep); } catch (e) {} },
+
   render() {
     const box = $('#as-msgs'); if (!box) return; box.innerHTML = '';
     const chat = Store.state.chat || [];
@@ -266,7 +278,10 @@ const Assistant = {
     const el = h('div', { class: 'as-msg r-' + m.role + (m.error ? ' err' : '') });
     if (m.role === 'user') el.append(h('div', { class: 'bubble' }, m.content), ...(m.voice ? [h('span', { class: 'vtag', html: iconSvg('mic', 12) })] : []));
     else {
+      if (m.notices?.length) el.append(...m.notices.map(n => h('div', { class: 'as-notice ' + (n.kind || '') }, n.text)));
+      if (m.reasoning && Store.state.settings.ai.assistant.thinking) el.append(h('details', { class: 'as-reason' }, h('summary', {}, t('v265.reason_sum')), h('div', { class: 'small muted' }, m.reasoning)));
       el.append(h('div', { class: 'bubble', html: md(m.content || (m.actions?.length ? '' : '…')) }));
+      if (m.truncated) el.append(h('div', { class: 'as-notice warn' }, t('v265.still_cut')));
       if (m.error) el.append(h('div', { class: 'as-fix' }, h('button', { class: 'btn sm primary', onclick: () => Hub.open() }, iconSvg('brain', 14), t('v23.open_ai'))));
       if (m.actions?.length) el.append(h('div', { class: 'as-acts' }, ...m.actions.map(a => h('span', { class: 'chip ' + (a.ok === false ? 'bad' : 'ok'), title: JSON.stringify(a.args || {}) }, (a.ok === false ? '✗ ' : '✓ ') + this.actLabel(a)))));
       if (m.content) el.append(h('div', { class: 'as-tools' }, h('button', { class: 'ib', title: t('assistant.076'), html: iconSvg('square-plus', 15), onclick: () => Cmd.T.create_card.run({ kind: 'text', text: m.content }) }), h('button', { class: 'ib', title: t('assistant.077'), html: iconSvg('sticky-note', 15), onclick: () => Cmd.T.create_card.run({ kind: 'note', text: m.content }) }), h('button', { class: 'ib', title: t('assistant.078'), html: iconSvg('volume-2', 15), onclick: () => Speech.speak(m.content) }), h('button', { class: 'ib', title: t('assistant.079'), html: iconSvg('copy', 15), onclick: () => { navigator.clipboard.writeText(m.content); toast('📋'); } }), m.model ? h('span', { class: 'muted small' }, m.model.split('/').pop()) : null));
@@ -291,40 +306,42 @@ const Assistant = {
     if (json) s += t('assistant.105') + Object.entries(Cmd.T).map(([n, t]) => `- ${n}(${Object.keys(t.p).join(', ')}): ${t.d}`).join('\n');
     return s;
   },
-  history() { return (Store.state.chat || []).slice(-12).filter(m => m.content).map(m => ({ role: m.role, content: String(m.content).slice(0, 2000) })); },
+  history() { return (Store.state.chat || []).slice(-80).filter(m => m.content && m.role !== 'notice' && !m.error).map(m => ({ role: m.role, content: String(m.content) })); },
   async send(text, voice) {
     const q = $('#as-q'); text = (text ?? q.value).trim(); if (!text || this.busy) return; q.value = ''; q.style.height = 'auto';
     if (this.el.hidden) this.show();
     this.push({ role: 'user', content: text, voice: !!voice }); this.busy = true; this.el.classList.add('busy');
     const thinking = h('div', { class: 'as-msg r-assistant thinking' }, h('div', { class: 'bubble' }, h('span', { class: 'dots' }, h('i'), h('i'), h('i')))); $('#as-msgs').append(thinking); $('#as-msgs').scrollTop = 1e9;
+    const notices = [];
+    const onNotice = (kind, msg) => { notices.push({ kind, text: msg }); const n = h('div', { class: 'as-notice ' + (kind || '') }, msg); thinking.before(n); $('#as-msgs').scrollTop = 1e9; };
     let res;
-    try { res = await this.run(text); } catch (e) { res = { content: '⚠️ ' + cleanErr(e), error: true }; }
+    try { res = await this.run(text, onNotice); } catch (e) { res = { content: '⚠️ ' + cleanErr(e), error: true }; }
     thinking.remove(); this.busy = false; this.el.classList.remove('busy'); this.updModel();
-    this.push({ role: 'assistant', ...res }); Automations.fire('assistant', res);
+    this.push({ role: 'assistant', ...res, notices: (res && res.notices) || notices }); Automations.fire('assistant', res);
     if (res.content && !res.error && Store.state.settings.ai.assistant && Store.state.settings.ai.tts.speak) Speech.speak(res.content);
     return res;
   },
-  async run(text) {
+  async run(text, onNotice) {
     const A = Store.state.settings.ai.assistant; const actions = []; let model = '';
     const doActs = async (list) => { const out = []; for (const a of list) { const r = await Cmd.exec(a.tool, a.args); actions.push({ tool: a.tool, args: typeof a.args === 'string' ? JSON.parse(a.args || '{}') : a.args, ok: r?.ok !== false, cancelled: r?.cancelled }); out.push({ tool: a.tool, result: r }); } return out; };
     const offline = async (why) => { const acts = LocalIntent.parse(text); if (!acts) throw new Error(why + t('assistant.106')); await doActs(acts); return { content: t('assistant.107', { why }), actions, model: 'local' }; };
     let pm; try { pm = await AI.pickModel('commands'); model = pm.m; } catch (e) { return offline(e.message); }
     const tryJson = async (msgs) => {
-      const r = await AI.chat('commands', [{ role: 'system', content: this.system(true) }, ...this.history().slice(0, -1), { role: 'user', content: text }], { temperature: A.temperature, max_tokens: 1500 });
-      const raw = stripThink(r.message.content || ''); const j = parseJsonLoose(raw);
-      if (!j) return { content: raw, actions, model: r.model };
+      const r = await AI.chat('commands', [{ role: 'system', content: this.system(true) }, ...this.history().slice(0, -1), { role: 'user', content: text }], { temperature: A.temperature, onNotice });
+      const raw = stripThink(r.message.content || '', r.message?.reasoning_content || r.reasoning); const j = parseJsonLoose(raw);
+      if (!j) return { content: raw, actions, model: r.model, truncated: !!r.truncated, continued: r.continued || 0, reasoning: r.reasoning || '' };
       const res = await doActs((j.actions || []).filter(a => a && a.tool));
       let say = j.say || '';
       const needs = res.filter(x => ['search_cards', 'read_cards'].includes(x.tool));
-      if (needs.length) { const r2 = await AI.chat('commands', [{ role: 'system', content: this.system(true) }, { role: 'user', content: text }, { role: 'assistant', content: raw }, { role: 'user', content: t('assistant.108') + JSON.stringify(needs).slice(0, 8000) + t('assistant.109') }], { temperature: A.temperature }); const j2 = parseJsonLoose(stripThink(r2.message.content)); if (j2) { await doActs((j2.actions || []).filter(a => a && a.tool)); say = j2.say || say; } }
-      return { content: say, actions, model: r.model, via: 'json' };
+      if (needs.length) { const r2 = await AI.chat('commands', [{ role: 'system', content: this.system(true) }, { role: 'user', content: text }, { role: 'assistant', content: raw }, { role: 'user', content: t('assistant.108') + JSON.stringify(needs) + t('assistant.109') }], { temperature: A.temperature, onNotice }); const j2 = parseJsonLoose(stripThink(r2.message.content, r2.message?.reasoning_content || r2.reasoning)); if (j2) { await doActs((j2.actions || []).filter(a => a && a.tool)); say = j2.say || say; } }
+      return { content: say, actions, model: r.model, via: 'json', truncated: !!r.truncated, continued: r.continued || 0, reasoning: r.reasoning || '' };
     };
     if (A.mode === 'json') { try { return await tryJson(); } catch (e) { if (netDown(e.message)) return offline(t('assistant.110')); throw e; } } // i18n-ignore
     const msgs = [{ role: 'system', content: this.system(false) }, ...this.history().slice(0, -1), { role: 'user', content: text }];
     const tools = Cmd.tools();
     for (let round = 0; round < (A.maxRounds || 6); round++) {
       let r;
-      try { r = await API.inv('ai:chat', pm.p, { model: pm.m, messages: msgs, tools, tool_choice: 'auto', temperature: A.temperature, max_tokens: 2000 }); }
+      try { r = await AI.chatTurn(pm.p, { model: pm.m, messages: msgs, tools, tool_choice: 'auto', temperature: A.temperature }, onNotice); }
       catch (e) { const em = String(e.message || e); if (netDown(em)) return offline(t('assistant.110')); if (A.mode === 'auto' && round === 0) return await tryJson(); throw e; } // i18n-ignore
       model = r.model || model; const m = r.message || {};
       let calls = m.tool_calls || [];
@@ -332,7 +349,7 @@ const Assistant = {
       if (!calls.length && /<tool_call>/.test(m.content || '')) { calls = [...m.content.matchAll(/<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/g)].map((x, i) => { const j = parseJsonLoose(x[1]) || {}; return { id: 'tc' + round + i, type: 'function', function: { name: j.name, arguments: JSON.stringify(j.arguments || j.args || {}) } }; }).filter(c => c.function.name); m.content = m.content.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '').trim(); }
       // JSON actions in plain content (model ignored tools)
       if (!calls.length && round === 0 && A.mode === 'auto') { const j = parseJsonLoose(m.content || ''); if (j?.actions?.length) { await doActs(j.actions.filter(a => a.tool)); return { content: j.say || '', actions, model, via: 'json' }; } }
-      if (!calls.length) return { content: stripThink(m.content || ''), actions, model, via: round ? 'tools' : 'chat' };
+      if (!calls.length) { this.showLimit(r._prep); return { content: stripThink(m.content || '', m.reasoning_content || r.reasoning), reasoning: r.reasoning || '', actions, model, via: round ? 'tools' : 'chat', truncated: !!r.truncated, continued: r.continued || 0 }; }
       msgs.push({ role: 'assistant', content: m.content || '', tool_calls: calls });
       for (const c of calls) { const args = c.function?.arguments; const r2 = await Cmd.exec(c.function.name, args); let pa = {}; try { pa = typeof args === 'string' ? JSON.parse(args || '{}') : args || {}; } catch (e) {} actions.push({ tool: c.function.name, args: pa, ok: r2?.ok !== false, cancelled: r2?.cancelled }); msgs.push({ role: 'tool', tool_call_id: c.id, name: c.function.name, content: JSON.stringify(r2).slice(0, 6000) }); }
     }

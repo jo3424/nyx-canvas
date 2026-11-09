@@ -67,7 +67,7 @@ async function ask(win, text, { confirm } = {}) {
   ok(await win.evaluate(() => document.querySelectorAll('#titlebar #btn-assistant, #btn-browser, #btn-store, #btn-tools, #btn-ai').length) === 5, 'v2 titlebar buttons');
 
   // ---------- AI Hub: point LM Studio at the stub, autodetect models
-  await win.evaluate(({ LLM, WH }) => { const A = Store.state.settings.ai; A.providers.find(p => p.id === 'lmstudio').base = LLM; A.stt.base = WH; A.tasks.embed = { p: 'lmstudio', m: 'stub-embed-bge-m3' }; Store.save(); }, { LLM, WH });
+  await win.evaluate(({ LLM, WH }) => { const A = Store.state.settings.ai; const lm = A.providers.find(p => p.id === 'lmstudio'); lm.base = LLM; lm.enabled = true; lm.userOn = true; A.stt.base = WH; A.tasks.embed = { p: 'lmstudio', m: 'stub-embed-bge-m3' }; Store.save(); }, { LLM, WH });
   await win.evaluate(() => Hub.open()); await win.waitForSelector('.prov', { timeout: 5000 });
   await win.evaluate(() => [...document.querySelectorAll('.prov')][0].querySelector('button')?.click());
   const pst = await win.waitForFunction(() => /μοντέλα/.test(document.querySelector('.prov .pstat')?.textContent || '') && document.querySelector('.prov .pstat').textContent, null, { timeout: 8000 }).then(h => h.jsonValue()).catch(() => null);

@@ -32,6 +32,17 @@
 .as-tools{display:flex;gap:2px;opacity:.5;transition:.15s}.as-msg:hover .as-tools{opacity:1}.as-tools .ib{width:26px;height:26px}
 .as-msg.thinking .bubble{color:var(--muted)}
 .as-msg.thinking .dots::after{content:'…';animation:blink 1s infinite}
+
+.as-limit{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10.5px}
+.as-think{font-size:10.5px;width:auto;padding:0 8px;height:26px;border-radius:20px;border:1px solid var(--border)}
+.as-think.on{background:color-mix(in srgb,var(--accent) 22%,transparent);color:var(--text);border-color:color-mix(in srgb,var(--accent) 50%,transparent)}
+.as-notice{font-size:12px;color:var(--muted);background:color-mix(in srgb,var(--text) 6%,transparent);border-radius:10px;padding:6px 10px;align-self:flex-start;max-width:92%}
+.as-notice.cont,.as-notice.warn{background:rgba(255,176,32,.14);color:#ffb020}
+.as-notice.err{background:rgba(255,107,129,.12);color:#ffb3bf}
+.as-reason{font-size:12px;color:var(--muted);max-width:92%}
+.as-reason summary{cursor:pointer}
+.gvs-ctx .warn,.gvs-howto{margin-top:6px}
+.llama-ctx-x{margin:6px 0 8px;display:flex;flex-direction:column;gap:6px}
 @keyframes blink{50%{opacity:.2}}
 .as-sugg{display:flex;gap:5px;overflow-x:auto;padding:0 12px 6px;scrollbar-width:none}.as-sugg::-webkit-scrollbar{display:none}
 .as-sugg .chip{flex:none}

@@ -4,18 +4,26 @@ const { t, tr } = require('./i18n');
 const { spawn } = require('child_process');
 const fs = require('fs'), path = require('path');
 const nyxPath = require('./paths');
+const limits = require('./limits');
 const procs = {}; // id -> { child, log:[], startedAt, cmd }
 function splitArgs(s) { const out = []; const re = /"([^"]*)"|(\S+)/g; let m; while ((m = re.exec(s || ''))) out.push(m[1] ?? m[2]); return out; }
 function argsFor(id, c) {
   const a = [];
-  if (id === 'llama') { a.push('-m', c.model, '--host', '127.0.0.1', '--port', String(c.port || 8080)); if (c.ngl !== '') a.push('-ngl', String(c.ngl ?? 99)); if (c.ctx) a.push('-c', String(c.ctx)); if (c.jinja !== false) a.push('--jinja'); }
+  if (id === 'llama') {
+    a.push('-m', c.model, '--host', '127.0.0.1', '--port', String(c.port || 8080));
+    if (c.ngl !== '') a.push('-ngl', String(c.ngl ?? 99));
+    const ctx = c._resolvedCtx || c.ctx;
+    if (ctx && ctx !== 'auto') a.push('-c', String(ctx));
+    a.push(...limits.llamaExtraFlags(c));
+    if (c.jinja !== false) a.push('--jinja');
+  }
   else if (id === 'whisper') { a.push('-m', c.model, '--host', '127.0.0.1', '--port', String(c.port || 8178)); if (c.language) a.push('-l', c.language); if (c.convert) a.push('--convert'); }
   // v2.5: stable-diffusion.cpp sd-server (native Vulkan): models are picked in its web UI from --model-dir
   else if (id === 'sd') { if (c.modelDir) a.push('--model-dir', c.modelDir); if (c.loraDir) a.push('--lora-model-dir', c.loraDir); if (c.upscaleDir) a.push('--hires-upscalers-dir', c.upscaleDir); a.push('--listen-ip', '127.0.0.1', '--listen-port', String(c.port || 7860)); }
   return a.concat(splitArgs(c.extra));
 }
 const alive = (c) => !!c && c.exitCode == null && c.signalCode == null;
-function status(id) { const p = procs[id]; return p ? { running: alive(p.child), pid: p.child?.pid, startedAt: p.startedAt, log: p.log.slice(-60), exit: p.exit, cmd: p.cmd } : { running: false, log: [] }; }
+function status(id) { const p = procs[id]; return p ? { running: alive(p.child), pid: p.child?.pid, startedAt: p.startedAt, log: p.log.slice(-60), exit: p.exit, cmd: p.cmd, ctxInfo: p.ctxInfo || null } : { running: false, log: [] }; }
 // v2.2: is something already listening on 127.0.0.1:port? (another llama-server, LM Studio, a previous Nyx run …)
 function portBusy(port, host = '127.0.0.1', ms = 600) {
   return new Promise((res) => { const s = require('net').connect({ port: +port, host }); const done = (v) => { try { s.destroy(); } catch (e) {} res(v); }; s.setTimeout(ms, () => done(false)); s.once('connect', () => done(true)); s.once('error', () => done(false)); });
@@ -54,10 +62,15 @@ async function start(id, c, onEvent, { settleMs = 1500 } = {}) {
   const bad = precheck(id, c); if (bad) throw bad;
   const port = +c.port || ({ llama: 8080, sd: 7860 })[id] || 8178;
   if (await portBusy(port)) throw new ProcError('port', t('procs.012', { v0: port }), { port });
+  if (id === 'llama') {
+    const rec = (c.model && require('fs').existsSync(c.model)) ? limits.recommendFromGguf(c.model, { vramGiB: c.vramGB || 24, kvType: c.kvType || c.kvCache || 'f16', fa: c.fa !== false }) : null;
+    const resolved = limits.resolveLaunchCtx(c, rec);
+    c = { ...c, _resolvedCtx: resolved.ctx, _ctxInfo: { ...resolved, rec } };
+  }
   const args = argsFor(id, c);
   const shell = isBatch(c.exe);
   const child = shell ? spawn(batchLine(c.exe, args), [], { cwd: path.dirname(c.exe), windowsHide: true, shell: true }) : spawn(c.exe, args, { cwd: path.dirname(c.exe), windowsHide: true });
-  const P = procs[id] = { child, shell, log: [], startedAt: Date.now(), cmd: [c.exe, ...args].map(a => /\s/.test(a) ? `"${a}"` : a).join(' ') };
+  const P = procs[id] = { child, shell, log: [], startedAt: Date.now(), cmd: [c.exe, ...args].map(a => /\s/.test(a) ? `"${a}"` : a).join(' '), ctxInfo: c._ctxInfo || null };
   const push = (d) => { for (const l of String(d).split(/\r?\n/)) if (l.trim()) { P.log.push(l.slice(0, 400)); if (P.log.length > 400) P.log.shift(); } };
   child.stdout.on('data', push); child.stderr.on('data', push);
   const ended = new Promise((res) => {

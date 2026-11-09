@@ -35,6 +35,9 @@ const shotOf = async (win, sel, name) => { await win.evaluate((sel) => document.
   console.log('AI Hub — providers');
   await win.evaluate(({ LP, DEAD }) => { const A = Store.state.settings.ai; A.providers.find(p => p.id === 'lmstudio').base = `http://localhost:${DEAD}/v1`; const L = A.providers.find(p => p.id === 'llama'); L.base = `http://127.0.0.1:${LP}`; Store.save(); }, { LP, DEAD });
   await win.evaluate(() => Hub.open()); await win.waitForSelector('[data-prov=lmstudio]');
+  const off = await win.evaluate(() => { const p = Store.state.settings.ai.providers.find(x => x.id === 'lmstudio'); return { on: !!p.enabled, userOn: !!p.userOn, st: document.querySelector('[data-prov=lmstudio] .pstat')?.textContent || '', bad: document.querySelector('[data-prov=lmstudio] .pstat')?.classList.contains('bad') }; });
+  ok(!off.on && !off.userOn && !off.bad && !/αρνήθηκε/.test(off.st), 'LM Studio is off by default and is not auto-probed', off);
+  await win.evaluate(() => document.querySelector('[data-prov=lmstudio] .prov-head .toggle').click());
   await win.waitForFunction(() => document.querySelector('[data-prov=lmstudio] .pstat')?.classList.contains('bad'), null, { timeout: 15000 });
   const lm = await win.evaluate(() => ({ st: document.querySelector('[data-prov=lmstudio] .pstat').textContent, fix: document.querySelector('[data-prov=lmstudio] .pfix')?.textContent || '' }));
   ok(/αρνήθηκε τη σύνδεση/.test(lm.st) && !/είναι ανοιχτό/.test(lm.st), 'LM Studio off → precise reason (refused), not the old generic message', lm.st);

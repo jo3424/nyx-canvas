@@ -86,7 +86,7 @@ const SCHEMA = {
   // v2
   'secret:set': ['key', 's?'], 'secret:has': ['key'],
   'ai:models': ['o?'], 'ai:ping': ['o?'], 'ai:chat': ['o', 'o'], 'ai:embed': ['o?', 's?', 'any'], 'ai:imageData': ['media'],
-  'ai:lmsFind': [], 'ai:lmsStart': [],
+  'ai:lmsFind': [], 'ai:lmsStart': [], 'ai:prepare': ['o', 'o?'], 'ai:props': ['o?'], 'ai:tokenize': ['o?', 'text?'], 'ai:context': ['o?'], 'ai:recommendCtx': ['path?', 'o?'],
   'stt:buffer': ['o?', 'buf', 's?', 'o?'], 'stt:media': ['o?', 'media', 'o?'],
   'tts:run': ['o?', 's'], 'tts:test': ['o?', 's?'], 'tts:help': ['s'], 'tts:voices': ['p'], 'tts:sapi': ['s', 'p', 'p', 'o?'], 'tts:sapiStop': [],
   'tts:vsStart': ['o?'], 'tts:vsStop': [], 'tts:vsStatus': [], 'tts:vsProbe': [], 'tts:vsSpeak': ['o?', 's'], 'tts:vsTest': ['o?', 's?'],
