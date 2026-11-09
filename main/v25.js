@@ -14,7 +14,7 @@ function wire(C, H, { procs, secrets, send, safeMedia, saveBuf, finder, systools
   // models table
   H('models:scan', async (o = {}) => {
     const gguf = require('./gguf');
-    const r = await finder.find({ kind: 'gguf', roots: finder.defaultRoots(os.homedir(), systools.GVS(''), (o.extraRoots || []).filter(Boolean)), limit: 400, budgetMs: 12000, maxEntries: 200000 });
+    const r = await finder.find({ kind: 'gguf', roots: finder.defaultRoots(require('./paths').userHome(), systools.GVS(''), (o.extraRoots || []).filter(Boolean)), limit: 400, budgetMs: 12000, maxEntries: 200000 });
     const extra = (o.files || []).filter(p => { try { return fs.statSync(p).isFile(); } catch (e) { return false; } }).map(p => ({ path: p, size: fs.statSync(p).size }));
     const seen = new Set(); const files = [...(r.files || []), ...extra].filter(f => !seen.has(f.path) && seen.add(f.path));
     return gguf.table(files, { ctx: +o.ctx || 8192, vramGB: +o.vramGB || 24 });

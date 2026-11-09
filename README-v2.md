@@ -41,7 +41,7 @@
 
 ### Τοπικοί servers (GPU-Voice-Studio)
 Στο Hub → «Τοπικοί servers» τα paths είναι προσυμπληρωμένα, αν υπάρχουν:
-- **whisper-server:** `C:\Users\Administrator\GPU-Voice-Studio\third_party\whisper.cpp\build-vulkan\bin\Release\whisper-server.exe`
+- **whisper-server:** `%USERPROFILE%\GPU-Voice-Studio\third_party\whisper.cpp\build-vulkan\bin\Release\whisper-server.exe`
   με το `ggml-large-v3-turbo-q5_0.bin` (θύρα 8178, γλώσσα `el`).
   Χρειάζεται για το μικρόφωνο, τα voice memos και τις απομαγνητοφωνήσεις βίντεο.
 - **llama-server:** `...\third_party\llama\llama-server.exe` (θύρα 8080) με οποιοδήποτε .gguf (π.χ. Krikri).

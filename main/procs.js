@@ -3,6 +3,7 @@ const { t, tr } = require('./i18n');
 // Managed local servers: llama-server, whisper-server (start/stop from Nyx, logs, health).
 const { spawn } = require('child_process');
 const fs = require('fs'), path = require('path');
+const nyxPath = require('./paths');
 const procs = {}; // id -> { child, log:[], startedAt, cmd }
 function splitArgs(s) { const out = []; const re = /"([^"]*)"|(\S+)/g; let m; while ((m = re.exec(s || ''))) out.push(m[1] ?? m[2]); return out; }
 function argsFor(id, c) {
@@ -35,7 +36,11 @@ function killProc(p, force) {
   if (p.shell && process.platform === 'win32') { try { spawn('taskkill', ['/pid', String(p.child.pid), '/T', '/F'], { windowsHide: true }).on('error', () => {}); return; } catch (e) {} }
   try { p.child.kill(force ? 'SIGKILL' : undefined); } catch (e) {}
 }
+function resolveServerCfg(c) {
+  return nyxPath.resolveCfgPaths(c || {}, ['exe', 'model', 'modelDir', 'loraDir', 'upscaleDir']);
+}
 function precheck(id, c) {
+  c = resolveServerCfg(c);
   if (!c.exe || !fs.existsSync(c.exe)) return new ProcError('exe', t('procs.001') + (c.exe || '—'), { field: 'exe' });
   if (fs.statSync(c.exe).isDirectory()) return new ProcError('exe', t('procs.010', { v0: c.exe }), { field: 'exe' });
   if (id === 'sd') { if (c.modelDir && !fs.existsSync(c.modelDir)) return new ProcError('model', t('v25.sd_nodir', { v0: c.modelDir }), { field: 'modelDir' }); return null; }
@@ -44,6 +49,7 @@ function precheck(id, c) {
   return null;
 }
 async function start(id, c, onEvent, { settleMs = 1500 } = {}) {
+  c = resolveServerCfg(c);
   if (alive(procs[id]?.child)) return status(id);
   const bad = precheck(id, c); if (bad) throw bad;
   const port = +c.port || ({ llama: 8080, sd: 7860 })[id] || 8178;

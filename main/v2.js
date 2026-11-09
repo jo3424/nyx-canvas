@@ -9,7 +9,7 @@ const vsengine = require('./vsengine');
 const dnd = require('./dnd');
 const { isInside, writeFileAtomic } = require('./fsutil');
 const secure = require('./secure');
-const secrets = require('./secrets'), ai = require('./ai'), procs = require('./procs'), systools = require('./systools'), finder = require('./finder'), video = require('./video'), plugins = require('./plugins');
+const secrets = require('./secrets'), ai = require('./ai'), procs = require('./procs'), systools = require('./systools'), nyxPath = require('./paths'), finder = require('./finder'), video = require('./video'), plugins = require('./plugins');
 
 const WEB_PARTITION = 'persist:nyxweb';
 const CHROME_UA = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome} Safari/537.36`;
@@ -211,7 +211,7 @@ function wire(ctx) {
   H('ai:lmsFind', () => ai.findLms());
   H('ai:lmsStart', () => ai.lmsServerStart());
   // v2.2: find model / exe files (GPU-Voice-Studio, OmniVoice-Vulkan, LM Studio models, Downloads …)
-  H('sys:findFiles', (q = {}) => finder.find({ ...q, roots: finder.defaultRoots(os.homedir(), systools.GVS(''), (q.extraRoots || []).filter(Boolean)) }));
+  H('sys:findFiles', (q = {}) => finder.find({ ...q, roots: finder.defaultRoots(nyxPath.userHome(), systools.GVS(''), (q.extraRoots || []).filter(Boolean)) }));
   // managed servers
   const procEv = (id, st) => send('proc:status', { id, ...st });
   H('proc:start', (id, cfg) => procs.start(id, cfg, procEv));
@@ -232,7 +232,12 @@ function wire(ctx) {
   H('sys:reveal', (p) => { if (fs.existsSync(p)) shell.showItemInFolder(p); });
   H('sys:pickExe', async (title, filters, defaultPath) => { const dp = defaultPath && fs.existsSync(defaultPath) ? defaultPath : (defaultPath && fs.existsSync(path.dirname(defaultPath)) ? path.dirname(defaultPath) : undefined); const r = await dialog.showOpenDialog(C.mainWin(), { title, defaultPath: dp, properties: ['openFile'], filters: filters || [{ name: t('pluginsui.030'), extensions: ['*'] }] }); return r.canceled ? null : r.filePaths[0]; });
   H('sys:pickDir', async (title) => { const r = await dialog.showOpenDialog(C.mainWin(), { title, properties: ['openDirectory', 'createDirectory'] }); return r.canceled ? null : r.filePaths[0]; });
-  H('sys:info', () => ({ cpus: os.cpus().length, cpu: os.cpus()[0]?.model, mem: os.totalmem(), free: os.freemem(), platform: `${os.type()} ${os.release()}`, home: os.homedir(), gvs: systools.GVS(''), dataRoot: C.DATA_ROOT(), portable: C.portable(), ffmpeg: video.path }));
+  H('sys:info', () => ({ cpus: os.cpus().length, cpu: os.cpus()[0]?.model, mem: os.totalmem(), free: os.freemem(), platform: `${os.type()} ${os.release()}`, home: nyxPath.userHome(), userprofile: process.env.USERPROFILE || nyxPath.userHome(), gvs: systools.GVS(''), dataRoot: C.DATA_ROOT(), portable: C.portable(), ffmpeg: video.path }));
+  H('sys:migrateAiPaths', (bag = {}) => {
+    const r = nyxPath.migrateAiPaths(bag || {});
+    if (r.log && r.log.length) console.log('[nyx] path migrate:', r.log.join(' | '));
+    return r;
+  });
   // video / ffmpeg
   H('video:probe', (file) => video.probe(safeMedia(file)));
   H('video:clip', async (file, t0, t1, label) => {

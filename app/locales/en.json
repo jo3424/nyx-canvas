@@ -1187,7 +1187,7 @@
  "v24.vs_token_set": "set by Nyx",
  "v24.vs_found": "Port {v0} · access: {v1} · routes: {v2}",
  "v24.vs_tries": "Synthesis attempts",
- "v24.vs_hint": "vs-engine's API is not published. The exact endpoint is in the GPU-Voice-Studio launcher/script (C:\\Users\\Administrator\\GPU-Voice-Studio) — put it in «Synthesis endpoint» if auto-detection doesn't find it.",
+ "v24.vs_hint": "vs-engine's API is not published. The exact endpoint is in the GPU-Voice-Studio launcher/script (%USERPROFILE%\\GPU-Voice-Studio) — put it in «Synthesis endpoint» if auto-detection doesn't find it.",
  "v24.vs_stopped": "vs-engine stopped.",
  "v24.vs_port_auto": "0 = automatic",
  "v24.vs_ref": "Reference voice (wav for cloning, optional)",

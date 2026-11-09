@@ -1,7 +1,7 @@
 'use strict';
 // Nyx v2 core: migration v1→v2, AI config, AI client, speech (whisper STT / TTS), small helpers.
 const V2 = { info: null, viewer: null };
-const GVS_REL = { llamaExe: 'third_party\\llama\\llama-server.exe', llamaModel: 'models\\llama-krikri-8b-instruct-q8_0.gguf', whisperExe: 'third_party\\whisper.cpp\\build-vulkan\\bin\\Release\\whisper-server.exe', whisperModel: 'third_party\\whisper.cpp\\models\\ggml-large-v3-turbo-q5_0.bin', tts: 'vs-engine\\engine\\build-vulkan\\Release\\vs-engine.exe' };
+const GVS_REL = { llamaExe: 'third_party\\llama\\llama-server.exe', llamaModel: 'models\\llama-krikri-8b-instruct-q8_0.gguf', whisperExe: 'third_party\\whisper.cpp\\build-vulkan\\bin\\Release\\whisper-server.exe', whisperModel: 'models\\ggml-large-v3-turbo-q5_0.bin', tts: 'vs-engine\\engine\\build-vulkan\\Release\\vs-engine.exe' };
 const PROVIDERS_DEFAULT = [
   { id: 'lmstudio', name: 'LM Studio', kind: 'local', base: 'http://localhost:1234/v1', enabled: true, icon: 'monitor' },
   { id: 'llama', name: 'llama-server', kind: 'local', base: 'http://127.0.0.1:8080/v1', enabled: true, icon: 'cpu' },
@@ -69,6 +69,46 @@ Store.load = async function () {
   // v2.3: a task pinned to a provider that is now switched off falls back to «auto» (first enabled) instead of failing
   for (const k of Object.keys(S.ai.tasks)) { const tk = S.ai.tasks[k] ||= { p: '', m: '' }; const pv = S.ai.providers.find(p => p.id === tk.p); if (tk.p && (!pv || !pv.enabled)) { tk.p = ''; tk.m = ''; } }
   S.tools ||= {}; S.browser ||= { home: 'https://duckduckgo.com', search: 'https://duckduckgo.com/?q=%s', tabs: [] };
+  try {
+    if (API && !V2.viewer && S.ai) {
+      const bag = {};
+      const take = (id, o, f) => { if (o && typeof o[f] === 'string') bag[id] = o[f]; };
+      take('llama.exe', S.ai.servers && S.ai.servers.llama, 'exe');
+      take('llama.model', S.ai.servers && S.ai.servers.llama, 'model');
+      take('whisper.exe', S.ai.servers && S.ai.servers.whisper, 'exe');
+      take('whisper.model', S.ai.servers && S.ai.servers.whisper, 'model');
+      take('sd.exe', S.ai.servers && S.ai.servers.sd, 'exe');
+      take('sd.modelDir', S.ai.servers && S.ai.servers.sd, 'modelDir');
+      take('sd.loraDir', S.ai.servers && S.ai.servers.sd, 'loraDir');
+      take('sd.upscaleDir', S.ai.servers && S.ai.servers.sd, 'upscaleDir');
+      take('tts.exe', S.ai.tts, 'exe');
+      take('tts.model', S.ai.tts, 'model');
+      take('tts.tokenizer', S.ai.tts, 'tokenizer');
+      take('tts.refAudio', S.ai.tts, 'refAudio');
+      const r = await API.inv('sys:migrateAiPaths', bag);
+      if (r && r.paths) {
+        const put = (id, o, f) => { if (o && r.paths[id] != null) o[f] = r.paths[id]; };
+        put('llama.exe', S.ai.servers && S.ai.servers.llama, 'exe');
+        put('llama.model', S.ai.servers && S.ai.servers.llama, 'model');
+        put('whisper.exe', S.ai.servers && S.ai.servers.whisper, 'exe');
+        put('whisper.model', S.ai.servers && S.ai.servers.whisper, 'model');
+        put('sd.exe', S.ai.servers && S.ai.servers.sd, 'exe');
+        put('sd.modelDir', S.ai.servers && S.ai.servers.sd, 'modelDir');
+        put('sd.loraDir', S.ai.servers && S.ai.servers.sd, 'loraDir');
+        put('sd.upscaleDir', S.ai.servers && S.ai.servers.sd, 'upscaleDir');
+        put('tts.exe', S.ai.tts, 'exe');
+        put('tts.model', S.ai.tts, 'model');
+        put('tts.tokenizer', S.ai.tts, 'tokenizer');
+        put('tts.refAudio', S.ai.tts, 'refAudio');
+        if (r.migrated) {
+          console.log('[nyx] path migrate:', (r.log || []).join(' | '));
+          Store.save(true);
+        } else if (r.log && r.log.length) {
+          console.log('[nyx] path migrate:', r.log.join(' | '));
+        }
+      }
+    }
+  } catch (e) { console.warn('path migrate', e); }
   if (from < 2 && API && !V2.viewer) { API.inv('snap:create', t('core.016')).catch(() => {}); setTimeout(() => toast(t('core.017'), { ms: 6000 }), 1500); }
 };
 // viewer windows are read-only

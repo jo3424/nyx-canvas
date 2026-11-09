@@ -1,4 +1,20 @@
 {
+  "2.6.5": {
+    "el": [
+      "Διαδρομές: οι προεπιλογές χρησιμοποιούν το %USERPROFILE% (στα Windows 11 ο χρήστης είναι admin, όχι Administrator). Το προεπιλεγμένο μοντέλο whisper είναι τώρα στο GPU-Voice-Studio\\models\\, όπως στην απογραφή",
+      "Αποθηκευμένες διαδρομές δεν αλλάζουν, εκτός αν περιέχουν \\Users\\Administrator\\, δεν υπάρχουν στον δίσκο, και η αντίστοιχη διαδρομή στο προφίλ σου υπάρχει — τότε μεταφέρονται και το γεγονός γράφεται στο log",
+      "Διορθωμένος runner llama-bench (tools\\bench): VBS χωρίς BOM, καθαρά σφάλματα και logs, έλεγχος --list-devices, αυτόματη εύρεση hipblas.dll, χωρίς σιωπηλή πτώση στη CPU. Το peak VRAM είναι προαιρετικό και κλειστό",
+      "Τεστ αποδοχής v2.6.4 στα Windows 11 (tools\\accept) και προαιρετική συλλογή logs",
+      "Το Electron μένει 45.2.3, ώστε η ενημέρωση να είναι μικρό υπογεγραμμένο patch από την 2.6.4"
+    ],
+    "en": [
+      "Paths: defaults use %USERPROFILE% (on Windows 11 the user is admin, not Administrator). The default whisper model is now under GPU-Voice-Studio\\models\\, matching the disk inventory",
+      "Saved paths are left alone unless they contain \\Users\\Administrator\\, are missing on disk, and the matching path under your profile exists — then they are migrated and logged",
+      "Fixed llama-bench runner (tools\\bench): BOM-free VBS, clear errors and logs, --list-devices check, automatic hipblas.dll discovery, no silent CPU fallback. Peak VRAM sampling is optional and off",
+      "v2.6.4 acceptance checklist for Windows 11 (tools\\accept) and an optional log gatherer",
+      "Electron stays 45.2.3, so this update is a small signed patch from 2.6.4"
+    ]
+  },
   "2.6.4": {
     "el": [
       "Μοντέλα & οδηγίες: νέες προτάσεις στο AI Hub για RX 7900 XTX (Windows 11, Vulkan) με ακριβή ονόματα αρχείων, μεγέθη και κουμπί «Σελίδα στο Hugging Face». Το Nyx δεν κατεβάζει τίποτα μόνο του",

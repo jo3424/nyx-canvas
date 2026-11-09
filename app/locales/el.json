@@ -1187,7 +1187,7 @@
  "v24.vs_token_set": "ορίστηκε από το Nyx",
  "v24.vs_found": "Θύρα {v0} · πρόσβαση: {v1} · διαδρομές: {v2}",
  "v24.vs_tries": "Δοκιμές σύνθεσης",
- "v24.vs_hint": "Το API του vs-engine δεν είναι δημοσιευμένο. Το ακριβές endpoint φαίνεται στο launcher/script του GPU-Voice-Studio (C:\\Users\\Administrator\\GPU-Voice-Studio) — γράψ' το στο «Endpoint σύνθεσης» αν η αυτόματη ανίχνευση δεν το βρει.",
+ "v24.vs_hint": "Το API του vs-engine δεν είναι δημοσιευμένο. Το ακριβές endpoint φαίνεται στο launcher/script του GPU-Voice-Studio (%USERPROFILE%\\GPU-Voice-Studio) — γράψ' το στο «Endpoint σύνθεσης» αν η αυτόματη ανίχνευση δεν το βρει.",
  "v24.vs_stopped": "Ο vs-engine σταμάτησε.",
  "v24.vs_port_auto": "0 = αυτόματα",
  "v24.vs_ref": "Φωνή αναφοράς (wav για κλωνοποίηση, προαιρετικό)",

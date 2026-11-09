@@ -3,10 +3,11 @@ const { t, tr } = require('./i18n');
 // Detect installed tools (PATH + known locations), versions, and launch them.
 const { execFile, spawn } = require('child_process');
 const fs = require('fs'), path = require('path'), os = require('os');
+const nyxPath = require('./paths');
 const WIN = process.platform === 'win32';
-const E = (p) => p.replace(/%([^%]+)%/g, (m, k) => process.env[k] || process.env[k.toUpperCase()] || m);
-const HOME = os.homedir();
-const GVS = (rel) => path.join(HOME, 'GPU-Voice-Studio', rel);
+const E = (p) => nyxPath.expandVars(p);
+const HOME = nyxPath.userHome();
+const GVS = (rel) => nyxPath.gvs(rel);
 const PF = ['%ProgramFiles%', '%ProgramFiles(x86)%', '%LOCALAPPDATA%\\Programs'];
 
 const TOOLS = [

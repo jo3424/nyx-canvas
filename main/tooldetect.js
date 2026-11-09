@@ -3,11 +3,12 @@
 // All I/O goes through `deps` so tests can run it against a mocked file system (tests/tools-unit.js).
 //   deps = { fs: {existsSync, statSync, readdirSync, readFileSync}, fsp: {readdir, stat}, exec(cmd,args,timeout)→{err,out}, env, platform, home, http(url)→bool }
 const nodePath = require('path');
+const nyxPath = require('./paths');
 
 function mkDeps(over = {}) {
   const fs = over.fs || require('fs');
   const d = {
-    fs, fsp: over.fsp || fs.promises, platform: over.platform || process.platform, env: over.env || process.env, home: over.home || require('os').homedir(),
+    fs, fsp: over.fsp || fs.promises, platform: over.platform || process.platform, env: over.env || process.env, home: over.home || nyxPath.userHome({ env: over.env || process.env, platform: over.platform || process.platform }),
     exec: over.exec || ((cmd, args, timeout = 5000) => new Promise((res) => { try { require('child_process').execFile(cmd, args, { timeout, windowsHide: true, maxBuffer: 4 << 20 }, (err, out, er) => res({ err, out: String(out || '') + String(er || '') })); } catch (e) { res({ err: e, out: '' }); } })),
     http: over.http || (async (url) => { try { const c = new AbortController(); setTimeout(() => c.abort(), 1200); const r = await fetch(url, { signal: c.signal }); return r.ok; } catch (e) { return false; } }),
   };
@@ -33,7 +34,7 @@ const row = (id, name, cat, o = {}) => ({ id, name, cat, found: false, version: 
 // ---------- individual detectors ----------
 async function exeTool(d, { id, name, cat, cmds, paths = [], ver, parse, override }) {
   const r = row(id, name, cat);
-  let p = override && ex(d, override) ? override : null;
+  let p = override && ex(d, nyxPath.expandVars(override, { env: d.env, platform: d.platform, home: d.home })) ? nyxPath.expandVars(override, { env: d.env, platform: d.platform, home: d.home }) : null;
   if (!p) for (const c of cmds) { const w = await which(d, c); if (w.length) { p = w[0]; break; } }
   if (!p) for (const k of paths) { const q = E(d, k); if (!/%/.test(q) && ex(d, q)) { p = q; break; } }
   if (p) { r.found = true; r.path = p; r.size = size(d, p); if (ver) r.version = await version(d, p, ver, parse); }

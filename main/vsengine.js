@@ -7,6 +7,7 @@
 // the common /tts-like routes (or the user's own endpoint) and keep the first that returns audio.
 const { spawn } = require('child_process');
 const fs = require('fs'), fsp = fs.promises, path = require('path'), net = require('net'), crypto = require('crypto');
+const nyxPath = require('./paths');
 let proc = null, info = null, logBuf = '', learned = null;
 const log = (s) => { logBuf = (logBuf + s).slice(-12000); };
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -48,6 +49,7 @@ function status() { return { running: !!(proc && proc.exitCode == null && proc.s
 async function start(cfg, secrets, { wait = 180000 } = {}) {
   if (proc && proc.exitCode == null && proc.signalCode == null && info?.port && info.exe === cfg.exe && info.model === cfg.model) return status();
   stop();
+  cfg = nyxPath.resolveCfgPaths(cfg || {}, ['exe', 'model', 'tokenizer', 'codec', 'refAudio']);
   if (!cfg.exe || !fs.existsSync(cfg.exe)) throw new Error('vs-engine.exe: ' + (cfg.exe || '—'));
   for (const k of ['model', 'tokenizer']) if (!cfg[k] || !fs.existsSync(cfg[k])) throw new Error((k === 'model' ? '--model' : '--codec') + ': ' + (cfg[k] || '—'));
   const tk = token(secrets); const want = +cfg.port || await freePort();

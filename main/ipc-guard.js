@@ -91,7 +91,7 @@ const SCHEMA = {
   'tts:run': ['o?', 's'], 'tts:test': ['o?', 's?'], 'tts:help': ['s'], 'tts:voices': ['p'], 'tts:sapi': ['s', 'p', 'p', 'o?'], 'tts:sapiStop': [],
   'tts:vsStart': ['o?'], 'tts:vsStop': [], 'tts:vsStatus': [], 'tts:vsProbe': [], 'tts:vsSpeak': ['o?', 's'], 'tts:vsTest': ['o?', 's?'],
   'sys:winSettings': ['s'], 'sys:findFiles': ['o?'], 'sys:launch': ['path', 's?'], 'sys:exists': ['strs'], 'sys:ocr': ['media', 's?'],
-  'sys:reveal': ['path'], 'sys:pickExe': ['s?', 'a?', 's?'], 'sys:pickDir': ['s?'], 'sys:info': [], 'sys:detect': ['o?', 'p'],
+  'sys:reveal': ['path'], 'sys:pickExe': ['s?', 'a?', 's?'], 'sys:pickDir': ['s?'], 'sys:info': [], 'sys:migrateAiPaths': ['o?'], 'sys:detect': ['o?', 'p'],
   'sys:scan': ['o?'], 'sys:scanCancel': [], 'sys:scanState': [], 'sys:openFolder': ['path'],
   'proc:start': ['key', 'o'], 'proc:precheck': ['key', 'o'], 'proc:stop': ['key'], 'proc:status': ['key'], 'proc:health': ['url'], 'proc:pids': [], 'proc:stopWait': ['key', 'n?'],
   'video:probe': ['media'], 'video:clip': ['media', 'n', 'n', 's?'], 'video:clipToMedia': ['media', 'n', 'n'], 'video:frame': ['media', 'n?'], 'video:ffmpeg': ['s?'],

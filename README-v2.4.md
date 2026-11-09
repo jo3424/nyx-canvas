@@ -18,7 +18,7 @@
   Χωρίς ελληνική φωνή: **Ρυθμίσεις Windows → Ώρα και γλώσσα → Γλώσσα → Ελληνικά → ομιλία** (το Nyx δείχνει κουμπί), μετά ↻.
 * **vs-engine server**: Σύνθεση φωνής → «vs-engine server» → exe, `--model`, `--codec` → **Εκκίνηση & δοκιμή**.
   Το Nyx βάζει μόνο του το `VS_ENGINE_TOKEN`, βρίσκει θύρα/endpoint και δείχνει ό,τι απάντησε ο server.
-  Αν δεν βρει endpoint: δες στο launcher/script του `C:\Users\Administrator\GPU-Voice-Studio` ποιο endpoint καλεί και γράψ' το στο «Endpoint σύνθεσης» (π.χ. `POST /v1/audio/speech`).
+  Αν δεν βρει endpoint: δες στο launcher/script του `%USERPROFILE%\GPU-Voice-Studio` ποιο endpoint καλεί και γράψ' το στο «Endpoint σύνθεσης» (π.χ. `POST /v1/audio/speech`).
 * **Groq**: Μοντέλα AI → Groq → κλειδί από console.groq.com → Ενεργό. Μοντέλο: llama-3.3-70b-versatile.
   Ομιλία → Αναγνώριση φωνής → **Groq Whisper** (turbo = γρήγορο, large-v3 = ακριβέστερο). Το Groq δεν έχει ελληνική TTS.
   Στο δωρεάν πλάνο, αν πιάσεις όριο, το Nyx περιμένει λίγα δευτερόλεπτα μόνο του ή σου λέει πόσο να περιμένεις.

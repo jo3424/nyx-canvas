@@ -4,6 +4,7 @@ const { t, tr } = require('./i18n');
 const fs = require('fs'), fsp = fs.promises, path = require('path'), os = require('os');
 const { spawn } = require('child_process');
 const secrets = require('./secrets');
+const nyxPath = require('./paths');
 
 function headers(p) {
   const h = { 'Content-Type': 'application/json' };
@@ -209,6 +210,7 @@ function buildTtsCmd(cfg, text, out, textFile) {
 // most useful line of a failed CLI: the last one that mentions an error, else the last non-empty one
 const lastLine = (s) => { const L = String(s || '').split(/\r?\n/).map(x => x.trim()).filter(Boolean); return (L.filter(x => /error|fail|invalid|unknown|not found|cannot|σφάλμα/i.test(x)).pop() || L.pop() || '').slice(0, 240); };
 async function tts(cfg, text, outDir, opts = {}) {
+  cfg = nyxPath.resolveCfgPaths(cfg || {}, ['exe', 'model', 'tokenizer', 'refAudio']);
   const fail = (msg) => { if (opts.report) return { ok: false, error: msg, ms: 0 }; throw new Error(msg); };
   if (!String(cfg.template || '').trim()) return fail(t('ai.005'));
   if (cfg.exe && !fs.existsSync(cfg.exe)) return fail(t('procs.001') + cfg.exe);
@@ -226,6 +228,7 @@ async function tts(cfg, text, outDir, opts = {}) {
 }
 // "exe --help" → lets the user see the real CLI flags of an unknown engine (vs-engine)
 function exeHelp(exe) {
+  exe = nyxPath.resolveForUse(exe);
   if (!exe || !fs.existsSync(exe)) return Promise.resolve({ ok: false, error: t('procs.001') + (exe || '—') });
   return new Promise((res) => {
     let out = ''; const ch = spawn(exe, ['--help'], { cwd: path.dirname(exe), windowsHide: true });
