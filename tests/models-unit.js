@@ -25,13 +25,14 @@ for (const [L, d] of [['el', el], ['en', en]]) {
   ok(L + ': vision hint mentions mmproj', /mmproj/.test(d['v25.rt_vision_d']) && /mmproj/.test(d['v25.rt_nommproj']));
   ok(L + ': fast hint = Qwen3.8-27B', /Qwen3\.8-27B/.test(d['v25.rt_fast_d']) && !/Qwen3\.6/.test(d['v25.rt_fast_d']));
   ok(L + ': uncensored hint = orcarouter', /orcarouter/.test(d['v25.rt_uncensored_d']));
-  ok(L + ': HauhauCS never recommended', Object.values(d).filter(v => /hauhau/i.test(v)).every(v => /(δεν είναι πια|no longer)/.test(v)));
+  ok(L + ': HauhauCS is not called not-recommended', Object.values(d).filter(v => /hauhau/i.test(v)).every(v => !/(δεν είναι πια η σύσταση|no longer the pick|δεν προτείνεται)/.test(v)));
   ok(L + ': no Markdown backticks in pick texts', Object.entries(d).filter(([k]) => k.startsWith('core.r_')).every(([, v]) => !v.includes('`')));
 }
 const hub = fs.readFileSync(R + '/app/js/v2/hub.js', 'utf8');
 ok('hub cards open the page in the browser, never download', /API\.openExternal\(url\)/.test(hub.slice(hub.indexOf('recCard'), hub.indexOf('  build(body) {'))) && !/download|fetch\(/i.test(hub.slice(hub.indexOf('recFiles'), hub.indexOf('  build(body) {'))));
-ok('package.json version 2.6.5.2', require(R + '/package.json').version === '2.6.5.2');
+ok('package.json version 2.6.6', require(R + '/package.json').version === '2.6.6');
 ok('CHANGELOG has 2.6.5 el+en', (() => { const c = require(R + '/CHANGELOG.json')['2.6.5']; return c && c.el.length && c.el.length === c.en.length; })());
 ok('CHANGELOG has 2.6.5.1 el+en', (() => { const c = require(R + '/CHANGELOG.json')['2.6.5.1']; return c && c.el.length && c.el.length === c.en.length; })());
 ok('CHANGELOG has 2.6.5.2 el+en', (() => { const c = require(R + '/CHANGELOG.json')['2.6.5.2']; return c && c.el.length && c.el.length === c.en.length; })());
+ok('CHANGELOG has 2.6.6 el+en', (() => { const c = require(R + '/CHANGELOG.json')['2.6.6']; return c && c.el.length && c.el.length === c.en.length; })());
 console.log(`models-unit: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

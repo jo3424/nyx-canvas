@@ -156,11 +156,15 @@ function applyThink(req, body) {
   const skip = new Set(thinkCache.get(trimBase(body._base || '')) || []);
   for (const k of THINK_KEYS) if (body[k] != null && !skip.has(k)) req[k] = body[k];
 }
+function isForbidden(e) { return !!(e && (e.status === 403 || e.code === 'forbidden' || /\b403\b/.test(String(e.message || e)))); }
+
 async function chat(p, body) {
   const req = { model: body.model, messages: body.messages, temperature: body.temperature ?? 0.4, stream: false };
   if (body.max_tokens) req.max_tokens = body.max_tokens;
   if (body.tools?.length) { req.tools = body.tools; req.tool_choice = body.tool_choice || 'auto'; }
   if (body.response_format) req.response_format = body.response_format;
+  // llama-server prompt cache: stable prefix is reused when this is true. Cloud servers do not get the flag.
+  if (body.cache_prompt != null ? body.cache_prompt : (limits.isLocalLlama(p) || p?.kind === 'local')) req.cache_prompt = true;
   applyThink(req, body);
   const url = baseOf(p) + '/chat/completions';
   let j;
@@ -175,14 +179,14 @@ async function chat(p, body) {
       j = await jfetch(url, { method: 'POST', headers: headers(p), body: JSON.stringify(req2) }, body.timeout || 240000);
       const ch0 = j?.choices?.[0]; if (!ch0) throw new Error(t('ai.004'));
       const msg0 = ch0.message || { role: 'assistant', content: ch0.text || '' };
-      return { message: msg0, finish: ch0.finish_reason, usage: j.usage || null, model: j.model || body.model, thinkingIgnored: true };
+      return { message: msg0, finish: ch0.finish_reason, usage: j.usage || null, model: j.model || body.model, thinkingIgnored: true, timings: j.timings || null };
     }
     throw e;
   }
   const ch = j?.choices?.[0]; if (!ch) throw new Error(t('ai.004'));
   const msg = ch.message || { role: 'assistant', content: ch.text || '' };
   if (ch.reasoning_content && msg.reasoning_content == null) msg.reasoning_content = ch.reasoning_content;
-  return { message: msg, finish: ch.finish_reason, usage: j.usage || null, model: j.model || body.model, reasoning: msg.reasoning_content || null };
+  return { message: msg, finish: ch.finish_reason, usage: j.usage || null, model: j.model || body.model, reasoning: msg.reasoning_content || null, timings: j.timings || null };
 }
 function rootVariants(p) {
   const orig = trimBase(p.base);
@@ -205,15 +209,20 @@ async function fetchNative(p, path, opts = {}, timeout = 4000) {
   }
   throw first || new Error(t('ai.019', { v0: trimBase(p.base), v1: path }));
 }
-async function props(p) {
-  const r = await fetchNative(p, '/props', {}, 4000);
+function modelQuery(model) { return model ? ('?model=' + encodeURIComponent(String(model))) : ''; }
+function isNeedModel(e) { return !!(e && (e.status === 400 || /\b400\b/.test(String(e.message || e)))); }
+
+async function props(p, opts = {}) {
+  const q = modelQuery(opts.model);
+  const r = await fetchNative(p, '/props' + q, {}, 4000);
   const n_ctx = limits.parseNctx(r.json);
-  return { ok: true, n_ctx, raw: r.json, root: r.root, source: 'props' };
+  return { ok: true, n_ctx, raw: r.json, root: r.root, source: 'props', model: opts.model || null };
 }
-async function slots(p) {
-  const r = await fetchNative(p, '/slots', {}, 4000);
+async function slots(p, opts = {}) {
+  const q = modelQuery(opts.model);
+  const r = await fetchNative(p, '/slots' + q, {}, 4000);
   const n_ctx = limits.parseNctx(r.json);
-  return { ok: true, n_ctx, raw: r.json, root: r.root, source: 'slots' };
+  return { ok: true, n_ctx, raw: r.json, root: r.root, source: 'slots', model: opts.model || null };
 }
 async function tokenize(p, content) {
   const body = JSON.stringify({ content: String(content || '') });
@@ -227,23 +236,64 @@ async function tokenize(p, content) {
   if (!Array.isArray(tokens)) throw new Error('tokenize: unexpected response');
   return { count: tokens.length, root: r.root };
 }
-async function contextInfo(p) {
+async function contextInfo(p, opts = {}) {
   const warnings = [];
-  let n_ctx = null, source = '', raw = null, root = '';
-  try { const r = await props(p); n_ctx = r.n_ctx; source = 'props'; raw = r.raw; root = r.root; }
-  catch (e) { warnings.push({ code: 'props_fail', message: String(e.message || e) }); }
-  if (n_ctx == null) {
-    try { const r = await slots(p); n_ctx = r.n_ctx; source = n_ctx ? 'slots' : source; raw = r.raw; root = r.root; }
-    catch (e) { warnings.push({ code: 'slots_fail', message: String(e.message || e) }); }
+  let n_ctx = null, source = '', raw = null, root = '', router = false, model = opts.model || null;
+  let modelList = opts.models || null;
+  const tryProps = async (m) => {
+    const r = await props(p, { model: m });
+    n_ctx = r.n_ctx; source = m ? 'props_model' : 'props'; raw = r.raw; root = r.root; model = m || model;
+  };
+  const trySlots = async (m) => {
+    const r = await slots(p, { model: m });
+    if (r.n_ctx) { n_ctx = r.n_ctx; source = m ? 'slots_model' : 'slots'; raw = r.raw; root = r.root; model = m || model; }
+  };
+  // 1) /props with ?model= when we know the id (router mode of llama-server b12230 returns HTTP 400 without it).
+  if (model) {
+    try { await tryProps(model); }
+    catch (e) { warnings.push({ code: 'props_model_fail', message: String(e.message || e) }); }
+    if (n_ctx == null) {
+      try { await trySlots(model); }
+      catch (e) { warnings.push({ code: 'slots_model_fail', message: String(e.message || e) }); }
+    }
   }
+  // 2) /props without a model (single-model llama-server).
   if (n_ctx == null) {
+    try { await tryProps(undefined); }
+    catch (e) {
+      if (isNeedModel(e)) router = true;
+      warnings.push({ code: router ? 'props_need_model' : 'props_fail', message: String(e.message || e), status: e.status });
+    }
+  }
+  if (n_ctx == null && !router) {
+    try { await trySlots(undefined); }
+    catch (e) {
+      if (isNeedModel(e)) router = true;
+      warnings.push({ code: 'slots_fail', message: String(e.message || e), status: e.status });
+    }
+  }
+  // 3) list /v1/models; if /props without model was 400, retry with an id.
+  if (n_ctx == null || router) {
     try {
-      const ms = await models(p);
-      n_ctx = limits.parseNctx({ data: ms }) || limits.parseNctx(ms);
-      if (n_ctx) source = 'models';
+      if (!modelList) modelList = await models(p);
+      if (!n_ctx) {
+        n_ctx = limits.parseNctx({ data: modelList }) || limits.parseNctx(modelList);
+        if (n_ctx) source = 'models';
+      }
     } catch (e) { warnings.push({ code: 'models_fail', message: String(e.message || e) }); }
   }
-  return { n_ctx, source, root, warnings, raw };
+  if (n_ctx == null && modelList && modelList.length) {
+    router = router || modelList.length > 1;
+    const id = model || modelList[0].id;
+    try { await tryProps(id); }
+    catch (e) { warnings.push({ code: 'props_model_fail', message: String(e.message || e) }); }
+    if (n_ctx == null) {
+      try { await trySlots(id); }
+      catch (e) { warnings.push({ code: 'slots_model_fail', message: String(e.message || e) }); }
+    }
+  }
+  if (!router && modelList && modelList.length > 1 && warnings.some(w => w.code === 'props_need_model')) router = true;
+  return { n_ctx, source, root, warnings, raw, router, model, models: modelList || undefined };
 }
 async function prepare(p, opts = {}) {
   const messages = opts.messages || [];
@@ -252,8 +302,9 @@ async function prepare(p, opts = {}) {
   const local = limits.isLocalLlama(p) || p?.kind === 'local';
   if (local) {
     try {
-      const c = await contextInfo(p);
+      const c = await contextInfo(p, { model: opts.model });
       nCtx = c.n_ctx; ctxSrc = c.source; warnings.push(...(c.warnings || []));
+      if (c.router) warnings.push({ code: 'router_mode', message: 'llama-server router mode', model: c.model });
     } catch (e) { warnings.push({ code: 'context_fail', message: String(e.message || e) }); }
     try {
       const tok = await tokenize(p, limits.messagesToText(messages));
@@ -353,4 +404,4 @@ function exeHelp(exe) {
     ch.on('close', () => { clearTimeout(tm); res({ ok: true, out: out.slice(0, 6000) }); });
   });
 }
-module.exports = { parseWait, waitOf, jfetch, models, ping, chat, prepare, props, slots, tokenize, contextInfo, embed, transcribe, tts, runCmd, fillTemplate, buildTtsCmd, cmdQuote, exeHelp, netCode, netMessage, baseVariants, hintFor, findLms, lmsServerStart, _baseCache: baseCache, _thinkCache: thinkCache };
+module.exports = { parseWait, waitOf, jfetch, models, ping, chat, prepare, props, slots, tokenize, contextInfo, embed, transcribe, tts, runCmd, fillTemplate, buildTtsCmd, cmdQuote, exeHelp, netCode, netMessage, baseVariants, hintFor, findLms, lmsServerStart, isForbidden, isNeedModel, modelQuery, _baseCache: baseCache, _thinkCache: thinkCache };

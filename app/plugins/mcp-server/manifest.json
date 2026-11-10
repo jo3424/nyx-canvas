@@ -1,6 +1,6 @@
 {
   "id": "mcp-server",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": "Nyx",
   "name": "Nyx MCP server",
   "icon": "server",
@@ -35,6 +35,20 @@
       "label": "Διαγραφή (delete_cards, πάντα με επιβεβαίωση)",
       "type": "checkbox",
       "default": false
+    },
+    {
+      "key": "maxImageMb",
+      "label": "Όριο εικόνας (MB) για add_image",
+      "type": "number",
+      "default": 30,
+      "help": "Εμφανίζεται στα σφάλματα. Προεπιλογή 30. Μπορείς να το αλλάξεις."
+    },
+    {
+      "key": "deleteConfirmMin",
+      "label": "Χρόνος επιβεβαίωσης διαγραφής (λεπτά)",
+      "type": "number",
+      "default": 5,
+      "help": "Αν δεν απαντήσεις μέσα σε αυτό το διάστημα, η διαγραφή ακυρώνεται. Προεπιλογή 5 λεπτά."
     }
   ],
   "actions": [
@@ -58,7 +72,9 @@
       "port": "Port",
       "read": "Read (list_*, get_agenda, summarize_board, search, snapshot)",
       "write": "Write (create / update / move / tags / link / group / images / batch)",
-      "del": "Delete (delete_cards, always with confirmation)"
+      "del": "Delete (delete_cards, always with confirmation)",
+      "maxImageMb": "Image size limit (MB) for add_image",
+      "deleteConfirmMin": "Delete confirmation timeout (minutes)"
     },
     "actions": {
       "info": {

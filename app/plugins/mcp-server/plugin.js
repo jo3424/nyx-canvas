@@ -39,6 +39,24 @@ const TOOLS = [
 ];
 const TOOL_MAP = Object.fromEntries(TOOLS.map(t => [t.name, t]));
 
+function limitsFrom(cfg) {
+  const mb = Math.max(0.001, Number(cfg && cfg.maxImageMb != null && cfg.maxImageMb !== '' ? cfg.maxImageMb : 30));
+  const min = Math.max(0.1, Number(cfg && cfg.deleteConfirmMin != null && cfg.deleteConfirmMin !== '' ? cfg.deleteConfirmMin : 5));
+  return { maxImageMb: mb, maxImageBytes: Math.round(mb * 1048576), deleteConfirmMin: min, deleteConfirmMs: Math.round(min * 60 * 1000) };
+}
+function fmtLimitMb(mb) {
+  return Number.isInteger(mb) ? String(mb) : String(Math.round(mb * 10) / 10);
+}
+function listedTools(cfg) {
+  const lim = limitsFrom(cfg);
+  const mb = fmtLimitMb(lim.maxImageMb);
+  const minutes = fmtLimitMb(lim.deleteConfirmMin);
+  return TOOLS.filter(t => allowed(cfg, t.name)).map(t => {
+    if (t.name === 'add_image') return { ...t, description: 'Add an image card from a local file path (under the user profile or Nyx data folder, images only, ' + mb + ' MB) or an http(s) URL (public addresses, images only, ' + mb + ' MB). file:// is rejected. The limit is set in the Nyx MCP plugin settings.' };
+    if (t.name === 'delete_cards') return { ...t, description: 'Delete cards after an in-Nyx confirmation dialog (the call waits; declined or timeout after ' + minutes + ' minutes if the user does not confirm). Undoable with Ctrl+Z. The timeout is set in the Nyx MCP plugin settings.' };
+    return t;
+  });
+}
 function groupsOn(cfg) {
   return { read: cfg.read !== false, write: !!cfg.write, del: !!(cfg.del || cfg.delete) };
 }
@@ -50,7 +68,6 @@ function allowed(cfg, name) {
   if (!k) return false;
   return !!g[k];
 }
-function listedTools(cfg) { return TOOLS.filter(t => allowed(cfg, t.name)); }
 function denyMsg(name) {
   const k = groupOf(name) || 'write';
   const label = { read: 'Ανάγνωση', write: 'Γραφή', del: 'Διαγραφή' }[k] || k; // i18n-ignore
@@ -125,22 +142,23 @@ const toolErr = (id, message) => rpc(id, { content: [{ type: 'text', text: Strin
 
 async function dispatch(name, args, nyx) {
   const board = nyx.board;
+  const opts = { limits: limitsFrom(nyx.config) };
   // search_cards defaults to all boards (same as 2.6.5.1: { all_boards: true, ...args }).
   // Prefer the McpBoard tool name so PluginOps does not fall through to Cmd (active board only, silent cap of 25).
   if (name === 'search_cards') {
     const a = Object.assign({ all_boards: true }, args || {});
-    if (typeof board.search_cards === 'function') return await board.search_cards(a);
-    return await board.search(a);
+    if (typeof board.search_cards === 'function') return await board.search_cards(a, opts);
+    return await board.search(a, opts);
   }
   if (name === 'read_cards') {
-    if (typeof board.read_cards === 'function') return await board.read_cards(args);
-    return await board.read(args);
+    if (typeof board.read_cards === 'function') return await board.read_cards(args, opts);
+    return await board.read(args, opts);
   }
   if (name === 'board_snapshot') {
-    if (typeof board.board_snapshot === 'function') return await board.board_snapshot(args);
-    return await board.snapshot();
+    if (typeof board.board_snapshot === 'function') return await board.board_snapshot(args, opts);
+    return await board.snapshot(opts);
   }
-  if (typeof board[name] === 'function') return await board[name](args);
+  if (typeof board[name] === 'function') return await board[name](args, opts);
   throw new Error('Unknown tool ' + name);
 }
 
@@ -158,7 +176,7 @@ async function handle(req, nyx) {
   let m; try { m = JSON.parse(req.body || '{}'); } catch (e) { return rerr(null, -32700, 'Parse error', 400); }
   if (Array.isArray(m)) return rerr(null, -32600, 'Batch not supported', 400);
   if (m.id === undefined) return { status: 202, body: '' };
-  if (m.method === 'initialize') return rpc(m.id, { protocolVersion: (m.params && m.params.protocolVersion) || '2025-06-18', capabilities: { tools: { listChanged: true } }, serverInfo: { name: 'nyx-canvas', version: nyx.appVersion || '2.6.5.2' } });
+  if (m.method === 'initialize') return rpc(m.id, { protocolVersion: (m.params && m.params.protocolVersion) || '2025-06-18', capabilities: { tools: { listChanged: true } }, serverInfo: { name: 'nyx-canvas', version: nyx.appVersion || '2.6.6' } });
   if (m.method === 'ping') return rpc(m.id, {});
   if (m.method === 'tools/list') return rpc(m.id, { tools: listedTools(nyx.config) });
   if (m.method === 'tools/call') {
@@ -187,7 +205,7 @@ function clientSnippet(url, tok) {
 }
 
 module.exports = {
-  GROUPS, TOOLS, TOOL_MAP, groupsOn, groupOf, allowed, listedTools, denyMsg, validate, validateCall, batchPerms, handle,
+  GROUPS, TOOLS, TOOL_MAP, groupsOn, groupOf, allowed, listedTools, limitsFrom, fmtLimitMb, denyMsg, validate, validateCall, batchPerms, handle,
   async activate(nyx) {
     token = nyx.secret.get('token');
     if (!token) { token = nyx.randomId(24); nyx.secret.set('token', token); }

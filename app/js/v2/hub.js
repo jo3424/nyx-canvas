@@ -58,11 +58,56 @@ const Hub = {
       r.alt ? h('div', { class: 'rec-alt' }, h('small', {}, t('core.r_alt') + ': ', h('b', {}, r.alt.name)), h('p', { class: 'muted small' }, r.alt.note), this.recFiles(r.alt.files), h('div', { class: 'row gap wrap' }, link(r.alt.url))) : null,
       r.why ? h('details', { class: 'rec-why' }, h('summary', {}, t('core.r_why')), h('p', { class: 'small' }, r.why)) : null);
   },
+  zonesBox() {
+    const box = h('div', { class: 'zones', id: 'hub-zones' }, h('p', { class: 'muted small' }, t('v266.zones_loading')));
+    const paint = async () => {
+      box.innerHTML = '';
+      const A = Store.state.settings.ai;
+      const llama = A.providers.find(x => x.id === 'llama') || A.providers.find(x => x.kind === 'local' && x.enabled);
+      let installed = [], instErr = '';
+      if (llama && llama.enabled) {
+        try { installed = await AI.models(llama.id, true) || []; }
+        catch (e) { instErr = cleanErr(e); if (e.status === 403) AI.markBlocked(llama, e, true); }
+      } else instErr = t('v266.zones_no_router');
+      const keep = h('div', { class: 'zone', 'data-zone': 'keep' }, h('h5', {}, t('v266.zone_keep')));
+      if (instErr && !installed.length) keep.append(h('p', { class: 'warn small' }, instErr));
+      else if (!installed.length) keep.append(h('p', { class: 'muted small' }, t('v266.zone_keep_empty')));
+      for (const m of installed) keep.append(h('div', { class: 'zcard keep', 'data-model': m.id }, h('b', {}, String(m.id).split(/[\\/]/).pop()), h('p', { class: 'muted small' }, m.owned || m.type || 'llama-server')));
+      box.append(keep);
+      const Z = (typeof MODEL_ZONES !== 'undefined') ? MODEL_ZONES : { candidates: {}, other: [], rejected: [] };
+      const cand = h('div', { class: 'zone', 'data-zone': 'cand' }, h('h5', {}, t('v266.zone_cand')));
+      const groups = Object.entries(Z.candidates || {});
+      if (!groups.length) cand.append(h('p', { class: 'muted small' }, '—'));
+      for (const [cat, list] of groups) {
+        cand.append(h('h6', {}, t('v266.cat_' + cat) === ('v266.cat_' + cat) ? cat : t('v266.cat_' + cat)));
+        for (const card of (list || []).slice(0, 3)) cand.append(this.zoneCard(card));
+      }
+      box.append(cand);
+      const other = h('div', { class: 'zone', 'data-zone': 'other' }, h('h5', {}, t('v266.zone_other')));
+      for (const card of (Z.other || [])) other.append(this.zoneCard(card));
+      box.append(other);
+      const rej = h('div', { class: 'zone', 'data-zone': 'rej' }, h('h5', {}, t('v266.zone_rej')));
+      if (!(Z.rejected || []).length) rej.append(h('p', { class: 'muted small' }, t('v266.zone_rej_empty')));
+      else for (const card of Z.rejected) rej.append(this.zoneCard(card, 'rej'));
+      box.append(rej);
+    };
+    setTimeout(paint, 40);
+    box._refresh = paint;
+    return box;
+  },
+  zoneCard(card) {
+    const kids = [h('b', {}, card.name), h('span', { class: 'chip' }, card.role || ''), h('p', { class: 'small' }, t('v266.license') + ': ' + (card.license || '—'))];
+    if (card.requires) kids.push(h('p', { class: 'warn small' }, t('v266.requires') + ': ' + card.requires));
+    if (card.licenseNote) kids.push(h('p', { class: 'muted small' }, card.licenseNote));
+    if (card.sizeNote) kids.push(h('p', { class: 'muted small' }, card.sizeNote));
+    if (card.licenseUrl) kids.push(h('div', { class: 'row gap wrap' }, h('button', { class: 'btn sm ghost', onclick: () => API.openExternal(card.licenseUrl) }, iconSvg('external-link', 14), t('v266.license_open'))));
+    kids.push(h('p', { class: 'muted small' }, t('v266.you_decide')));
+    return h('div', { class: 'zcard', 'data-zid': card.id }, ...kids);
+  },
   build(body) {
     const A = Store.state.settings.ai;
-    // recommendations
-    body.append(this.sec(t('hub.005'), h('div', { class: 'recs' }, ...MODEL_RECS.map(r => this.recCard(r))),
-      h('p', { class: 'muted small' }, MODEL_FIT_NOTE), h('p', { class: 'muted small' }, t('hub.006'))));
+    // v2.6.6: model zones replace the static «Προτάσεις». Licences never exclude a model.
+    body.append(this.sec(t('v266.zones_title'), this.zonesBox(), h('p', { class: 'muted small' }, t('v266.zones_note', { v0: (typeof MODEL_ZONES !== 'undefined' && MODEL_ZONES.checkedAt) || '10/11/2026' }))));
     // providers
     const plist = h('div', { class: 'prov-list' });
     for (const p of A.providers) plist.append(this.provRow(p));
@@ -104,6 +149,7 @@ const Hub = {
         this.field(t('v265.max_continue'), h('input', { class: 'inp', type: 'number', min: 0, value: As.maxContinue ?? 8, onchange: (e) => { As.maxContinue = Math.max(0, +e.target.value || 0); Store.save(); } }), t('v265.max_continue_help')),
         this.field(t('v265.think_budget'), h('input', { class: 'inp', type: 'number', min: 0, placeholder: t('v265.auto'), value: As.thinkingBudget || '', onchange: (e) => { As.thinkingBudget = +e.target.value || 0; Store.save(); } }), t('v265.think_budget_help'))),
       h('p', { class: 'muted small', id: 'hub-limit-live' }, t('v265.limit_hub')),
+      this.field(t('v266.history_pct'), h('input', { class: 'inp', type: 'number', min: 0, max: 100, value: As.historyPct ?? 25, onchange: (e) => { let n = +e.target.value; if (!Number.isFinite(n)) n = 25; As.historyPct = Math.max(0, Math.min(100, n)); e.target.value = As.historyPct; Store.save(); } }), t('v266.history_pct_help')),
       h('label', { class: 'field' }, h('span', {}, t('hub.034')), h('textarea', { class: 'inp', rows: 3, onchange: (e) => { As.extra = e.target.value; Store.save(); } }, As.extra || ''))));
     // data location: portable / Syncthing
     const dl = h('div', { class: 'data-loc' }, h('p', { class: 'muted small' }, '…'));
@@ -129,11 +175,17 @@ const Hub = {
       status.className = 'pstat'; status.textContent = '…'; status.title = ''; fix.hidden = true; fix.innerHTML = '';
       let r; try { r = await API.inv('ai:ping', p); } catch (e) { r = { ok: false, error: cleanErr(e) }; }
       if (r.ok) {
+        AI.clearBlocked(p.id);
         AI.modelCache[p.id] = r.models; status.className = 'pstat ok'; status.textContent = t('hub.053', { count: r.count, ms: r.ms }); status.title = r.models.map(m => m.id).join('\n');
         if (r.fixed) { p.base = r.fixed; Store.save(); const bi = row.querySelector('.prov-base'); if (bi) bi.value = r.fixed; toast(t('v22.base_fixed', { v0: p.name, v1: r.fixed }), { ms: 6000 }); }
         this.refreshTasks(); return true;
       }
-      status.className = 'pstat bad'; status.textContent = '✗ ' + r.error;
+      if (r.status === 403 || /\b403\b/.test(String(r.error || ''))) {
+        AI.markBlocked(p, { status: 403, message: r.error }, true);
+        status.className = 'pstat bad forbidden'; status.textContent = '🚫 403 · ' + r.error; status.title = r.error;
+      } else {
+        status.className = 'pstat bad'; status.textContent = '✗ ' + r.error;
+      }
       const acts = [];
       if (p.id === 'lmstudio' && r.code !== 'http') { const lms = await API.inv('ai:lmsFind').catch(() => null); if (lms) acts.push(h('button', { class: 'btn sm primary', title: lms, onclick: async (e) => { e.target.disabled = true; const x = await API.inv('ai:lmsStart').catch(err => ({ ok: false, error: cleanErr(err) })); e.target.disabled = false; if (x.ok) { toast(t('v22.lms_started')); setTimeout(test, 1200); } else toast('⚠️ ' + x.error, { kind: 'err', ms: 8000 }); } }, iconSvg('play', 14), t('v22.lms_start'))); }
       if (p.id === 'llama' && r.code !== 'http') acts.push(h('button', { class: 'btn sm primary', onclick: async (e) => { e.target.disabled = true; const x = await this.startServer('llama'); e.target.disabled = false; if (x.ok) setTimeout(test, 2500); } }, iconSvg('play', 14), t('v22.llama_start')));
@@ -150,6 +202,7 @@ const Hub = {
           delete AI.modelCache[p.id]; Store.save(); this.refreshTasks(); } })),
       h('div', { class: 'row gap' }, (() => { const bi = this.inp(p, 'base', 'https://…/v1', 'text', () => { status.textContent = ''; fix.hidden = true; }); bi.classList.add('grow', 'prov-base'); return bi; })(), keyIn, keyIn ? h('button', { class: 'btn sm', onclick: async () => { if (!keyIn.value.trim()) return; await API.inv('secret:set', p.keyRef, keyIn.value.trim()); keyIn.value = ''; keyIn.placeholder = t('hub.052'); toast(t('hub.056')); } }, t('hub.057')) : null,
         h('button', { class: 'btn ghost sm', onclick: test }, iconSvg('activity', 14), t('hub.058'))), status, fix, p.id === 'groq' ? h('p', { class: 'muted small groq-note' }, '⚡ ' + t('v24.groq_note')) : null);
+    if (AI.isBlocked(p.id)) { const b = AI.blocked[p.id]; status.className = 'pstat bad forbidden'; status.textContent = '🚫 403 · ' + (b.reason || ''); }
     if (p.enabled && p.kind === 'local' && (p.id !== 'lmstudio' || p.userOn)) setTimeout(test, 50);
     return row;
   },
@@ -158,17 +211,34 @@ const Hub = {
     const A = Store.state.settings.ai; const c = A.tasks[k] ||= { p: '', m: '' };
     const psel = h('select', { class: 'inp' }, h('option', { value: '' }, t('v23.auto')), ...A.providers.map(p => h('option', { value: p.id, disabled: p.enabled ? null : true }, p.name + (p.enabled ? '' : ' — ' + t('hub.051')))));
     psel.value = c.p || '';
-    const msel = h('input', { class: 'inp', list: 'ml-' + k, value: c.m || '', placeholder: k === 'embed' ? t('hub.059') : t('hub.060') }); const dl = h('datalist', { id: 'ml-' + k });
+    const msel = h('select', { class: 'inp task-model' }, h('option', { value: '' }, t('v266.pick_model')));
     const res = h('small', { class: 'muted task-res' });
-    const row = h('div', { class: 'task-row', 'data-task': k }, h('span', { class: 'ti', html: iconSvg(ic, 16) }), h('span', { class: 'tl' }, label), psel, msel, dl, res);
+    const row = h('div', { class: 'task-row', 'data-task': k }, h('span', { class: 'ti', html: iconSvg(ic, 16) }), h('span', { class: 'tl' }, label), psel, msel, res);
     row._refresh = async () => {
-      psel.value = c.p || ''; msel.value = c.m || ''; const r = AI.task(k);
-      res.textContent = r.p ? '→ ' + r.p.name + (r.m ? ' · ' + r.m.split(/[\\/]/).pop().slice(0, 40) : ' · ' + t('v23.first_model')) : '⚠️ ' + t('v23.no_enabled');
-      res.classList.toggle('bad', !r.p);
-      dl.innerHTML = ''; if (r.p) try { const ms = await AI.models(r.p.id); for (const m of ms) dl.append(h('option', { value: m.id })); } catch (e) {}
+      psel.value = c.p || ''; const r = AI.task(k);
+      msel.innerHTML = ''; msel.append(h('option', { value: '' }, t('v266.pick_model')));
+      let list = [];
+      if (r.p) {
+        try {
+          list = await AI.models(r.p.id, true);
+          if (c._fromPath && !c.m) {
+            const want = String(c._fromPath).replace(/\.gguf$/i, '').toLowerCase();
+            const hit = list.find(x => String(x.id).toLowerCase().includes(want));
+            if (hit) { c.m = hit.id; delete c._fromPath; Store.save(); }
+          }
+          for (const m of list) msel.append(h('option', { value: m.id }, m.id.split(/[\\/]/).pop()));
+        } catch (e) {
+          AI.markBlocked(r.p, e, true);
+          res.textContent = '🚫 ' + r.p.name + ' · 403'; res.classList.add('bad');
+        }
+      }
+      msel.value = c.m || '';
+      const shown = c.m || r.m;
+      res.textContent = r.p ? '→ ' + r.p.name + (shown ? ' · ' + String(shown).split(/[\\/]/).pop().slice(0, 40) : ' · ' + t('v266.pick_model')) : '⚠️ ' + t('v23.no_enabled');
+      res.classList.toggle('bad', !r.p || AI.isBlocked(r.p && r.p.id));
     };
-    psel.onchange = () => { c.p = psel.value; c.m = ''; msel.value = ''; if (c.p === 'lmstudio') { const lm = A.providers.find(x => x.id === 'lmstudio'); if (lm) { lm.enabled = true; lm.userOn = true; } } Store.save(); row._refresh(); Assistant.updModel?.(); };
-    msel.onchange = () => { c.m = msel.value.trim(); if (c.m && !c.p) c.p = AI.task(k).p?.id || ''; Store.save(); if (k === 'embed') Search.index = {}; row._refresh(); Assistant.updModel?.(); };
+    psel.onchange = () => { c.p = psel.value; c.m = ''; if (c.p === 'lmstudio') { const lm = A.providers.find(x => x.id === 'lmstudio'); if (lm) { lm.enabled = true; lm.userOn = true; } } Store.save(); row._refresh(); Assistant.updModel?.(); };
+    msel.onchange = () => { c.m = msel.value; if (c.m && !c.p) c.p = AI.task(k).p?.id || ''; Store.save(); if (k === 'embed') Search.index = {}; row._refresh(); Assistant.updModel?.(); };
     row._refresh(); return row;
   },
   refreshTasks() { $$('.task-row').forEach(x => x._refresh?.()); try { Assistant.updModel?.(); } catch (e) {} },
@@ -238,24 +308,24 @@ const Hub = {
       const p = A.providers.find(x => x.id === 'llama') || { id: 'llama', base: 'http://127.0.0.1:' + (cfg.port || 8080) + '/v1', kind: 'local' };
       const base = p.base || ('http://127.0.0.1:' + (cfg.port || 8080) + '/v1');
       let ctxR = null, rec = null, ext = false;
-      try { ctxR = await API.inv('ai:context', { ...p, base }); } catch (e) { ctxR = { warnings: [{ message: cleanErr(e) }] }; }
-      try { rec = cfg.model ? await API.inv('ai:recommendCtx', cfg.model, { vramGiB: 24, kvType: cfg.kvType || 'f16', fa: cfg.fa !== false }) : await API.inv('ai:recommendCtx', '', { weightsBytes: 6.71 * 2 ** 30, vramGiB: 24, kvType: cfg.kvType || 'f16' }); } catch (e) { rec = { readError: cleanErr(e) }; }
+      const mid = (A.tasks && (A.tasks.commands?.m || A.tasks.chat?.m)) || '';
+      try { ctxR = await API.inv('ai:context', { ...p, base }, { model: mid || undefined }); } catch (e) { ctxR = { warnings: [{ message: cleanErr(e) }] }; }
+      try { rec = cfg.model ? await API.inv('ai:recommendCtx', cfg.model, { vramGiB: 24, kvType: cfg.kvType || 'f16', fa: cfg.fa !== false }) : null; } catch (e) { rec = { readError: cleanErr(e) }; }
       const mine = this.procState.llama?.running;
       try { const hl = await API.inv('proc:health', this.healthUrl('llama', cfg)).catch(() => ({ ok: false })); ext = !mine && !!(hl.ok || hl.status); } catch (e) {}
       const n = ctxR?.n_ctx;
       live.innerHTML = '';
       if (n) {
-        const label = ext ? t('v265.gvs_ctx', { v0: n }) : t('v265.srv_ctx', { v0: n });
-        live.append(h('p', { class: n < 16384 ? 'warn small' : 'small', 'data-gvs-ctx': String(n) }, label));
-        if (n < 16384) live.append(h('div', { class: 'warn small gvs-howto' }, t('v265.gvs_small', { v0: n }), h('details', {}, h('summary', {}, t('v265.gvs_how_sum')), h('div', { class: 'small', html: t('v265.gvs_how') }))));
+        const label = ext ? t('v266.live_ctx_ext', { v0: n, v1: ctxR.model || mid || '—' }) : t('v266.live_ctx', { v0: n, v1: ctxR.model || mid || '—' });
+        live.append(h('p', { class: 'small', 'data-gvs-ctx': String(n) }, label));
+        if (ctxR.router) live.append(h('p', { class: 'muted small' }, t('v266.router_mode')));
       } else {
         live.append(h('p', { class: 'muted small', 'data-gvs-ctx': '' }, t('v265.ctx_unknown', { v0: (ctxR?.warnings || []).map(w => w.message).filter(Boolean).slice(0, 1).join(' ') || '—' })));
       }
       recBox.innerHTML = '';
-      if (rec && rec.ctx) {
-        recBox.append(h('p', {}, t('v265.rec_ctx', { v0: rec.ctx, v1: rec.maxCtx || '—', v2: rec.note === 'fallback_no_metadata' ? t('v265.rec_fallback') : t('v265.computed') })),
-          h('p', { class: 'muted' }, t('v265.rec_kv', { v0: rec.assumptions?.kvType || cfg.kvType || 'f16', v1: rec.fitsMax ? '256K' : rec.ctx })));
-      } else if (rec?.readError) recBox.append(h('p', { class: 'warn' }, t('v265.rec_fail', { v0: rec.readError })));
+      // Neutral computed figure only — not a recommendation to raise the user's ctx.
+      if (rec && rec.ctx) recBox.append(h('p', { class: 'muted small' }, t('v266.computed_fit', { v0: rec.ctx, v1: rec.maxCtx || '—', v2: rec.note === 'computed_not_measured' ? t('v265.computed') : (rec.note || '') })));
+      else if (rec?.readError) recBox.append(h('p', { class: 'muted small' }, t('v265.rec_fail', { v0: rec.readError })));
     };
     setTimeout(refresh, 80);
     return h('div', { class: 'llama-ctx-x' },

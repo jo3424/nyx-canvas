@@ -1,5 +1,5 @@
 'use strict';
-// Local image import for the MCP add_image tool: user-folder / Nyx data only, images only, 30 MB, no file:// or UNC.
+// Local image import for the MCP add_image tool: user-folder / Nyx data only, images only, size limit from opts.maxBytes (default 30 MB), no file:// or UNC.
 const fs = require('fs'), path = require('path'), os = require('os');
 
 const MAX = 30 * 1024 * 1024;
@@ -34,9 +34,16 @@ function allowedRoots(opts) {
   if (opts && opts.mediaDir) roots.push(opts.mediaDir);
   return [...new Set(roots.map(r => path.resolve(r)))];
 }
+function fmtLimit(bytes) {
+  const n = +bytes || 0;
+  if (n >= 1048576) { const mb = n / 1048576; return (Number.isInteger(mb) ? String(mb) : mb.toFixed(1)) + ' MB'; }
+  if (n >= 1024) return Math.round(n / 1024) + ' KB';
+  return n + ' bytes';
+}
 function checkUserImage(src, opts) {
   opts = opts || {};
   const max = opts.maxBytes || MAX;
+  const lim = fmtLimit(max);
   if (typeof src !== 'string' || !src || src.includes('\0') || /^file:/i.test(src) || /^[\\/]{2}/.test(src)) {
     const e = new Error('Invalid local path. file:// and network paths are not allowed.'); e.code = 'BAD_PATH'; throw e;
   }
@@ -51,13 +58,13 @@ function checkUserImage(src, opts) {
   if (!st.isFile()) { const e = new Error('Not a file.'); e.code = 'NOT_FILE'; throw e; }
   const roots = allowedRoots(opts);
   if (!roots.some(r => isInside(r, resolved))) {
-    const e = new Error('The path must be under your user folder or the Nyx data folder. Limit: 30 MB, images only.'); e.code = 'NOT_ALLOWED'; throw e;
+    const e = new Error('The path must be under your user folder or the Nyx data folder. Limit: ' + lim + ', images only.'); e.code = 'NOT_ALLOWED'; throw e;
   }
   if (!EXT.test(resolved)) {
-    const e = new Error('Only image files are accepted (png, jpeg, gif, webp, bmp, svg, avif, ico). Limit: 30 MB.'); e.code = 'NOT_IMAGE'; throw e;
+    const e = new Error('Only image files are accepted (png, jpeg, gif, webp, bmp, svg, avif, ico). Limit: ' + lim + '.'); e.code = 'NOT_IMAGE'; throw e;
   }
   if (st.size > max) {
-    const e = new Error('The image is larger than 30 MB (the real import limit).'); e.code = 'TOO_LARGE'; throw e;
+    const e = new Error('The image is larger than the limit of ' + lim + '.'); e.code = 'TOO_LARGE'; throw e;
   }
   const fd = fs.openSync(resolved, 'r');
   const head = Buffer.alloc(Math.min(4096, st.size));
@@ -68,4 +75,4 @@ function checkUserImage(src, opts) {
   }
   return { path: resolved, size: st.size, mime };
 }
-module.exports = { checkUserImage, sniffImage, isInside, allowedRoots, MAX };
+module.exports = { checkUserImage, sniffImage, isInside, allowedRoots, MAX, fmtLimit };

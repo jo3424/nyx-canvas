@@ -59,10 +59,16 @@ function parseNctx(j) {
   return null;
 }
 
-function estimateTokens(messages) {
-  const text = messagesToText(messages);
+function estimateTokens(messages, tools) {
+  const text = requestToText(messages, tools);
   // conservative char/2 for Greek + Latin mix (over-estimate prompt so max_tokens stays safe)
   return Math.max(1, Math.ceil(String(text).length / 2));
+}
+
+function requestToText(messages, tools) {
+  const msg = messagesToText(messages);
+  if (!tools || !tools.length) return msg;
+  return msg + '\n' + JSON.stringify(tools);
 }
 
 function messagesToText(messages) {
@@ -346,12 +352,13 @@ function fallbackAutoCtx() {
 }
 
 function resolveLaunchCtx(cfg, rec) {
+  // v2.6.6: never invent or auto-raise -c (the 262144 figure is a computed fit, not a launch default).
+  // A positive ctx is used as-is. 0 / empty / "auto" omits -c so the running server keeps its own value.
   const raw = cfg?.ctx;
-  const userSet = !!cfg?.ctxUserSet || (raw != null && raw !== '' && raw !== 0 && raw !== 'auto' && +raw !== 8192);
-  if (userSet && Number.isFinite(+raw) && +raw > 0) return { ctx: Math.floor(+raw), auto: false, source: 'user' };
-  if (rec && rec.ctx > 0) return { ctx: rec.ctx, auto: true, source: 'computed', rec };
-  const fb = fallbackAutoCtx();
-  return { ctx: fb.ctx, auto: true, source: 'fallback', rec, warning: fb.note };
+  if (raw != null && raw !== '' && raw !== 'auto' && Number.isFinite(+raw) && +raw > 0) {
+    return { ctx: Math.floor(+raw), auto: false, source: 'user', rec };
+  }
+  return { ctx: 0, auto: true, source: 'omit', omitted: true, rec };
 }
 
 function llamaExtraFlags(cfg) {
@@ -364,7 +371,7 @@ function llamaExtraFlags(cfg) {
 
 module.exports = {
   DEFAULT_RESERVE, DEFAULT_MAX_CONTINUE, GVS_SMALL_CTX, LMS_DEFAULT_BASE, GEMMA4_12B, CLOUD_MAX_OUT, KV_BYTES,
-  isLocalLlama, nativeBase, parseNctx, estimateTokens, messagesToText,
+  isLocalLlama, nativeBase, parseNctx, estimateTokens, messagesToText, requestToText,
   computeMaxTokens, cloudMaxOutput, thinkingParams, dropUnsupported, isUnknownParamError,
   extractThink, stripThink, emptiedByThink, shouldContinue, nextContinueMessages, mergePieces,
   mayAutoUse, migrateLmStudio,

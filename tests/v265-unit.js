@@ -85,7 +85,7 @@ ok(L.parseNctx({ data: [{ meta: { n_ctx: 32768 } }] }) === 32768, 'parse n_ctx f
 
 const cfg = { ctx: 0, model: 'x.gguf' };
 const resolved = L.resolveLaunchCtx(cfg, rec);
-ok(resolved.auto && resolved.ctx === 262144, 'Nyx launch default auto uses the computed ctx', resolved);
+ok(resolved.omitted && resolved.ctx === 0, 'Nyx launch auto omits -c and does not apply 262144', resolved);
 ok(L.resolveLaunchCtx({ ctx: 4096, ctxUserSet: true }, rec).ctx === 4096, 'a user-set ctx is kept');
 const flags = L.llamaExtraFlags({ fa: true, kvType: 'q8_0' });
 ok(flags.includes('-fa') && flags.includes('on') && flags.includes('--cache-type-k'), 'default flags add -fa on and optional q8_0 KV', flags);

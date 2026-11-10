@@ -152,20 +152,22 @@ function wire(H, C, { saveBuf, PART }) {
   // like «Save image as…» in a browser.
   async function dropImage(url, o = {}) {
     url = String(url || ''); await checkUrl(url);
+    const max = (o.maxBytes != null && +o.maxBytes > 0) ? +o.maxBytes : LIM.image;
     const r = await fetcher(url, { timeout: 45000, headers: refOrigin(o.referer) ? { Referer: refOrigin(o.referer) } : {} });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const finalUrl = r.finalUrl || r.url || url; if (!okUrl(finalUrl)) throw new Error('redirected to a blocked URL');
     const ct = (r.headers.get('content-type') || '').split(';')[0].trim().toLowerCase(); const len = +r.headers.get('content-length') || 0;
     if (ct && !/^(image\/|application\/octet-stream|binary\/octet-stream)/.test(ct)) { try { r.body?.cancel().catch(() => {}); } catch (e) {} throw Object.assign(new Error('not an image (' + ct + ')'), { code: 'TYPE' }); }
-    if (len > LIM.image) throw Object.assign(new Error('too large (' + Math.round(len / 1048576) + ' MB)'), { code: 'SIZE' });
+    if (len > max) throw Object.assign(new Error('too large (' + Math.round(len / 1048576) + ' MB; limit ' + Math.round(max / 1048576) + ' MB)'), { code: 'SIZE', maxBytes: max });
     const parts = []; let got = 0; const rd = r.body.getReader();
-    for (;;) { const { done, value } = await rd.read(); if (done) break; got += value.length; if (got > LIM.image) { try { rd.cancel(); } catch (e) {} throw Object.assign(new Error('too large'), { code: 'SIZE' }); } parts.push(Buffer.from(value)); }
-    return saveImage(Buffer.concat(parts), o.hint || path.basename(new URL(finalUrl).pathname), finalUrl);
+    for (;;) { const { done, value } = await rd.read(); if (done) break; got += value.length; if (got > max) { try { rd.cancel(); } catch (e) {} throw Object.assign(new Error('too large (limit ' + Math.round(max / 1048576) + ' MB)'), { code: 'SIZE', maxBytes: max }); } parts.push(Buffer.from(value)); }
+    return saveImage(Buffer.concat(parts), o.hint || path.basename(new URL(finalUrl).pathname), finalUrl, max);
   }
   // bytes the renderer already has (a dragged image file / data: URL) → validated the same way
-  async function saveImage(buf, hint, url) {
+  async function saveImage(buf, hint, url, maxBytes) {
+    const max = (maxBytes != null && +maxBytes > 0) ? +maxBytes : LIM.image;
     const mime = sniffDrop(buf); if (!mime) throw Object.assign(new Error('not a supported image'), { code: 'TYPE' });
-    if (buf.length > LIM.image) throw Object.assign(new Error('too large'), { code: 'SIZE' });
+    if (buf.length > max) throw Object.assign(new Error('too large (limit ' + Math.round(max / 1048576) + ' MB)'), { code: 'SIZE', maxBytes: max });
     const base = String(hint || 'web').replace(/\.[^.]+$/, '').replace(/[^\p{L}\p{N}_-]+/gu, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'web';
     const file = await saveBuf(base + (EXT[mime] || '.bmp'), buf);
     return { file, mime, size: buf.length, url: url || '', name: base + (EXT[mime] || '.bmp') };

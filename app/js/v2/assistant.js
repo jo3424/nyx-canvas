@@ -256,16 +256,30 @@ const Assistant = {
   hide() { this._hid = Date.now(); this.el.classList.remove('in'); $('#btn-assistant')?.classList.remove('on'); setTimeout(() => { if (!this.el.classList.contains('in')) { this.el.hidden = true; this.layout(); } }, 180); },
   toggleThink() { const A = Store.state.settings.ai.assistant; A.thinking = !A.thinking; Store.save(); this.syncThink(); },
   syncThink() { const b = $('#as-think'); if (!b) return; const on = !!Store.state.settings.ai.assistant.thinking; b.classList.toggle('on', on); b.title = t('v265.think_tip'); b.setAttribute('aria-pressed', on ? 'true' : 'false'); },
-  showLimit(prep) {
+  showLimit(prep, timings) {
     const el = $('#as-limit'); if (!el) return;
-    if (!prep) { el.textContent = ''; return; }
-    const cap = prep.max_tokens != null ? prep.max_tokens : '—';
-    const ctx = prep.n_ctx != null ? prep.n_ctx : '—';
-    el.textContent = t('v265.limit_chip', { v0: cap, v1: ctx });
-    el.title = t('v265.limit_tip') + (prep.reason ? ' · ' + prep.reason : '') + (prep.clamped ? ' · ' + t('v265.clamped') : '');
+    const tm = timings || (prep && prep.timings) || AI.lastTimings || null;
+    if (!prep && !tm) { el.textContent = ''; return; }
+    const parts = [];
+    if (prep) {
+      const cap = prep.max_tokens != null ? prep.max_tokens : '—';
+      const ctx = prep.n_ctx != null ? prep.n_ctx : '—';
+      parts.push(t('v265.limit_chip', { v0: cap, v1: ctx }));
+    }
+    if (tm && (tm.prompt_n != null || tm.prompt_ms != null)) {
+      const pn = tm.prompt_n != null ? tm.prompt_n : (prep && prep.promptTokens != null ? prep.promptTokens : '—');
+      const pms = tm.prompt_ms != null ? Math.round(tm.prompt_ms) : '—';
+      const cache = tm.cache_n != null ? tm.cache_n : tm.cached_n;
+      parts.push(t('v266.prompt_chip', { v0: pn, v1: pms, v2: cache != null ? cache : '—' }));
+      if (tm.predicted_n != null || tm.predicted_ms != null) parts.push(t('v266.gen_chip', { v0: tm.predicted_n != null ? tm.predicted_n : '—', v1: tm.predicted_ms != null ? Math.round(tm.predicted_ms) : '—' }));
+    } else if (prep && prep.promptTokens != null) {
+      parts.push(t('v266.prompt_est', { v0: prep.promptTokens, v1: prep.tokSrc || '' }));
+    }
+    el.textContent = parts.filter(Boolean).join(' · ');
+    el.title = t('v266.limit_tip') + (prep && prep.reason ? ' · ' + prep.reason : '') + (prep && prep.clamped ? ' · ' + t('v265.clamped') : '');
   },
   async updModel() { try { const el = $('#as-model'); if (!el) return; const r = AI.task('commands'); const p = (AI.last.commands && AI.prov(AI.last.commands)?.enabled && r.auto ? AI.prov(AI.last.commands) : r.p);
-    el.textContent = p ? p.name + (r.m && p === r.p ? ' · ' + r.m.split(/[\\/]/).pop().slice(0, 28) : t('assistant.073')) : '⚠️ ' + t('v23.offline_only'); el.classList.toggle('bad', !p); el.title = t('assistant.062'); el.onclick = () => Hub.open(); this.syncThink(); if (AI.lastPrep) this.showLimit(AI.lastPrep); } catch (e) {} },
+    el.textContent = p ? p.name + (r.m && p === r.p ? ' · ' + r.m.split(/[\\/]/).pop().slice(0, 28) : t('assistant.073')) : '⚠️ ' + t('v23.offline_only'); el.classList.toggle('bad', !p); el.title = t('assistant.062'); el.onclick = () => Hub.open(); this.syncThink(); if (AI.lastPrep || AI.lastTimings) this.showLimit(AI.lastPrep, AI.lastTimings); } catch (e) {} },
 
   render() {
     const box = $('#as-msgs'); if (!box) return; box.innerHTML = '';
@@ -302,17 +316,47 @@ const Assistant = {
     try { await Speech.start(); b.classList.add('rec'); toast(t('assistant.100'), { ms: 1800 }); } catch (e) { toast(t('assistant.101') + e.message, { kind: 'err' }); }
   },
   context() {
-    const now = new Date(); const b = Store.board(); const items = Cmd.items(); const c = Canvas.center();
-    const near = items.filter(i => i.type !== 'arrow' && i.type !== 'ink').sort((p, q) => Math.hypot(p.x - c.x, p.y - c.y) - Math.hypot(q.x - c.x, q.y - c.y)).slice(0, 90);
-    return t('assistant.102', { v0: GR_DAYS[now.getDay()], v1: now.toLocaleString('el-GR'), v2: toLocalInput(now), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, name: b.name, length: items.length, v6: Store.state.boards.filter(x => x.id !== b.id).map(x => x.name).join(', ') || '—', v7: Canvas.selItems().map(i => i.id.slice(0, 8)).join(', ') || t('assistant.103'), v8: JSON.stringify(near.map(i => Cmd.brief(i))) });
+    // kept for compatibility; the 2.6.6 system prompt uses boardHeader/boardBody + a date suffix instead
+    const now = NyxPrompt.formatNow(new Date(), NyxPrompt.TZ, LANG === 'en' ? 'en-GB' : 'el-GR');
+    const b = Store.board(); const items = Cmd.items();
+    return NyxPrompt.boardBody(b, items, Store.state.boards.filter(x => x.id !== b.id), this.boardLabels()) + '\n' + now.text;
   },
-  system(json) {
-    const X = Store.state.settings.ai.assistant.extra;
-    let s = t('assistant.104', { v0: X ? '\n' + X : '', v1: this.context() });
-    if (json) s += t('assistant.105') + Object.entries(Cmd.T).map(([n, t]) => `- ${n}(${Object.keys(t.p).join(', ')}): ${t.d}`).join('\n');
-    return s;
+  boardLabels() {
+    return { now: t('v266.now'), active: t('v266.active_board'), useTools: t('v266.use_tools'), count: t('v266.card_count'), others: t('v266.other_boards'), cards: t('v266.cards'), unnamed: '—', summaryHead: t('v266.summary_head'), assistant: t('v266.role_as'), user: t('v266.role_user') };
   },
-  history() { return (Store.state.chat || []).slice(-80).filter(m => m.content && m.role !== 'notice' && !m.error).map(m => ({ role: m.role, content: String(m.content) })); },
+  system(json, opts) {
+    opts = opts || {};
+    const A = Store.state.settings.ai.assistant;
+    const instructions = t('v266.sys_instructions');
+    const extra = A.extra || '';
+    let toolsText = '';
+    if (json) toolsText = t('assistant.105') + NyxPrompt.stableToolsText(Object.entries(Cmd.T).map(([n, x]) => ({ name: n, description: x.d, parameters: x.p })));
+    const b = Store.board();
+    const others = Store.state.boards.filter(x => x.id !== b.id);
+    const labels = this.boardLabels();
+    const header = NyxPrompt.boardHeader(b, labels);
+    const body = opts.includeBoard ? NyxPrompt.boardBody(b, Cmd.items(), others, labels) : '';
+    const now = NyxPrompt.dateLine(opts.now || new Date(), NyxPrompt.TZ, LANG === 'en' ? 'en-GB' : 'el-GR', labels);
+    return NyxPrompt.buildSystem({ instructions, extra, toolsText, boardHeader: header, boardBody: body, now, labels });
+  },
+  history(opts) {
+    opts = opts || {};
+    const chat = (Store.state.chat || []).filter(m => m.content && m.role !== 'notice' && !m.error).map(m => ({ role: m.role, content: String(m.content) }));
+    const A = Store.state.settings.ai.assistant || {};
+    const pct = A.historyPct == null ? NyxPrompt.DEFAULT_HISTORY_PCT : +A.historyPct;
+    const nCtx = +(opts.nCtx != null ? opts.nCtx : (AI.lastPrep && AI.lastPrep.n_ctx));
+    const cache = Store.state.chatDigest || null;
+    const tr = NyxPrompt.trimHistory(chat, {
+      nCtx, percent: pct, cache, labels: this.boardLabels(),
+      summarize: (dropped, prev) => {
+        if (prev && prev.text && prev.key) return NyxPrompt.extractiveSummary(dropped, this.boardLabels());
+        return NyxPrompt.extractiveSummary(dropped, this.boardLabels());
+      },
+    });
+    this._histTrim = tr;
+    if (tr.cacheKey && tr.summary) { Store.state.chatDigest = { key: tr.cacheKey, text: tr.summary }; }
+    return tr.messages;
+  },
   async send(text, voice) {
     const q = $('#as-q'); text = (text ?? q.value).trim(); if (!text || this.busy) return; q.value = ''; q.style.height = 'auto';
     if (this.el.hidden) this.show();
@@ -329,22 +373,30 @@ const Assistant = {
   },
   async run(text, onNotice) {
     const A = Store.state.settings.ai.assistant; const actions = []; let model = '';
+    const includeBoard = NyxPrompt.needsBoard(text, { toolsCalled: [] });
     const doActs = async (list) => { const out = []; for (const a of list) { const r = await Cmd.exec(a.tool, a.args); actions.push({ tool: a.tool, args: typeof a.args === 'string' ? JSON.parse(a.args || '{}') : a.args, ok: r?.ok !== false, cancelled: r?.cancelled }); out.push({ tool: a.tool, result: r }); } return out; };
     const offline = async (why) => { const acts = LocalIntent.parse(text); if (!acts) throw new Error(why + t('assistant.106')); await doActs(acts); return { content: t('assistant.107', { why }), actions, model: 'local' }; };
     let pm; try { pm = await AI.pickModel('commands'); model = pm.m; } catch (e) { return offline(e.message); }
+    let nCtx = AI.lastPrep && AI.lastPrep.n_ctx;
+    try { const c = await API.inv('ai:context', pm.p, { model: pm.m }); if (c && c.n_ctx) nCtx = c.n_ctx; } catch (e) {}
+    const hist = this.history({ nCtx });
+    if (this._histTrim && this._histTrim.trimmed && onNotice) onNotice('info', t('v266.hist_trimmed', { v0: A.historyPct ?? 25, v1: this._histTrim.dropped || 0 }));
+    // if current message is already in hist as last, drop it; system+hist+user added below
+    const prior = hist.filter((m, i) => !(i === hist.length - 1 && m.role === 'user' && m.content === text));
     const tryJson = async (msgs) => {
-      const r = await AI.chat('commands', [{ role: 'system', content: this.system(true) }, ...this.history().slice(0, -1), { role: 'user', content: text }], { temperature: A.temperature, onNotice });
+      const r = await AI.chat('commands', [{ role: 'system', content: this.system(true, { includeBoard }) }, ...prior, { role: 'user', content: text }], { temperature: A.temperature, onNotice });
+      this.showLimit(r._prep || AI.lastPrep, r._timings || r.timings);
       const raw = stripThink(r.message.content || '', r.message?.reasoning_content || r.reasoning); const j = parseJsonLoose(raw);
       const emptied = !!(r.emptyAfterClean || (!String(raw || '').trim() && (r.rawContent || r.message.content)));
       if (!j) return { content: raw, actions, model: r.model, truncated: !!r.truncated, continued: r.continued || 0, reasoning: r.reasoning || '', emptyAfterClean: emptied, rawContent: emptied ? (r.rawContent || r.message.content || '') : undefined };
       const res = await doActs((j.actions || []).filter(a => a && a.tool));
       let say = j.say || '';
       const needs = res.filter(x => ['search_cards', 'read_cards'].includes(x.tool));
-      if (needs.length) { const r2 = await AI.chat('commands', [{ role: 'system', content: this.system(true) }, { role: 'user', content: text }, { role: 'assistant', content: raw }, { role: 'user', content: t('assistant.108') + JSON.stringify(needs) + t('assistant.109') }], { temperature: A.temperature, onNotice }); const j2 = parseJsonLoose(stripThink(r2.message.content, r2.message?.reasoning_content || r2.reasoning)); if (j2) { await doActs((j2.actions || []).filter(a => a && a.tool)); say = j2.say || say; } }
+      if (needs.length) { const r2 = await AI.chat('commands', [{ role: 'system', content: this.system(true, { includeBoard: true }) }, { role: 'user', content: text }, { role: 'assistant', content: raw }, { role: 'user', content: t('assistant.108') + JSON.stringify(needs) + t('assistant.109') }], { temperature: A.temperature, onNotice }); const j2 = parseJsonLoose(stripThink(r2.message.content, r2.message?.reasoning_content || r2.reasoning)); if (j2) { await doActs((j2.actions || []).filter(a => a && a.tool)); say = j2.say || say; } }
       return { content: say, actions, model: r.model, via: 'json', truncated: !!r.truncated, continued: r.continued || 0, reasoning: r.reasoning || '' };
     };
     if (A.mode === 'json') { try { return await tryJson(); } catch (e) { if (netDown(e.message)) return offline(t('assistant.110')); throw e; } } // i18n-ignore
-    const msgs = [{ role: 'system', content: this.system(false) }, ...this.history().slice(0, -1), { role: 'user', content: text }];
+    const msgs = [{ role: 'system', content: this.system(false, { includeBoard }) }, ...prior, { role: 'user', content: text }];
     const tools = Cmd.tools();
     for (let round = 0; round < (A.maxRounds || 6); round++) {
       let r;
@@ -357,7 +409,7 @@ const Assistant = {
       // JSON actions in plain content (model ignored tools)
       if (!calls.length && round === 0 && A.mode === 'auto') { const j = parseJsonLoose(m.content || ''); if (j?.actions?.length) { await doActs(j.actions.filter(a => a.tool)); return { content: j.say || '', actions, model, via: 'json' }; } }
       if (!calls.length) {
-        this.showLimit(r._prep);
+        this.showLimit(r._prep, r._timings || r.timings);
         const content = stripThink(m.content || '', m.reasoning_content || r.reasoning);
         const emptied = !!(r.emptyAfterClean || (!String(content || '').trim() && r.rawContent));
         return { content, reasoning: r.reasoning || '', actions, model, via: round ? 'tools' : 'chat', truncated: !!r.truncated, continued: r.continued || 0, emptyAfterClean: emptied, rawContent: emptied ? r.rawContent : undefined };

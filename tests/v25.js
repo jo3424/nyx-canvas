@@ -115,7 +115,7 @@ const shot = (win, n) => win.screenshot({ path: path.join(SHOTS, 'v25-' + n + '.
   ok(await win.evaluate(() => { Private.toggle(false); return !Private.on && Private.chat.length === 0 && !JSON.stringify(Store.state.chat).includes('ιδιωτικό μήνυμα'); }), 'leaving private mode wipes it');
   await win.waitForTimeout(300);
 
-  console.log('AI Hub: sd-server, Router v2, services');
+  console.log('AI Hub: sd-server, services (no Router V2)');
   const sdPort = await freePort(); const SDM = path.join(HOME, 'sd-models'), LORA = path.join(HOME, 'loras'); fs.mkdirSync(SDM); fs.mkdirSync(LORA);
   fs.writeFileSync(path.join(SDM, 'flux1-dev-Q4_K.gguf'), 'x'); fs.writeFileSync(path.join(LORA, 'film-grain.safetensors'), 'x'); fs.writeFileSync(path.join(LORA, 'portrait-light.safetensors'), 'x');
   const fakeExe = path.join(HOME, 'sd-server'); fs.writeFileSync(fakeExe, '#!/bin/sh\nexec "' + process.execPath + '" "' + path.join(__dirname, 'fixtures', 'fake-sd-server.js') + '" "$@"\n'); fs.chmodSync(fakeExe, 0o755);
@@ -124,8 +124,8 @@ const shot = (win, n) => win.screenshot({ path: path.join(SHOTS, 'v25-' + n + '.
   await win.evaluate(() => Panels.openHub ? Panels.openHub() : Hub.open()); await win.waitForTimeout(1500);
   const hub = await win.evaluate(() => ({ sd: !!document.querySelector('.srv[data-srv=sd]'), rt: /🔀/.test(document.body.textContent), svc: [...document.querySelectorAll('table.svc tr')].map(r => r.textContent) }));
   ok(hub.sd, 'sd-server box inside «Τοπικοί servers»', hub);
-  ok(hub.rt, 'Router v2 section (fast / vision / uncensored + Groq fallback)');
-  ok(hub.svc.length === 12 && hub.svc.some(r => /Google Sheet/.test(r) && /Δεν χρησιμοποιείται|Not used/i.test(r)) && hub.svc.some(r => /Workers AI/.test(r)), 'services table with verdicts (Sheet: not used)', hub.svc);
+  ok(!hub.rt, 'Router V2 section is gone', hub);
+  ok(hub.svc.length === 11 && !hub.svc.some(r => /Google Sheet/.test(r)) && hub.svc.some(r => /Workers AI/.test(r)), 'services table without Google Sheet LoRA (11 rows)', hub.svc);
   await win.evaluate(() => document.querySelector('.srv[data-srv=sd]')?.scrollIntoView()); await win.waitForTimeout(300); await shot(win, 'hub-sd');
   const st = await win.evaluate(() => Hub25.sdStart());
   let up = false; for (let i = 0; i < 30 && !up; i++) { await sleep(300); up = await win.evaluate((p) => API.inv('proc:health', 'http://127.0.0.1:' + p + '/').then(r => !!r.ok), sdPort); }

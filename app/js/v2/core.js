@@ -14,7 +14,7 @@ const PROVIDERS_DEFAULT = [
   { id: 'openai', name: 'OpenAI', kind: 'cloud', base: 'https://api.openai.com/v1', keyRef: 'key:openai', enabled: false, icon: 'bot' },
   { id: 'custom', name: 'Custom (OpenAI-compatible)', kind: 'cloud', base: '', keyRef: 'key:custom', enabled: false, icon: 'plug' },
 ];
-const AI_TASKS = [['chat', t('core.001'), 'message-circle'], ['commands', t('core.002'), 'terminal'], ['vision', t('core.003'), 'scan-eye'], ['summarize', t('core.004'), 'list-collapse'], ['embed', t('core.005'), 'binary']];
+const AI_TASKS = [['chat', t('core.001'), 'message-circle'], ['commands', t('core.002'), 'terminal'], ['vision', t('core.003'), 'scan-eye'], ['summarize', t('core.004'), 'list-collapse'], ['embed', t('core.005'), 'binary'], ['private', t('v266.task_private'), 'venetian-mask']];
 // v2.6.3: recommendations for RX 7900 XTX 24 GB (Windows 11, llama-server/whisper-server on Vulkan).
 // Only links + exact file names/sizes (checked on Hugging Face 02/11/2026). Nyx never downloads models by itself.
 const HF_URL = 'https://huggingface.co/';
@@ -38,11 +38,11 @@ function aiDefaults(info) {
   const home = info?.home || '';
   return {
     providers: structuredClone(PROVIDERS_DEFAULT),
-    tasks: { chat: { p: '', m: '' }, commands: { p: '', m: '' }, vision: { p: '', m: '' }, summarize: { p: '', m: '' }, embed: { p: '', m: '' } }, // v2.3: '' = first enabled & reachable provider
+    tasks: { chat: { p: '', m: '' }, commands: { p: '', m: '' }, vision: { p: '', m: '' }, summarize: { p: '', m: '' }, embed: { p: '', m: '' }, private: { p: '', m: '' } }, // v2.3: '' = first enabled & reachable provider; v2.6.6 adds private
     servers: { llama: { exe: g(GVS_REL.llamaExe), model: g(GVS_REL.llamaModel), port: 8080, ngl: 99, ctx: 0, fa: true, kvType: 'f16', extra: '', autoStart: false }, whisper: { exe: g(GVS_REL.whisperExe), model: g(GVS_REL.whisperModel), port: 8178, language: 'el', extra: '', autoStart: false } },
     stt: { kind: 'whispercpp', base: 'http://127.0.0.1:8178', language: 'el', autoSend: true, groqModel: 'whisper-large-v3-turbo' },
     tts: { mode: 'system', rate: 0, pitch: 0, device: 'Vulkan0', port: 0, refAudio: '', endpoint: '', exe: g(GVS_REL.tts), model: home ? home + '\\OmniVoice-Vulkan\\models\\omnivoice-base-Q8_0.gguf' : '', tokenizer: home ? home + '\\OmniVoice-Vulkan\\models\\omnivoice-tokenizer-Q8_0.gguf' : '', voice: '', template: '{exe} --model {model} --codec {tokenizer} --text-file {text_file} --output {out}', speak: false },
-    assistant: { mode: 'auto', confirm: true, temperature: 0.3, extra: '', maxRounds: 6, thinking: false, thinkingBudget: 0, maxTokens: 0, maxContinue: 8 },
+    assistant: { mode: 'auto', confirm: true, temperature: 0.3, extra: '', maxRounds: 6, thinking: false, thinkingBudget: 0, maxTokens: 0, maxContinue: 8, historyPct: 25 },
     autoTag: false,
   };
 }
@@ -70,8 +70,26 @@ Store.load = async function () {
   for (const k of Object.keys(S.ai.tasks)) { const tk = S.ai.tasks[k] ||= { p: '', m: '' }; const pv = S.ai.providers.find(p => p.id === tk.p); if (tk.p && (!pv || !pv.enabled)) { tk.p = ''; tk.m = ''; } }
   // v2.6.5: do not auto-probe LM Studio unless the user turned it on or pinned a task to it
   NyxLimits.migrateLmStudio(S.ai.providers, S.ai.tasks);
-  // v2.6.5: 8192 was the old silent default — treat it as auto unless the user set ctxUserSet
+  // v2.6.5: 8192 was the old silent default — treat it as auto (omit -c) unless the user set ctxUserSet.
+  // v2.6.6: auto no longer means "raise to the computed 262144"; 0/empty omits -c and the running server keeps its ctx.
   const L = S.ai.servers.llama; if (L && !L.ctxUserSet && (+L.ctx === 8192 || L.ctx === '' || L.ctx == null)) { L.ctx = 0; S.ai._migratedCtxAuto = true; }
+  if (S.ai.assistant && (S.ai.assistant.historyPct == null || S.ai.assistant.historyPct === '')) S.ai.assistant.historyPct = 25;
+  // v2.6.6: «Μοντέλο ανά εργασία» is the only place a model is set, including Ιδιωτικό.
+  if (!S.ai.tasks.private) {
+    const Pv = S.ai.private || {};
+    S.ai.tasks.private = { p: Pv.provider || '', m: (Pv.model && !/[\\/]|\.gguf$/i.test(Pv.model) ? Pv.model : '') };
+    S.ai._migratedPrivateTask = true;
+  }
+  for (const k of Object.keys(S.ai.tasks)) {
+    const tk = S.ai.tasks[k];
+    if (tk && tk.m && /[\\/]|\.gguf$/i.test(tk.m)) { tk._fromPath = String(tk.m).split(/[\\/]/).pop(); tk.m = ''; }
+  }
+  // v2.6.6: STT defaults to local whisper-server. If Groq was selected, switch and show a one-time notice (nothing silent).
+  if (S.ai.stt && S.ai.stt.kind === 'groq' && !S.ai.stt.userKeptGroq) {
+    S.ai.stt.kind = 'whispercpp';
+    if (!S.ai.stt.base) S.ai.stt.base = 'http://127.0.0.1:8178';
+    S.ai.stt._migratedFromGroq = true;
+  }
   S.tools ||= {}; S.browser ||= { home: 'https://duckduckgo.com', search: 'https://duckduckgo.com/?q=%s', tabs: [] };
   try {
     if (API && !V2.viewer && S.ai) {
@@ -126,30 +144,57 @@ const AI = {
   cfg() { return Store.state.settings.ai; },
   prov(id) { return this.cfg().providers.find(p => p.id === id); },
   // v2.3: never use a disabled provider. Order: task's provider (if enabled) → chat's provider (if enabled) → first enabled.
-  enabled() { return (this.cfg().providers || []).filter(p => NyxLimits.mayAutoUse(p) && /^https?:\/\//i.test(p.base || '')); },
+  blocked: {}, // provider id → { status, reason, at }  — 403 is never reused silently
+  isBlocked(id) { return !!(id && this.blocked[id] && this.blocked[id].status === 403); },
+  markBlocked(p, err, visible) {
+    if (!p) return;
+    const status = +(err && (err.status || err.code === 'http' && /\b403\b/.test(String(err.message || '')))) || (/\b403\b/.test(String((err && err.message) || err || '')) ? 403 : 0);
+    if (status !== 403 && !(err && err.status === 403)) return false;
+    const reason = cleanErr(err);
+    this.blocked[p.id] = { status: 403, reason, at: Date.now() };
+    if (visible !== false) toast('🚫 ' + t('v266.forbidden', { v0: p.name, v1: reason }), { kind: 'err', ms: 9000 });
+    return true;
+  },
+  clearBlocked(id) { if (id) delete this.blocked[id]; },
+  enabled() { return (this.cfg().providers || []).filter(p => NyxLimits.mayAutoUse(p) && /^https?:\/\//i.test(p.base || '') && !this.isBlocked(p.id)); },
   task(t) {
-    const T = this.cfg().tasks || {}; const c = T[t] || {}; const fb = T.chat || {}; const on = (id) => { const p = id && this.prov(id); return p && p.enabled ? p : null; };
+    const T = this.cfg().tasks || {}; const c = T[t] || {}; const fb = T.chat || {}; const on = (id) => { const p = id && this.prov(id); return p && p.enabled && !this.isBlocked(p.id) ? p : null; };
     const p = on(c.p) || on(fb.p) || this.enabled()[0] || null;
-    const m = (p && p.id === c.p ? c.m : '') || (p && p.id === fb.p && t !== 'embed' ? fb.m : '') || '';
+    const m = (p && p.id === c.p ? c.m : '') || (p && p.id === fb.p && t !== 'embed' && t !== 'private' ? fb.m : '') || '';
     return { p, m, auto: !c.p || !p || p.id !== c.p };
   },
   modelCache: {},
-  async models(pid, force) { const c = this.modelCache[pid]; if (!force && c && Date.now() - c.at < 60e3) return c.list; const p = this.prov(pid); if (!p) throw new Error(t('v23.no_provider_short')); const r = await API.inv('ai:models', p); if (r && !Array.isArray(r) && r.error && r.code) { const e = new Error(r.error); e.code = r.code; e.status = r.status; throw e; } this.modelCache[pid] = { list: r, at: Date.now() }; return r; },
-  // v2.3: tries the resolved provider, then every other enabled one; remembers the last one that worked (header shows it).
+  async models(pid, force) { const c = this.modelCache[pid]; if (!force && c && Date.now() - c.at < 60e3) return c.list; const p = this.prov(pid); if (!p) throw new Error(t('v23.no_provider_short')); const r = await API.inv('ai:models', p); if (r && !Array.isArray(r) && r.error && r.code) { const e = new Error(r.error); e.code = r.code; e.status = r.status; if (e.status === 403) this.markBlocked(p, e); throw e; } this.modelCache[pid] = { list: r, at: Date.now() }; return r; },
+  // v2.6.6: try the resolved provider, then other enabled ones. A 403 provider is marked red and never reused silently. Any fallback is visible.
   async pickModel(task) {
-    const { p, m } = this.task(task); if (p && m) return { p, m };
+    const { p, m } = this.task(task);
+    if (p && m) return { p, m };
     const cands = [p, ...this.enabled().filter(x => x !== p)].filter(Boolean); const errs = [];
+    let firstFail = null;
     for (const c of cands) {
-      try { const ms = await this.models(c.id); const pick = (task === 'embed' ? ms.find(x => /embed|bge|e5|minilm/i.test(x.id)) : (c.defModel && ms.find(x => x.id === c.defModel)) || ms.find(x => !NOT_CHAT.test(x.id))) || (task === 'embed' ? null : ms[0]);
-        if (pick) { this.last[task] = c.id; return { p: c, m: pick.id }; }
-        if (c.id === 'llama' && task !== 'embed') { this.last[task] = c.id; return { p: c, m: 'default' }; } // llama-server serves one model, any name works
+      try {
+        const ms = await this.models(c.id);
+        const want = this.cfg().tasks?.[task]?._fromPath;
+        const byName = want && ms.find(x => String(x.id).toLowerCase().includes(String(want).replace(/\.gguf$/i, '').toLowerCase()));
+        const pick = (task === 'embed' ? ms.find(x => /embed|bge|e5|minilm/i.test(x.id)) : byName || (c.defModel && ms.find(x => x.id === c.defModel)) || ms.find(x => !NOT_CHAT.test(x.id))) || (task === 'embed' ? null : ms[0]);
+        if (pick) {
+          if (firstFail) toast('↪️ ' + t('v266.fallback_visible', { v0: firstFail, v1: c.name + ' · ' + pick.id }), { ms: 7000 });
+          this.last[task] = c.id; return { p: c, m: pick.id };
+        }
+        // single-model llama-server with an empty /v1/models list may still accept any name
+        if (c.id === 'llama' && task !== 'embed' && (!ms || !ms.length)) { this.last[task] = c.id; return { p: c, m: 'default' }; }
         errs.push(c.name + ': ' + t('v23.no_models'));
-      } catch (e) { errs.push(c.name + ': ' + cleanErr(e)); }
+      } catch (e) {
+        this.markBlocked(c, e, true);
+        const msg = cleanErr(e);
+        errs.push(c.name + ': ' + msg);
+        if (!firstFail) firstFail = c.name + (e.status === 403 ? ' (403)' : '');
+      }
     }
     const err = new Error(cands.length ? t('v23.no_provider', { task: AI_TASKS.find(x => x[0] === task)?.[1] || task, v0: errs.join(' · ') }) : t('v23.no_enabled'));
     err.code = 'NOPROV'; throw err;
   },
-  last: {}, lastPrep: null,
+  last: {}, lastPrep: null, lastTimings: null,
   async prepare(p, messages, extra = {}) {
     const A = this.cfg().assistant || {};
     const r = await API.inv('ai:prepare', p, { messages, model: extra.model, thinking: extra.thinking ?? A.thinking, thinkingBudget: extra.thinkingBudget ?? A.thinkingBudget, maxTokensOverride: extra.maxTokensOverride ?? A.maxTokens, reserve: extra.reserve });
@@ -227,7 +272,7 @@ async function chatTurn(p, body, onNotice) {
     const emptied = NyxLimits.emptiedByThink(rawMerged, { text: merged });
     if (emptied && onNotice) onNotice('warn', t('v265.empty_after_clean'));
     r.message = { ...(r.message || {}), content: merged, reasoning_content: reasons.join('\n\n') || undefined };
-    r.reasoning = reasons.join('\n\n'); r._prep = lastPrep; r.continued = i;
+    r.reasoning = reasons.join('\n\n'); r._prep = lastPrep; r.continued = i; r._timings = r._timings || r.timings || AI.lastTimings;
     if (emptied) { r.emptyAfterClean = true; r.rawContent = rawMerged; }
     return Object.assign(r, extra);
   };
@@ -239,7 +284,11 @@ async function chatTurn(p, body, onNotice) {
     if (prep.reason === 'prompt_overflow') throw new Error(t('v265.prompt_overflow', { v0: prep.n_ctx, v1: prep.promptTokens }));
     if (prep.omitted && !shownNoCap && onNotice) { shownNoCap = true; onNotice('info', t('v265.no_cap', { v0: prep.reason })); }
     if (prep.warnings && onNotice) for (const w of prep.warnings) if (w.code === 'tokenize_fail' || w.code === 'props_fail') onNotice('info', t('v265.warn_' + (w.code === 'tokenize_fail' ? 'tokenize' : 'props')));
-    const r = await API.inv('ai:chat', p, { ...body, messages: msgs, ...(prep.body || {}) });
+    let r;
+    try { r = await API.inv('ai:chat', p, { ...body, messages: msgs, ...(prep.body || {}) }); }
+    catch (e) { AI.markBlocked(p, e, true); throw e; }
+    if (r && !r.message && r.error && r.status === 403) { const e = new Error(r.error); e.status = 403; AI.markBlocked(p, e, true); throw e; }
+    if (r.timings || r.usage) { AI.lastTimings = r.timings || null; r._timings = r.timings || null; }
     if (r.thinkingIgnored && onNotice) onNotice('info', t('v265.think_ignored'));
     const calls = r.message?.tool_calls;
     if (hasTools && calls && calls.length) { r._prep = prep; r.continued = i; return r; }

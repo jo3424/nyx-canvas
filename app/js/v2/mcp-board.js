@@ -167,9 +167,19 @@
   }
 
   const DELETE_TIMEOUT_MS = 5 * 60 * 1000;
+  function limitsOf(opts) {
+    const L = (opts && opts.limits) || {};
+    const mb = L.maxImageMb != null ? +L.maxImageMb : 30;
+    const min = L.deleteConfirmMin != null ? +L.deleteConfirmMin : 5;
+    const bytes = L.maxImageBytes != null ? +L.maxImageBytes : Math.round((Number.isFinite(mb) && mb > 0 ? mb : 30) * 1048576);
+    const ms = L.deleteConfirmMs != null ? +L.deleteConfirmMs : Math.round((Number.isFinite(min) && min > 0 ? min : 5) * 60 * 1000);
+    return { maxImageMb: Number.isFinite(mb) && mb > 0 ? mb : 30, maxImageBytes: bytes, deleteConfirmMin: Number.isFinite(min) && min > 0 ? min : 5, deleteConfirmMs: ms };
+  }
+  function fmtMb(mb) { return Number.isInteger(mb) ? String(mb) : String(Math.round(mb * 10) / 10); }
 
   const McpBoard = {
     DELETE_TIMEOUT_MS,
+    limitsOf,
     parseWhen,
     // Optional test hook: async (items) => 'ok'|'declined'|'timeout'
     _confirm: null,
@@ -499,7 +509,7 @@
         if (isUrl) {
           let u;
           try { u = new URL(String(src)); } catch (e) { throw new Error(tr('mcp.bad_url', 'Invalid URL.')); }
-          if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error(tr('mcp.url_scheme', 'Only http(s) URLs are allowed (no file://). The limit is 30 MB, images only, public addresses.'));
+          if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error(tr('mcp.url_scheme', 'Only http(s) URLs are allowed (no file://). The limit is {mb} MB, images only, public addresses.').replace('{mb}', fmtMb(limitsOf(opts).maxImageMb)));
         } else {
           const p = String(src);
           if (/^file:/i.test(p) || p.includes('\0') || /^[\\/]{2}/.test(p)) throw new Error(tr('mcp.bad_path', 'Invalid local path. file:// and network paths are not allowed.'));
@@ -509,15 +519,17 @@
         const spot = freeSpot(480, 360);
         const at = { x: a.x != null ? +a.x : spot.x, y: a.y != null ? +a.y : spot.y };
         let media;
+        const lim = limitsOf(opts);
+        const io = { maxBytes: lim.maxImageBytes, hint: 'mcp' };
         if (isUrl) {
-          if (typeof this._importUrl === 'function') media = await this._importUrl(String(src));
-          else if (typeof API !== 'undefined' && API.download) media = await API.download(String(src), 'mcp');
-          else if (typeof API !== 'undefined' && API.inv) media = await API.inv('web:dropImage', String(src), { hint: 'mcp' });
+          if (typeof this._importUrl === 'function') media = await this._importUrl(String(src), io);
+          else if (typeof API !== 'undefined' && API.download) media = await API.download(String(src), 'mcp', io);
+          else if (typeof API !== 'undefined' && API.inv) media = await API.inv('web:dropImage', String(src), io);
           else throw new Error(tr('mcp.no_download', 'URL download is not available here.'));
         } else {
-          if (typeof this._importLocal === 'function') media = await this._importLocal(String(src));
-          else if (typeof API !== 'undefined' && API.importUserImage) media = await API.importUserImage(String(src));
-          else if (typeof API !== 'undefined' && API.inv) media = await API.inv('media:importUserImage', String(src));
+          if (typeof this._importLocal === 'function') media = await this._importLocal(String(src), io);
+          else if (typeof API !== 'undefined' && API.importUserImage) media = await API.importUserImage(String(src), io);
+          else if (typeof API !== 'undefined' && API.inv) media = await API.inv('media:importUserImage', String(src), io);
           else throw new Error(tr('mcp.no_import', 'Local image import is not available here.'));
         }
         if (!media || !media.file) throw new Error(tr('mcp.import_failed', 'The image could not be imported.'));
@@ -537,9 +549,10 @@
       async delete_cards(a, opts) {
         const its = findItems(a);
         if (!its.length) return notFound();
-        const ans = await this.confirmDelete(its, a.timeout_ms);
+        const lim = limitsOf(opts);
+        const ans = await this.confirmDelete(its, a.timeout_ms != null ? a.timeout_ms : lim.deleteConfirmMs);
         if (ans === 'declined') return { ok: false, declined: true, error: tr('mcp.del_declined', 'Deletion was declined in Nyx.') };
-        if (ans === 'timeout') return { ok: false, timeout: true, error: tr('mcp.del_timeout', 'Deletion timed out waiting for confirmation in Nyx (5 minutes).') };
+        if (ans === 'timeout') return { ok: false, timeout: true, error: tr('mcp.del_timeout', 'Deletion timed out waiting for confirmation in Nyx ({m} minutes).').replace('{m}', fmtMb(lim.deleteConfirmMin)) };
         if (ans !== 'ok') return { ok: false, error: tr('mcp.del_declined', 'Deletion was declined in Nyx.') };
         const ids = its.map(i => i.id);
         const byBoard = new Map();
@@ -577,9 +590,10 @@
             if (!its.length) throw new Error(tr('mcp.batch_del_missing', 'delete_cards in the batch did not match any card (action {i}).').replace('{i}', s.i));
             victims.push(...its);
           }
-          const ans = await this.confirmDelete(victims, a.timeout_ms);
+          const lim = limitsOf(opts);
+          const ans = await this.confirmDelete(victims, a.timeout_ms != null ? a.timeout_ms : lim.deleteConfirmMs);
           if (ans === 'declined') return { ok: false, declined: true, error: tr('mcp.del_declined', 'Deletion was declined in Nyx.') };
-          if (ans === 'timeout') return { ok: false, timeout: true, error: tr('mcp.del_timeout', 'Deletion timed out waiting for confirmation in Nyx (5 minutes).') };
+          if (ans === 'timeout') return { ok: false, timeout: true, error: tr('mcp.del_timeout', 'Deletion timed out waiting for confirmation in Nyx ({m} minutes).').replace('{m}', fmtMb(lim.deleteConfirmMin)) };
           for (const s of delSteps) s.args = { ...s.args, _confirmed: true };
         }
         const snap = Store.snap();
@@ -593,7 +607,7 @@
             // skip confirm inside delete when already confirmed
             const prev = this._confirm;
             if (s.name === 'delete_cards' && s.args._confirmed) this._confirm = async () => 'ok';
-            try { results.push({ tool: s.name, result: await this.T[s.name].call(this, callArgs, { batch: true }) }); }
+            try { results.push({ tool: s.name, result: await this.T[s.name].call(this, callArgs, { batch: true, limits: limitsOf(opts) }) }); }
             finally { this._confirm = prev; }
             const last = results[results.length - 1].result;
             if (last && last.ok === false) throw new Error(last.error || last.declined || last.timeout || ('action failed: ' + s.name));

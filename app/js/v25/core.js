@@ -68,70 +68,37 @@ const ThemeSchedule = {
   start() { clearInterval(this._iv); this._ph = null; this.tick(); this._iv = setInterval(() => this.tick(), 60e3); },
 };
 
-// ---------- Router v2: one llama-server, the right model per task (fast / vision / uncensored), Groq fallback ----------
+// v2.6.6: Nyx-side Router V2 is removed (llama-server b12230 has its own router mode).
+// A stub remains so older callers (Models table) do not throw. Settings.ai.router is left untouched.
 const Router = {
-  loaded: null, lastUse: 0, busy: null,
-  cfg() { return Store.state.settings.ai.router; },
-  profFor(task) { return Private.on ? 'uncensored' : task === 'vision' ? 'vision' : 'fast'; },
-  async health(port) { const r = await API.inv('proc:health', 'http://127.0.0.1:' + port + '/health').catch(() => ({ ok: false })); return r.ok; },
-  // v2.6: one switch at a time — callers queue on `lock`, so two tasks can never start/stop llama-server concurrently.
-  // The loaded profile is identified by model + ctx + extra (same model with another ctx/extra means a reload).
-  lock: Promise.resolve(), loadedKey: null,
-  ensure(task) { const run = () => this.ensureNow(task); const p = this.lock.then(run, run); this.lock = p.catch(() => {}); return p; },
-  async ensureNow(task) {
-    const R = this.cfg(); if (!R.enabled) return false; const name = this.profFor(task); const prof = R.profiles[name]; if (!prof?.model) return false;
-    const S = Store.state.settings.ai.servers.llama; this.lastUse = Date.now();
-    const cfg = { ...S, model: prof.model, ctx: +prof.ctx || S.ctx, extra: [S.extra, prof.extra].filter(Boolean).join(' ') };
-    const key = JSON.stringify([cfg.model, cfg.ctx, cfg.extra]);
-    if (name === 'vision' && !/--mmproj\b/.test(cfg.extra) && !this._warnMm) { this._warnMm = true; toast('⚠️ ' + t('v25.rt_nommproj'), { ms: 9000 }); } // v2.6.3
-    const st = await API.inv('proc:status', 'llama').catch(() => ({})); if (this.loaded === prof.model && this.loadedKey === key && st.running) return true;
-    if (!st.running && !this.loaded && await this.health(S.port)) { if (!this._warnExt) { this._warnExt = true; toast(t('v25.rt_external'), { ms: 8000 }); } return false; } // someone else's llama-server: leave it alone
-    this.busy = (async () => {
-      toast('🔀 ' + t('v25.rt_switch', { v0: t('v25.rt_' + name), v1: prof.model.split(/[\\/]/).pop() }), { ms: 5000 });
-      await API.inv('proc:stopWait', 'llama', 15000).catch(() => {}); this.loaded = null; this.loadedKey = null;
-      const pre = await API.inv('proc:precheck', 'llama', cfg); if (!pre.ok) throw new Error(pre.error);
-      Hub.procState.llama = await API.inv('proc:start', 'llama', cfg);
-      const until = Date.now() + (+R.timeout || 120) * 1000;
-      while (Date.now() < until) { await new Promise(r => setTimeout(r, 1000)); if (await this.health(S.port)) { this.loaded = prof.model; this.loadedKey = key; delete AI.modelCache.llama; return true; } const s2 = await API.inv('proc:status', 'llama').catch(() => ({})); if (!s2.running) throw new Error(t('v25.rt_died') + ((s2.log || []).slice(-2).join(' ').slice(0, 200))); }
-      throw new Error(t('v25.rt_timeout'));
-    })();
-    try { return await this.busy; } finally { this.busy = null; }
-  },
-  async groq() { const p = AI.prov('groq'); if (!p || Private.on) return null; if (!(await API.inv('secret:has', 'key:groq').catch(() => false))) return null; return { p: { ...p, enabled: true }, m: p.defModel || 'llama-3.3-70b-versatile', fallback: true }; },
-  idle() { const R = this.cfg(); if (!R?.enabled || !(+R.unloadMin > 0) || !this.loaded || this.busy) return; if (Date.now() - this.lastUse > R.unloadMin * 60e3) { API.inv('proc:stop', 'llama').catch(() => {}); this.loaded = null; this.loadedKey = null; toast('💤 ' + t('v25.rt_unloaded')); } },
+  loaded: null, loadedKey: null, lastUse: 0, busy: null,
+  cfg() { return Store.state.settings.ai.router || { enabled: false, profiles: {} }; },
+  ensure() { return Promise.resolve(false); },
+  groq() { return Promise.resolve(null); },
+  idle() {},
 };
-setInterval(() => { try { Router.idle(); } catch (e) {} }, 60e3);
-(function () {
-  const orig = AI.pickModel.bind(AI);
-  AI.pickModel = async function (task) {
-    if (task === 'embed') return orig(task);
-    if (Private.on) return Private.pick();
-    const R = Router.cfg();
-    if (R?.enabled && AI.task(task).p?.id === 'llama') {
-      try { await Router.ensure(task); } catch (e) { const g = R.groqFallback && await Router.groq(); if (g) { toast('⚡ ' + t('v25.rt_fallback', { v0: cleanErr(e) }), { ms: 7000 }); this.last[task] = 'groq'; return g; } throw e; }
-    }
-    try { return await orig(task); } catch (e) { const g = R?.enabled && R.groqFallback && await Router.groq(); if (g) { toast('⚡ ' + t('v25.rt_fallback', { v0: cleanErr(e) }), { ms: 7000 }); return g; } throw e; }
-  };
-})();
 
 // ---------- «Ιδιωτικό»: local-only uncensored chat — kept in memory only, never saved, indexed or sent to automations ----------
 const Private = {
   on: false, chat: [], veniceOk: false,
   cfg() { return Store.state.settings.ai.private; },
   async pick() {
-    const P = this.cfg();
-    if (P.provider === 'venice') {
-      const p = AI.prov('venice'); if (!p || !(await API.inv('secret:has', 'key:venice').catch(() => false))) throw new Error(t('v25.pv_need_venice'));
-      if (!this.veniceOk) { const ok = await new Promise(r => Panels.modal('Venice AI', h('div', {}, h('p', {}, '💸 ' + t('v25.venice_cost')), h('p', { class: 'muted small' }, t('v25.pv_cloud_note'))), { okLabel: t('v25.continue'), ok: () => { r(true); }, onClose: () => r(false) })); if (!ok) throw new Error(t('v25.cancelled')); this.veniceOk = true; }
-      return { p: { ...p, enabled: true }, m: P.model || p.defModel || 'venice-uncensored' };
+    const got = await AI.pickModel('private');
+    if (got.p && got.p.id === 'venice' && !this.veniceOk) {
+      const ok = await new Promise(r => Panels.modal('Venice AI', h('div', {}, h('p', {}, '💸 ' + t('v25.venice_cost')), h('p', { class: 'muted small' }, t('v25.pv_cloud_note'))), { okLabel: t('v25.continue'), ok: () => { r(true); }, onClose: () => r(false) }));
+      if (!ok) throw new Error(t('v25.cancelled')); this.veniceOk = true;
     }
-    const lp = AI.prov('llama'); try { await Router.ensure('private'); } catch (e) { throw new Error(t('v25.pv_llama_fail', { v0: cleanErr(e) })); }
-    return { p: { ...lp, enabled: true }, m: P.model || 'default' };
+    return got;
   },
   async run(text) {
     const { p, m } = await this.pick();
-    const msgs = [{ role: 'system', content: t('v25.pv_system') }, ...this.chat.slice(-80, -1).filter(x => x.content).map(x => ({ role: x.role, content: String(x.content) })), { role: 'user', content: text }];
+    const nCtx = (AI.lastPrep && AI.lastPrep.n_ctx) || 0;
+    const hist = NyxPrompt.trimHistory(this.chat.filter(x => x.content).map(x => ({ role: x.role, content: String(x.content) })), { nCtx, percent: (Store.state.settings.ai.assistant || {}).historyPct ?? 25, labels: Assistant.boardLabels && Assistant.boardLabels() });
+    const prior = hist.messages.filter((m, i) => !(i === hist.messages.length - 1 && m.role === 'user' && m.content === text));
+    const date = NyxPrompt.dateLine(new Date(), NyxPrompt.TZ, LANG === 'en' ? 'en-GB' : 'el-GR', { now: t('v266.now') });
+    const msgs = [{ role: 'system', content: t('v25.pv_system') + '\n\n' + date }, ...prior, { role: 'user', content: text }];
     const notices = [];
+    if (hist.trimmed) notices.push({ kind: 'info', text: t('v266.hist_trimmed', { v0: (Store.state.settings.ai.assistant || {}).historyPct ?? 25, v1: hist.dropped || 0 }) });
     const r = await AI.chatTurn(p, { model: m, messages: msgs, temperature: 0.8 }, (kind, msg) => notices.push({ kind, text: msg }));
     const content = stripThink(r.message?.content || '', r.message?.reasoning_content || r.reasoning);
     const emptied = !!(r.emptyAfterClean || (!String(content || '').trim() && r.rawContent));
@@ -151,7 +118,7 @@ const Private = {
   A.render = function () { if (!Private.on) return _render(); const real = Store.state.chat; Store.state.chat = Private.chat; try { _render(); } finally { Store.state.chat = real; } $('#as-msgs')?.prepend(h('div', { class: 'pv-banner' }, '🎭 ' + t('v25.pv_banner'))); };
   A.history = function () { if (!Private.on) return _history(); const real = Store.state.chat; Store.state.chat = Private.chat; try { return _history(); } finally { Store.state.chat = real; } };
   A.run = function (text) { return Private.on ? Private.run(text) : _run(text); };
-  A.updModel = async function () { await _upd(); if (Private.on) { const el = $('#as-model'); const P = Private.cfg(); if (el) { el.textContent = '🎭 ' + (P.provider === 'venice' ? 'Venice' : 'llama-server' + (Router.cfg().profiles.uncensored.model ? ' · ' + Router.cfg().profiles.uncensored.model.split(/[\\/]/).pop().slice(0, 24) : '')); el.classList.remove('bad'); } } };
+  A.updModel = async function () { await _upd(); if (Private.on) { const el = $('#as-model'); const r = AI.task('private'); if (el) { el.textContent = '🎭 ' + (r.p ? r.p.name + (r.m ? ' · ' + String(r.m).split(/[\\/]/).pop().slice(0, 24) : '') : t('v23.no_enabled')); el.classList.toggle('bad', !r.p); } } };
   A.init = function () {
     _init(); const head = this.el?.querySelector('.as-head'); if (!head) return;
     const btn = h('button', { class: 'ib', id: 'as-private', title: t('v25.pv_title'), html: iconSvg('venetian-mask', 16), onclick: () => Private.toggle() });
@@ -210,5 +177,10 @@ const People = {
     addEventListener('keydown', (e) => { const c = e.ctrlKey || e.metaKey; if (!c || !e.shiftKey) return; const k = e.key.toLowerCase(); if (e.target.closest?.('input,textarea,select,[contenteditable=true]')) return;
       if (k === 'm') { e.preventDefault(); e.stopPropagation(); Lazy.run('perf', () => Perf.open()); } if (k === 'u') { e.preventDefault(); e.stopPropagation(); Lazy.run('faces', () => Faces.open()); } }, true);
     window.__nyxV25Ready = true;
+    const stt = Store.state.settings?.ai?.stt;
+    if (stt && stt._migratedFromGroq && !stt._groqSttNoticeShown) {
+      stt._groqSttNoticeShown = true; Store.save();
+      toast(t('v266.stt_moved'), { ms: 10000 });
+    }
   };
 })();

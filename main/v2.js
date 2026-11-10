@@ -161,7 +161,7 @@ function wire(ctx) {
   H('ai:prepare', (p, opts) => ai.prepare(p, opts || {}));
   H('ai:props', (p) => ai.props(p));
   H('ai:tokenize', (p, content) => ai.tokenize(p, content));
-  H('ai:context', (p) => ai.contextInfo(p));
+  H('ai:context', (p, opts) => ai.contextInfo(p, opts || {}));
   H('ai:recommendCtx', (file, o) => { const limits = require('./limits'); if (file) return limits.recommendFromGguf(file, o || {}); return limits.recommendCtx({ meta: limits.GEMMA4_12B, weightsBytes: (o && o.weightsBytes) || 6.71 * 2 ** 30, ...(o || {}) }); });
   H('ai:embed', (p, model, input) => ai.embed(p, model, input));
   H('ai:imageData', async (file) => { const p = safeMedia(file); const img = nativeImage.createFromPath(p); if (img.isEmpty()) { const b = await fsp.readFile(p); return 'data:' + C.mimeOf(p) + ';base64,' + b.toString('base64'); } const s = img.getSize(); const r = s.width > 1024 || s.height > 1024 ? img.resize(s.width >= s.height ? { width: 1024 } : { height: 1024 }) : img; return 'data:image/jpeg;base64,' + r.toJPEG(85).toString('base64'); });

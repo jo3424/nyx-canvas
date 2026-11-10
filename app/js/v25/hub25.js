@@ -1,5 +1,5 @@
 'use strict';
-// v2.5 AI Hub additions (lazy): sd-server box, Router v2, «Ιδιωτικό», services & keys, links to Models / Performance / Faces / Photo tools.
+// v2.5 AI Hub additions (lazy): sd-server box, «Ιδιωτικό», services & keys, links to Models / Performance / Faces / Photo tools. Router V2 removed in 2.6.6.
 const Hub25 = {
   chk(obj, key, label, cb) { return h('label', { class: 'chk' }, h('input', { type: 'checkbox', class: 'toggle', checked: obj[key] ? true : null, onchange: (e) => { obj[key] = e.target.checked; Store.save(); cb && cb(e.target.checked); } }), h('span', {}, label)); },
   keyRow(ref, label, extra) {
@@ -10,7 +10,7 @@ const Hub25 = {
     const A = Store.state.settings.ai; ph.innerHTML = '';
     // sd-server goes inside «Τοπικοί servers»
     const sd = this.sdBox(A.servers.sd); (serversSec || ph).append(sd);
-    ph.append(this.routerSec(), this.privateSec(), this.toolsSec(), this.servicesSec());
+    ph.append(this.privateSec(), this.toolsSec(), this.servicesSec());
   },
   // ---------- sd-server (stable-diffusion.cpp, Vulkan, single exe, own web UI) ----------
   async sdStart({ quiet = false } = {}) {
@@ -40,24 +40,9 @@ const Hub25 = {
       h('div', { class: 'row gap srv-nums' }, Hub.field('Port', Hub.inp(cfg, 'port', '7860', 'number')), Hub.field(t('hub.069'), Hub.inp(cfg, 'extra', '--offload-to-cpu --diffusion-fa'))),
       h('div', { class: 'row gap wrap' }, this.chk(cfg, 'autoStart', t('v22.autostart')), h('button', { class: 'btn sm ghost', onclick: () => Lazy.run('photo', () => Photo.loras()) }, iconSvg('layers', 14), t('v25.lora_title'))), log);
   },
-  // ---------- Router v2 ----------
-  routerSec() {
-    const R = Store.state.settings.ai.router; const body = h('div', { class: 'rt-body', hidden: !R.enabled });
-    // v2.6.3: the vision slot warns when --mmproj is missing (without it the model cannot see images)
-    const prof = (k, ic) => { const P = R.profiles[k]; const noMm = k === 'vision' ? h('p', { class: 'warn small', hidden: !P.model || /--mmproj\b/.test(P.extra || '') }, '⚠️ ' + t('v25.rt_nommproj')) : null;
-      const upd = () => { if (noMm) noMm.hidden = !P.model || /--mmproj\b/.test(P.extra || ''); };
-      return h('div', { class: 'rt-prof' }, h('div', { class: 'row gap' }, h('span', { html: iconSvg(ic, 16) }), h('b', {}, t('v25.rt_' + k)), h('small', { class: 'muted' }, t('v25.rt_' + k + '_d'))),
-      Hub.pathRow(P, 'model', 'GGUF', 'file', { kind: 'llama' }), h('div', { class: 'row gap srv-nums' }, Hub.field('Context (-c)', Hub.inp(P, 'ctx', '8192', 'number')), Hub.field(t('hub.069'), Hub.inp(P, 'extra', k === 'vision' ? '--mmproj C:\\…\\mmproj-F16.gguf' : '', 'text', upd))), noMm); };
-    body.append(prof('fast', 'zap'), prof('vision', 'eye'), prof('uncensored', 'venetian-mask'),
-      h('div', { class: 'row gap srv-nums' }, Hub.field(t('v25.rt_unload'), Hub.inp(R, 'unloadMin', '0', 'number'), t('v25.rt_unload_h')), Hub.field(t('v25.rt_timeout_l'), Hub.inp(R, 'timeout', '120', 'number'))),
-      this.chk(R, 'groqFallback', t('v25.rt_groq')), h('p', { class: 'muted small' }, t('v25.rt_note')));
-    return Hub.sec('🔀 ' + t('v25.rt_title'), this.chk(R, 'enabled', t('v25.rt_on'), (v) => { body.hidden = !v; Router.loaded = null; }), body);
-  },
   privateSec() {
-    const P = Store.state.settings.ai.private;
     return Hub.sec('🎭 ' + t('v25.pv_title'), h('p', { class: 'small' }, t('v25.pv_desc')),
-      selField(t('v25.pv_engine'), [['llama', t('v25.pv_llama')], ['venice', 'Venice AI (cloud · ' + t('v25.pv_cost') + ')']], P.provider, (v) => { P.provider = v; Store.save(); }),
-      Hub.field(t('hub.060'), Hub.inp(P, 'model', 'venice-uncensored / default')),
+      h('p', { class: 'muted small' }, t('v266.private_model_note')),
       h('p', { class: 'warn small' }, '⚖️ ' + t('v25.legal_guard')),
       h('button', { class: 'btn sm', onclick: () => { Assistant.show(); Private.toggle(true); } }, iconSvg('venetian-mask', 14), t('v25.pv_open')));
   },
@@ -77,7 +62,7 @@ const Hub25 = {
   SERVICES: [
     ['sogni', 'Sogni AI', 'keep'], ['venice', 'Venice AI', 'keep'], ['xai', 'xAI · Grok 4.7', 'keep'], ['groq', 'Groq (free)', 'keep'],
     ['claude', 'Claude Pro', 'link'], ['chatgpt', 'ChatGPT Plus', 'link'], ['r2', 'Cloudflare R2', 'later'], ['cfai', 'Cloudflare Workers AI', 'skip'],
-    ['github', 'GitHub', 'later'], ['vps', 'Hostinger VPS', 'skip'], ['hex', 'anomalyco/hex', 'skip'], ['sheet', 'Google Sheet (LoRA)', 'notused'],
+    ['github', 'GitHub', 'later'], ['vps', 'Hostinger VPS', 'skip'], ['hex', 'anomalyco/hex', 'skip'],
   ],
   servicesSec() {
     const S = Store.state.settings.sogni; const sg = h('div', { class: 'sg-box', hidden: !S.enabled });
