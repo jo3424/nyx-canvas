@@ -1,6 +1,6 @@
 {
   "id": "mcp-server",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "Nyx",
   "name": "Nyx MCP server",
   "icon": "server",
@@ -9,8 +9,8 @@
     "server",
     "board"
   ],
-  "description": "Εκθέτει τον καμβά ως MCP server (HTTP, μόνο 127.0.0.1, με token) για LM Studio, Claude Desktop, Cursor κ.λπ.: αναζήτηση, ανάγνωση, δημιουργία καρτών.",
-  "long": "Μετά την ενεργοποίηση πάτα «Ρυθμίσεις σύνδεσης» για να πάρεις το JSON για `mcp.json` (LM Studio → Program → Install → Edit mcp.json). Κάθε αίτημα χωρίς σωστό `Authorization: Bearer <token>` απορρίπτεται, όπως και αιτήματα από ιστοσελίδες (Origin).",
+  "description": "Εκθέτει τον καμβά ως MCP server (HTTP, μόνο 127.0.0.1, με token): αναζήτηση, ανάγνωση, υπενθυμίσεις, καρτέλες, ομαδοποίηση, εικόνες. Οι άδειες ανάγνωσης / γραφής / διαγραφής ρυθμίζονται χωριστά.",
+  "long": "Μετά την ενεργοποίηση πάτα «Ρυθμίσεις σύνδεσης» για να πάρεις το JSON για το mcp.json (LM Studio, Claude Desktop, Hermes, Cursor). Κάθε αίτημα χωρίς σωστό `Authorization: Bearer <token>` απορρίπτεται, όπως και αιτήματα από ιστοσελίδες (Origin). Οι ομάδες Ανάγνωση / Γραφή / Διαγραφή είναι χωριστά κουτάκια· η διαγραφή ζητά πάντα επιβεβαίωση μέσα στο Nyx και αναιρείται με Ctrl+Z.",
   "config": [
     {
       "key": "port",
@@ -19,10 +19,22 @@
       "default": 7801
     },
     {
-      "key": "write",
-      "label": "Επέτρεψε δημιουργία καρτών",
+      "key": "read",
+      "label": "Ανάγνωση (list_*, get_agenda, summarize_board, search, snapshot)",
       "type": "checkbox",
       "default": true
+    },
+    {
+      "key": "write",
+      "label": "Γραφή (δημιουργία / ενημέρωση / μετακίνηση / ετικέτες / σύνδεση / ομαδοποίηση / εικόνες / batch)",
+      "type": "checkbox",
+      "default": false
+    },
+    {
+      "key": "del",
+      "label": "Διαγραφή (delete_cards, πάντα με επιβεβαίωση)",
+      "type": "checkbox",
+      "default": false
     }
   ],
   "actions": [
@@ -38,13 +50,15 @@
     }
   ],
   "name_en": "Nyx MCP server",
-  "description_en": "Exposes the canvas as an MCP server (HTTP, 127.0.0.1 only, with a token) for LM Studio, Claude Desktop, Cursor etc.: search, read, create cards.",
+  "description_en": "Exposes the canvas as an MCP server (HTTP, 127.0.0.1 only, with a token): search, read, reminders, boards, grouping, images. Read / write / delete are separate permissions.",
   "i18n_en": {
     "category": "AI",
-    "long": "After enabling, press “Connection settings” to get the JSON for `mcp.json` (LM Studio → Program → Install → Edit mcp.json). Every request without the correct `Authorization: Bearer <token>` is rejected, as are requests from web pages (Origin).",
+    "long": "After enabling, press “Connection settings” to get the JSON for mcp.json (LM Studio, Claude Desktop, Hermes, Cursor). Every request without the correct Authorization: Bearer <token> is rejected, as are requests from web pages (Origin). Read / Write / Delete are separate checkboxes; delete always asks for confirmation inside Nyx and can be undone with Ctrl+Z.",
     "config": {
       "port": "Port",
-      "write": "Allow creating cards"
+      "read": "Read (list_*, get_agenda, summarize_board, search, snapshot)",
+      "write": "Write (create / update / move / tags / link / group / images / batch)",
+      "del": "Delete (delete_cards, always with confirmation)"
     },
     "actions": {
       "info": {

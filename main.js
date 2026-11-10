@@ -349,6 +349,14 @@ function wireIpc() {
     await fsp.copyFile(p, path.join(MEDIA_DIR(), name));
     return { file: name, name: path.basename(p), mime: mimeOf(p), size: st.size };
   });
+  // MCP add_image (local path): home / Nyx data only, images only, 30 MB, no file:// or UNC.
+  ipcMain.handle('media:importUserImage', async (_e, p) => {
+    const os = require('os');
+    const chk = require('./main/import-image').checkUserImage(p, { home: os.homedir(), dataRoot: DATA_ROOT(), mediaDir: MEDIA_DIR() });
+    const name = uniqueName(path.basename(chk.path));
+    await fsp.copyFile(chk.path, path.join(MEDIA_DIR(), name));
+    return { file: name, name: path.basename(chk.path), mime: chk.mime, size: chk.size };
+  });
   ipcMain.handle('media:importBuffer', async (_e, origName, buf) => {
     const name = uniqueName(path.basename(origName || 'clip.png'));
     await fsp.writeFile(path.join(MEDIA_DIR(), name), Buffer.from(buf));

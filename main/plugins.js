@@ -14,7 +14,19 @@ const APP_VERSION = (() => { try { return require('../package.json').version; } 
 const loaded = {}; // id -> { manifest, mod, api, timers:Set, servers:[], handlers:{} }
 const logs = {};
 
-function init(o) { BUILTIN_DIR = o.builtinDir; USER_DIR = o.userDir; DATA_DIR = o.dataDir; REG_FILE = path.join(o.dataDir, 'plugins.json'); bridge = o.bridge; fs.mkdirSync(USER_DIR, { recursive: true }); fs.mkdirSync(path.join(DATA_DIR, 'plugin-data'), { recursive: true }); try { reg = JSON.parse(fs.readFileSync(REG_FILE, 'utf8')); } catch (e) { reg = { installed: {} }; } reg.installed ||= {}; }
+function init(o) { BUILTIN_DIR = o.builtinDir; USER_DIR = o.userDir; DATA_DIR = o.dataDir; REG_FILE = path.join(o.dataDir, 'plugins.json'); bridge = o.bridge; fs.mkdirSync(USER_DIR, { recursive: true }); fs.mkdirSync(path.join(DATA_DIR, 'plugin-data'), { recursive: true }); try { reg = JSON.parse(fs.readFileSync(REG_FILE, 'utf8')); } catch (e) { reg = { installed: {} }; } reg.installed ||= {}; migrateMcpPerms(false); }
+// v2.6.5.2: split the MCP «write» checkbox into read / write / delete.
+// Existing installs keep write as it was (the old default was true). New installs get write off, read on, delete off.
+function migrateMcpPerms(isNewInstall) {
+  const r = reg.installed['mcp-server']; if (!r) return;
+  r.config ||= {};
+  if (r.config.mcpPerms2652) return;
+  if (!('read' in r.config)) r.config.read = true;
+  if (!('del' in r.config)) r.config.del = false;
+  if (!('write' in r.config)) r.config.write = isNewInstall ? false : true;
+  r.config.mcpPerms2652 = true;
+  saveReg();
+}
 const saveReg = () => { try { writeFileAtomicSync(REG_FILE, JSON.stringify(reg, null, 1)); } catch (e) { console.error('plugins.json', e.message); } };
 // Plugin ids become folder names: strict charset, no dots (no '..'), no Windows device names.
 const ID_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/;
@@ -153,7 +165,7 @@ async function unload(id) {
   delete loaded[id]; log(id, t('plugins.006'));
 }
 async function startEnabled() { for (const [id, v] of Object.entries(reg.installed)) if (v.enabled && find(id)) { try { await load(id); reg.installed[id].error = null; } catch (e) { reg.installed[id].error = String(e.message || e); } } saveReg(); }
-async function install(id, approved) { const m = find(id); if (!m) throw new Error(t('plugins.007')); if (!Array.isArray(approved) || !(m.permissions || []).every(p => approved.includes(p))) throw new Error(t('plugins.008')); reg.installed[id] ||= { enabled: true, config: {} }; reg.installed[id].enabled = true; reg.installed[id].approved = [...approved]; saveReg(); try { await load(id); } catch (e) { reg.installed[id].error = String(e.message); saveReg(); } return list(); }
+async function install(id, approved) { const m = find(id); if (!m) throw new Error(t('plugins.007')); if (!Array.isArray(approved) || !(m.permissions || []).every(p => approved.includes(p))) throw new Error(t('plugins.008')); const first = !reg.installed[id]; reg.installed[id] ||= { enabled: true, config: {} }; reg.installed[id].enabled = true; reg.installed[id].approved = [...approved]; if (id === 'mcp-server' && first) migrateMcpPerms(true); saveReg(); try { await load(id); } catch (e) { reg.installed[id].error = String(e.message); saveReg(); } return list(); }
 async function uninstall(id) { await unload(id); delete reg.installed[id]; saveReg(); return list(); }
 async function setEnabled(id, on) { const r = reg.installed[id]; if (!r) throw new Error(t('plugins.009')); r.enabled = !!on; r.error = null; saveReg(); if (on) { try { await load(id); } catch (e) { r.error = String(e.message); saveReg(); } } else await unload(id); return list(); }
 async function setConfig(id, values) {
@@ -213,4 +225,4 @@ async function installPending(id, approved) {
   if (moved && isInside(USER_DIR, old)) await fsp.rm(old, { recursive: true, force: true }).catch(() => {});
   return install(id, approved);
 }
-module.exports = { init, list, install, uninstall, setEnabled, setConfig, action, cardRefresh, panel, dispatch, startEnabled, unloadAll: async () => { for (const id of Object.keys(loaded)) await unload(id); }, logs: (id) => logs[id] || [], installFromFolder, installPending, validId };
+module.exports = { init, list, install, uninstall, setEnabled, setConfig, action, cardRefresh, panel, dispatch, startEnabled, unloadAll: async () => { for (const id of Object.keys(loaded)) await unload(id); }, logs: (id) => logs[id] || [], installFromFolder, installPending, validId, migrateMcpPerms };

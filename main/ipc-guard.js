@@ -74,7 +74,7 @@ const T = {
 const SCHEMA = {
   // core (main.js)
   'state:load': [], 'state:save': ['text'], 'state:saveSync': ['text'], 'state:get': [],
-  'media:importPath': ['path'], 'media:importBuffer': ['name?', 'buf'], 'media:download': ['url', 's?'], 'media:thumb': ['media'],
+  'media:importPath': ['path'], 'media:importUserImage': ['path'], 'media:importBuffer': ['name?', 'buf'], 'media:download': ['url', 's?'], 'media:thumb': ['media'],
   'media:pickFiles': ['s?'], 'media:pickFolderImages': [],
   'backup:export': ['text'], 'backup:import': [],
   'web:fetch': ['url', 'o?'], 'web:linkInfo': ['url'], 'tracker:check': ['o'],

@@ -30,7 +30,8 @@ for (const [L, d] of [['el', el], ['en', en]]) {
 }
 const hub = fs.readFileSync(R + '/app/js/v2/hub.js', 'utf8');
 ok('hub cards open the page in the browser, never download', /API\.openExternal\(url\)/.test(hub.slice(hub.indexOf('recCard'), hub.indexOf('  build(body) {'))) && !/download|fetch\(/i.test(hub.slice(hub.indexOf('recFiles'), hub.indexOf('  build(body) {'))));
-ok('package.json version 2.6.5.1', require(R + '/package.json').version === '2.6.5.1');
+ok('package.json version 2.6.5.2', require(R + '/package.json').version === '2.6.5.2');
 ok('CHANGELOG has 2.6.5 el+en', (() => { const c = require(R + '/CHANGELOG.json')['2.6.5']; return c && c.el.length && c.el.length === c.en.length; })());
 ok('CHANGELOG has 2.6.5.1 el+en', (() => { const c = require(R + '/CHANGELOG.json')['2.6.5.1']; return c && c.el.length && c.el.length === c.en.length; })());
+ok('CHANGELOG has 2.6.5.2 el+en', (() => { const c = require(R + '/CHANGELOG.json')['2.6.5.2']; return c && c.el.length && c.el.length === c.en.length; })());
 console.log(`models-unit: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

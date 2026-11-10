@@ -134,6 +134,8 @@ const PluginOps = {
   async run({ op, args, plugin }) {
     if (op.startsWith('board.')) {
       const tool = op.slice(6);
+      // New MCP tools (and MCP's own names for search/create/…) live in McpBoard: no silent caps, labelled undo, always-confirm delete.
+      if (typeof McpBoard !== 'undefined' && McpBoard.handles(tool)) return await McpBoard.run(tool, args[0] || {}, { plugin });
       if (tool === 'snapshot') { const b = Store.board(); return { board: b.name, items: b.items.filter(i => !['ink'].includes(i.type)).map(i => ({ id: i.id, type: i.type, x: Math.round(i.x), y: Math.round(i.y), w: Math.round(i.w || 200), h: Math.round(i.h || 120), title: Features.itemTitle(i), text: Search.text(i).slice(0, 20000), url: i.url || '', color: i.paper || i.color || '', tags: i.tags || [], src: i.file || i.src || '', ...(i.type === 'arrow' ? { x1: i.x1, y1: i.y1, x2: i.x2, y2: i.y2 } : {}) })) }; }
       if (tool === 'importJson') { const r = await V2Import.jsonCanvas(args[0]); return r; }
       const map = { addCard: 'create_card', addCards: 'create_cards', update: 'update_card', search: 'search_cards', read: 'read_cards', show: 'show_card', remove: 'delete_cards', group: 'group_cards', addSubscription: 'add_subscription', createBoard: 'create_board' };

@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('nyxAPI', {
   getState: () => I('state:get'),
   pathForFile: (f) => { try { return webUtils.getPathForFile(f); } catch (e) { return ''; } },
   importPath: (p) => I('media:importPath', p),
+  importUserImage: (p) => I('media:importUserImage', p),
   importBuffer: (name, buf) => I('media:importBuffer', name, buf),
   download: (url, hint) => I('media:download', url, hint),
   thumb: (file) => I('media:thumb', file),

@@ -224,9 +224,16 @@ async function ask(win, text, { confirm } = {}) {
   ok(r.status === 403, 'MCP with foreign Origin → 403', r.status);
   r = await mcp({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'search_cards', arguments: { query: 'Κρήτη' } } }, { Authorization: 'Bearer ' + token });
   ok(r.status === 200 && /Κρήτη/.test(JSON.stringify(r.j)), 'MCP search_cards with token returns board data', r.j && JSON.stringify(r.j).slice(0, 200));
+  r = await mcp({ jsonrpc: '2.0', id: 9, method: 'tools/list' }, { Authorization: 'Bearer ' + token });
+  const listed = ((r.j && r.j.result && r.j.result.tools) || []).map(t => t.name);
+  ok(listed.includes('search_cards') && !listed.includes('create_card'), 'new install lists read tools, not create_card (write defaults off)', listed);
   r = await mcp({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'create_card', arguments: { text: 'Από MCP client', kind: 'note' } } }, { Authorization: 'Bearer ' + token });
+  ok(r.status === 200 && r.j && r.j.result && r.j.result.isError, 'create_card refused while write is off', r.j && JSON.stringify(r.j).slice(0, 200));
+  await win.evaluate(async () => { await API.inv('plugins:config', 'mcp-server', { port: 7801, read: true, write: true, del: false }); });
+  await win.waitForTimeout(800);
+  r = await mcp({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'create_card', arguments: { text: 'Από MCP client', kind: 'note' } } }, { Authorization: 'Bearer ' + token });
   await win.waitForTimeout(300);
-  ok(await win.evaluate(() => allItems().some(i => /Από MCP client/.test(i.html || ''))), 'MCP create_card adds a card', r.j);
+  ok(await win.evaluate(() => allItems().some(i => /Από MCP client/.test(i.html || ''))), 'MCP create_card adds a card after write is enabled', r.j);
   // a card plugin with approval (eortologio: no network) and clipboard inbox
   for (const id of (process.env.PLUGS || 'eortologio,clipboard-inbox,pomodoro,jsoncanvas').split(',')) { const t0 = Date.now(); const pr = win.evaluate((id) => PluginStore.install(PluginStore.get(id)), id); await modalClick(win); await Promise.race([pr, sleep(15000).then(() => { throw new Error('install timeout ' + id); })]); if (process.env.DBG) console.log('   installed', id, Date.now() - t0, 'ms'); await win.waitForTimeout(300); await win.evaluate(() => { if (!$('#modal').hidden) $('#modal-close').click(); }); }
   const eo = await win.evaluate(async () => { const p = PluginStore.get('eortologio'); const c = p.cards?.[0]; if (!c) return 'no card'; const it = PluginStore.addCard(p, c); await new Promise(r => setTimeout(r, 1500)); return { data: !!it?.data, text: Items.el(it)?.innerText.slice(0, 120) }; });

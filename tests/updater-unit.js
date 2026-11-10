@@ -31,6 +31,7 @@ ok(!core.verifySig(mb, sig, PUB2), 'signature from another key fails');
 ok(!core.verifySig(mb, 'not-base64!!', PUB), 'garbage signature fails (no throw)');
 ok(core.cmpVer('2.10.0', '2.9.9') > 0 && core.cmpVer('2.1.0', '2.1') === 0 && core.cmpVer('2.0.0', '2.1.0') < 0, 'semantic version compare');
 ok(core.cmpVer('2.6.5.1', '2.6.5') > 0 && core.cmpVer('2.6.5.1', '2.6.6') < 0, 'four-part 2.6.5.1 is newer than 2.6.5 and older than reserved 2.6.6');
+ok(core.cmpVer('2.6.5.2', '2.6.5.1') > 0 && core.cmpVer('2.6.5.2', '2.6.6') < 0, 'four-part 2.6.5.2 is newer than 2.6.5.1 and older than reserved 2.6.6');
 
 console.log('build + apply (delta)');
 const A = mkTree('A', '1.0.0', { 'app/index.html': '<h1>A</h1>', 'app/keep.js': 'keep()', 'app/old.js': 'old()', 'app/Ελληνικά.txt': 'γεια', 'app/bin.dat': crypto.randomBytes(5000) });

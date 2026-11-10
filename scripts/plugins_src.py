@@ -337,6 +337,7 @@ module.exports = { actions: {
 ''')
 
 # ---------------- mcp server ----------------
+# Live source of truth from 2.6.5.2 on: app/plugins/mcp-server/ (this copy is historical).
 add('mcp-server', dict(name='Nyx MCP server', icon='server', category='AI', permissions=['server','board'],
   description='Εκθέτει τον καμβά ως MCP server (HTTP, μόνο 127.0.0.1, με token) για LM Studio, Claude Desktop, Cursor κ.λπ.: αναζήτηση, ανάγνωση, δημιουργία καρτών.',
   long='Μετά την ενεργοποίηση πάτα «Ρυθμίσεις σύνδεσης» για να πάρεις το JSON για `mcp.json` (LM Studio → Program → Install → Edit mcp.json). Κάθε αίτημα χωρίς σωστό `Authorization: Bearer <token>` απορρίπτεται, όπως και αιτήματα από ιστοσελίδες (Origin).',

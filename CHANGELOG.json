@@ -1,4 +1,18 @@
 {
+  "2.6.5.2": {
+    "el": [
+      "Πρόσθετο MCP: απλά εργαλεία — update_card, move_card, create_reminder, list_reminders / get_agenda, list_boards, create_board, add_tags, link_cards. Οι υπενθυμίσεις μπαίνουν στο υπάρχον σύστημα (ειδοποιήσεις, Europe/Athens, ημερομηνίες και σε DD/MM)",
+      "Σύνθετα εργαλεία: batch (πολλές ενέργειες σε ένα βήμα αναίρεσης, έλεγχος όλων πρώτα, όλα ή τίποτα), group_cards, organize_board (κατά τύπο / ετικέτα / ημερομηνία, χωρίς διαγραφή), add_image (τοπικό αρχείο ή http(s), έλεγχος μεγέθους/τύπου, χωρίς file://), summarize_board (επιστρέφει κείμενο, δεν αλλάζει τίποτα)",
+      "delete_cards μόνο μετά από επιβεβαίωση μέσα στο Nyx (η κλήση περιμένει· απόρριψη ή λήξη 5 λεπτών). Κάθε αλλαγή γράφεται στο ιστορικό αναίρεσης με ετικέτα «MCP: …», ώστε να δουλεύει το Ctrl+Z. Χωριστό κουτάκι ανά ομάδα: Ανάγνωση, Γραφή, Διαγραφή. Σε υπάρχουσα εγκατάσταση η γραφή μένει όπως ήταν· σε νέα είναι κλειστή, όπως και η διαγραφή",
+      "Το Electron μένει 45.2.3. Η ενημέρωση είναι μικρό υπογεγραμμένο patch από την 2.6.5.1. Η 2.6.6 μένει για το streaming· η v2.7 μένει παγωμένη"
+    ],
+    "en": [
+      "MCP plugin: simple tools — update_card, move_card, create_reminder, list_reminders / get_agenda, list_boards, create_board, add_tags, link_cards. Reminders use the existing scheduler (notifications, Europe/Athens, dates also in DD/MM)",
+      "Complex tools: batch (several actions as one undo step, validate all first, all-or-nothing), group_cards, organize_board (by type / tag / date, non-destructive), add_image (local file or http(s), size/type checks, no file://), summarize_board (returns text, changes nothing)",
+      "delete_cards only after an in-Nyx confirmation (the call waits; declined or a 5-minute timeout). Every change is written to the undo history labelled “MCP: …”, so Ctrl+Z works. Separate checkbox per group: Read, Write, Delete. Existing installs keep write as it was; new installs have write and delete off",
+      "Electron stays 45.2.3. This update is a small signed patch from 2.6.5.1. 2.6.6 stays reserved for streaming; v2.7 stays frozen"
+    ]
+  },
   "2.6.5.1": {
     "el": [
       "Διόρθωση κενής απάντησης όταν η «Σκέψη» είναι κλειστή: το extractThink αναγνωρίζει το <channel|> ως τέλος σκέψης του Gemma 4, και το κείμενο μετά από αυτό είναι η απάντηση",

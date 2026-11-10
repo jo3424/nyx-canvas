@@ -50,24 +50,45 @@ const Store = {
     try { const gen = this.gen; const text = this.serialize(); if (API?.saveSync) { const r = API.saveSync(text); if (r?.ok && gen === this.gen) { this.dirty = false; document.body.classList.remove('unsaved'); return true; } } else if (!API) { localStorage.setItem('nyx-state', text); this.dirty = false; return true; } } catch (e) { console.error('flush failed', e); }
     return false;
   },
-  // ---- history: snapshot active board items + subs
-  snap() { return JSON.stringify({ b: this.state.active, items: this.items(), subs: this.state.subs }); },
+  // ---- history: v2 snapshots cover every board + agenda + subs (needed for MCP cross-board moves, create_board, reminders).
+  // Stack entries are { snap, label }; older string-only entries are still accepted.
+  snap() {
+    return JSON.stringify({
+      v: 2, b: this.state.active, items: this.items(), subs: this.state.subs, agenda: this.state.agenda || [],
+      boards: this.state.boards.map(b => ({ id: b.id, name: b.name, emoji: b.emoji, color: b.color, view: b.view, items: b.items })),
+    });
+  },
+  entrySnap(e) { return (e && typeof e === 'object' && typeof e.snap === 'string') ? e.snap : e; },
+  entryLabel(e) { return (e && typeof e === 'object' && e.label) ? e.label : ''; },
+  lastUndoLabel() { return this.entryLabel(this.undoStack[this.undoStack.length - 1]); },
   begin() { if (!this.pending) this.pending = this.snap(); },
-  commit() {
+  commit(label) {
     if (!this.pending) { this.save(); return; }
     const now = this.snap();
-    if (now !== this.pending) { this.undoStack.push(this.pending); if (this.undoStack.length > 150) this.undoStack.shift(); this.redoStack = []; }
+    if (now !== this.pending) { this.undoStack.push({ snap: this.pending, label: label || '' }); if (this.undoStack.length > 150) this.undoStack.shift(); this.redoStack = []; }
     this.pending = null; this.save();
   },
-  change(fn) { this.begin(); const r = fn(); this.commit(); return r; },
+  change(fn, label) { this.begin(); const r = fn(); this.commit(label); return r; },
   restore(snapText) {
-    const s = JSON.parse(snapText);
+    const s = JSON.parse(this.entrySnap(snapText));
+    if (s.v === 2 && Array.isArray(s.boards)) {
+      const cur = new Map(this.state.boards.map(b => [b.id, b]));
+      this.state.boards = s.boards.map(sb => {
+        const b = cur.get(sb.id) || { id: sb.id, name: sb.name, emoji: sb.emoji, color: sb.color, view: sb.view || { x: 0, y: 0, z: 1 }, items: [] };
+        b.name = sb.name; b.emoji = sb.emoji; b.color = sb.color; if (sb.view) b.view = sb.view; b.items = sb.items || [];
+        return b;
+      });
+      this.state.subs = s.subs;
+      if (s.agenda) this.state.agenda = s.agenda;
+      if (s.b) this.state.active = s.b;
+      return;
+    }
     const b = this.state.boards.find(x => x.id === s.b); if (!b) return;
     b.items = s.items; this.state.subs = s.subs;
     if (this.state.active !== s.b) this.state.active = s.b;
   },
-  undo() { if (!this.undoStack.length) return false; this.redoStack.push(this.snap()); this.restore(this.undoStack.pop()); this.save(); return true; },
-  redo() { if (!this.redoStack.length) return false; this.undoStack.push(this.snap()); this.restore(this.redoStack.pop()); this.save(); return true; },
+  undo() { if (!this.undoStack.length) return false; this.redoStack.push({ snap: this.snap(), label: this.lastUndoLabel() }); this.restore(this.undoStack.pop()); this.save(); return true; },
+  redo() { if (!this.redoStack.length) return false; this.undoStack.push({ snap: this.snap(), label: this.entryLabel(this.redoStack[this.redoStack.length - 1]) }); this.restore(this.redoStack.pop()); this.save(); return true; },
 
   addItem(it, board) {
     const b = board || this.board();
