@@ -280,7 +280,13 @@ const Assistant = {
     else {
       if (m.notices?.length) el.append(...m.notices.map(n => h('div', { class: 'as-notice ' + (n.kind || '') }, n.text)));
       if (m.reasoning && Store.state.settings.ai.assistant.thinking) el.append(h('details', { class: 'as-reason' }, h('summary', {}, t('v265.reason_sum')), h('div', { class: 'small muted' }, m.reasoning)));
-      el.append(h('div', { class: 'bubble', html: md(m.content || (m.actions?.length ? '' : '…')) }));
+      const emptied = !!(m.emptyAfterClean || (!String(m.content || '').trim() && m.rawContent));
+      if (emptied) {
+        if (!(m.notices || []).some(n => n.text === t('v265.empty_after_clean'))) el.append(h('div', { class: 'as-notice warn' }, t('v265.empty_after_clean')));
+        el.append(h('details', { class: 'as-raw' }, h('summary', {}, t('v265.view_raw')), h('pre', { class: 'as-raw-body small' }, String(m.rawContent || ''))));
+      } else {
+        el.append(h('div', { class: 'bubble', html: md(m.content || (m.actions?.length ? '' : '…')) }));
+      }
       if (m.truncated) el.append(h('div', { class: 'as-notice warn' }, t('v265.still_cut')));
       if (m.error) el.append(h('div', { class: 'as-fix' }, h('button', { class: 'btn sm primary', onclick: () => Hub.open() }, iconSvg('brain', 14), t('v23.open_ai'))));
       if (m.actions?.length) el.append(h('div', { class: 'as-acts' }, ...m.actions.map(a => h('span', { class: 'chip ' + (a.ok === false ? 'bad' : 'ok'), title: JSON.stringify(a.args || {}) }, (a.ok === false ? '✗ ' : '✓ ') + this.actLabel(a)))));
@@ -329,7 +335,8 @@ const Assistant = {
     const tryJson = async (msgs) => {
       const r = await AI.chat('commands', [{ role: 'system', content: this.system(true) }, ...this.history().slice(0, -1), { role: 'user', content: text }], { temperature: A.temperature, onNotice });
       const raw = stripThink(r.message.content || '', r.message?.reasoning_content || r.reasoning); const j = parseJsonLoose(raw);
-      if (!j) return { content: raw, actions, model: r.model, truncated: !!r.truncated, continued: r.continued || 0, reasoning: r.reasoning || '' };
+      const emptied = !!(r.emptyAfterClean || (!String(raw || '').trim() && (r.rawContent || r.message.content)));
+      if (!j) return { content: raw, actions, model: r.model, truncated: !!r.truncated, continued: r.continued || 0, reasoning: r.reasoning || '', emptyAfterClean: emptied, rawContent: emptied ? (r.rawContent || r.message.content || '') : undefined };
       const res = await doActs((j.actions || []).filter(a => a && a.tool));
       let say = j.say || '';
       const needs = res.filter(x => ['search_cards', 'read_cards'].includes(x.tool));
@@ -349,7 +356,12 @@ const Assistant = {
       if (!calls.length && /<tool_call>/.test(m.content || '')) { calls = [...m.content.matchAll(/<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/g)].map((x, i) => { const j = parseJsonLoose(x[1]) || {}; return { id: 'tc' + round + i, type: 'function', function: { name: j.name, arguments: JSON.stringify(j.arguments || j.args || {}) } }; }).filter(c => c.function.name); m.content = m.content.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '').trim(); }
       // JSON actions in plain content (model ignored tools)
       if (!calls.length && round === 0 && A.mode === 'auto') { const j = parseJsonLoose(m.content || ''); if (j?.actions?.length) { await doActs(j.actions.filter(a => a.tool)); return { content: j.say || '', actions, model, via: 'json' }; } }
-      if (!calls.length) { this.showLimit(r._prep); return { content: stripThink(m.content || '', m.reasoning_content || r.reasoning), reasoning: r.reasoning || '', actions, model, via: round ? 'tools' : 'chat', truncated: !!r.truncated, continued: r.continued || 0 }; }
+      if (!calls.length) {
+        this.showLimit(r._prep);
+        const content = stripThink(m.content || '', m.reasoning_content || r.reasoning);
+        const emptied = !!(r.emptyAfterClean || (!String(content || '').trim() && r.rawContent));
+        return { content, reasoning: r.reasoning || '', actions, model, via: round ? 'tools' : 'chat', truncated: !!r.truncated, continued: r.continued || 0, emptyAfterClean: emptied, rawContent: emptied ? r.rawContent : undefined };
+      }
       msgs.push({ role: 'assistant', content: m.content || '', tool_calls: calls });
       for (const c of calls) { const args = c.function?.arguments; const r2 = await Cmd.exec(c.function.name, args); let pa = {}; try { pa = typeof args === 'string' ? JSON.parse(args || '{}') : args || {}; } catch (e) {} actions.push({ tool: c.function.name, args: pa, ok: r2?.ok !== false, cancelled: r2?.cancelled }); msgs.push({ role: 'tool', tool_call_id: c.id, name: c.function.name, content: JSON.stringify(r2).slice(0, 6000) }); }
     }

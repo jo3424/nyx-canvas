@@ -1,4 +1,18 @@
 {
+  "2.6.5.1": {
+    "el": [
+      "Διόρθωση κενής απάντησης όταν η «Σκέψη» είναι κλειστή: το extractThink αναγνωρίζει το <channel|> ως τέλος σκέψης του Gemma 4, και το κείμενο μετά από αυτό είναι η απάντηση",
+      "Με τη σκέψη κλειστή στέλνεται μόνο enable_thinking:false — όχι πια reasoning_format:\"none\" ή reasoning_effort:\"none\", που έκαναν τον llama-server b11936 να επιστρέφει κανάλι thought",
+      "Αν μετά το καθάρισμα το κείμενο είναι κενό ενώ το raw δεν ήταν, εμφανίζεται ειδοποίηση και επιλογή «Δες το raw κείμενο», όχι κενή απάντηση (και στην Ιδιωτική λειτουργία)",
+      "Το Electron μένει 45.2.3. Η ενημέρωση είναι μικρό υπογεγραμμένο patch από την 2.6.5"
+    ],
+    "en": [
+      "Fix empty answers when Thinking is off: extractThink treats Gemma 4’s <channel|> as the end of the thought, and the text after it is the answer",
+      "With thinking off, only enable_thinking:false is sent — no more reasoning_format:\"none\" or reasoning_effort:\"none\", which made llama-server b11936 return a thought channel",
+      "If cleaning leaves the text empty while the raw content was not, a notice is shown with a “View the raw text” option, never an empty bubble (including Private mode)",
+      "Electron stays 45.2.3. This update is a small signed patch from 2.6.5"
+    ]
+  },
   "2.6.5": {
     "el": [
       "Διαδρομές: οι προεπιλογές χρησιμοποιούν το %USERPROFILE% (στα Windows 11 ο χρήστης είναι admin, όχι Administrator). Το προεπιλεγμένο μοντέλο whisper είναι τώρα στο GPU-Voice-Studio\\models\\, όπως στην απογραφή",

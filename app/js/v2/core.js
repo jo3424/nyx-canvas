@@ -179,18 +179,23 @@ const NyxLimits = {
     const take = (re) => { text = text.replace(re, (_, t) => { if (t && String(t).trim()) parts.push(String(t).trim()); return ''; }); };
     take(/<think>([\s\S]*?)<\/think>/gi); take(/<thought>([\s\S]*?)<\/thought>/gi); take(/<reasoning>([\s\S]*?)<\/reasoning>/gi);
     if (/^\s*<think>/i.test(text)) { parts.push(text.replace(/^\s*<think>/i, '').trim()); text = ''; }
-    if (/<\|channel\|?>\s*(thought|reasoning|analysis|final|response)\b/i.test(text)) {
-      const chunks = text.split(/<\|channel\|?>\s*/i).filter(Boolean); const visible = [];
+    // <|channel> / <|channel|> open; Gemma 4 closes thought with <channel|>; text after that is the answer.
+    const chanMark = /<\|channel\|>|<\|channel>|<channel\|>/i;
+    if (chanMark.test(text)) {
+      const chunks = text.split(chanMark); const visible = [];
       for (const ch of chunks) {
-        const m = ch.match(/^(thought|reasoning|analysis|final|response)\b\s*/i);
-        if (!m) { visible.push(ch); continue; }
-        const body = ch.slice(m[0].length).trim();
-        if (/^(thought|reasoning|analysis)$/i.test(m[1])) { if (body) parts.push(body); } else visible.push(body);
+        if (!ch) continue;
+        const think = ch.match(/^(thought|reasoning|analysis)\b\s*/i);
+        if (think) { const body = ch.slice(think[0].length).trim(); if (body) parts.push(body); continue; }
+        const vis = ch.match(/^(final|response)\b\s*/i);
+        if (vis) { const body = ch.slice(vis[0].length).trim(); if (body) visible.push(body); continue; }
+        const body = ch.trim(); if (body) visible.push(body);
       }
       text = visible.join('\n');
     }
     return { text: text.trim(), reasoning: parts.filter(Boolean).join('\n\n') };
   },
+  emptiedByThink(raw, extracted) { return !!String(raw || '').trim() && !String((extracted && extracted.text) || '').trim(); },
   stripThink(s, r) { return this.extractThink(s, r).text; },
   shouldContinue(finish, round, maxContinue) {
     const f = String(finish || '').toLowerCase();
@@ -213,9 +218,19 @@ async function chatTurn(p, body, onNotice) {
   const A = Store.state.settings.ai.assistant || {};
   const maxC = A.maxContinue ?? 8;
   const origin = body.messages;
-  const pieces = []; const reasons = [];
+  const pieces = []; const reasons = []; const rawPieces = [];
   let lastPrep = null, shownNoCap = false;
   const hasTools = !!(body.tools && body.tools.length);
+  const finishTurn = (r, i, extra = {}) => {
+    const merged = NyxLimits.mergePieces(pieces);
+    const rawMerged = NyxLimits.mergePieces(rawPieces);
+    const emptied = NyxLimits.emptiedByThink(rawMerged, { text: merged });
+    if (emptied && onNotice) onNotice('warn', t('v265.empty_after_clean'));
+    r.message = { ...(r.message || {}), content: merged, reasoning_content: reasons.join('\n\n') || undefined };
+    r.reasoning = reasons.join('\n\n'); r._prep = lastPrep; r.continued = i;
+    if (emptied) { r.emptyAfterClean = true; r.rawContent = rawMerged; }
+    return Object.assign(r, extra);
+  };
   for (let i = 0; i <= maxC; i++) {
     const msgs = i === 0 ? origin : NyxLimits.nextContinueMessages(origin, NyxLimits.mergePieces(pieces));
     let prep = {};
@@ -228,18 +243,16 @@ async function chatTurn(p, body, onNotice) {
     if (r.thinkingIgnored && onNotice) onNotice('info', t('v265.think_ignored'));
     const calls = r.message?.tool_calls;
     if (hasTools && calls && calls.length) { r._prep = prep; r.continued = i; return r; }
-    const ex = NyxLimits.extractThink(r.message?.content || '', r.message?.reasoning_content || r.reasoning);
+    const rawPiece = r.message?.content || '';
+    const ex = NyxLimits.extractThink(rawPiece, r.message?.reasoning_content || r.reasoning);
     if (ex.reasoning) reasons.push(ex.reasoning);
     pieces.push(ex.text);
+    rawPieces.push(rawPiece);
     const sc = NyxLimits.shouldContinue(r.finish, i, maxC);
-    if (!sc.length) {
-      r.message = { ...(r.message || {}), content: NyxLimits.mergePieces(pieces), reasoning_content: reasons.join('\n\n') || undefined };
-      r.reasoning = reasons.join('\n\n'); r._prep = lastPrep; r.continued = i; return r;
-    }
+    if (!sc.length) return finishTurn(r, i);
     if (sc.reachedCap) {
       if (onNotice) onNotice('warn', t('v265.cont_cap', { v0: maxC }));
-      r.message = { ...(r.message || {}), content: NyxLimits.mergePieces(pieces), reasoning_content: reasons.join('\n\n') || undefined };
-      r.reasoning = reasons.join('\n\n'); r._prep = lastPrep; r.continued = i; r.truncated = true; return r;
+      return finishTurn(r, i, { truncated: true });
     }
     if (onNotice) onNotice('cont', t('v265.cont_notice', { v0: i + 1, v1: maxC }));
   }

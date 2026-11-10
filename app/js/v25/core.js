@@ -133,7 +133,9 @@ const Private = {
     const msgs = [{ role: 'system', content: t('v25.pv_system') }, ...this.chat.slice(-80, -1).filter(x => x.content).map(x => ({ role: x.role, content: String(x.content) })), { role: 'user', content: text }];
     const notices = [];
     const r = await AI.chatTurn(p, { model: m, messages: msgs, temperature: 0.8 }, (kind, msg) => notices.push({ kind, text: msg }));
-    return { content: stripThink(r.message?.content || '', r.message?.reasoning_content || r.reasoning), model: r.model || m, reasoning: r.reasoning || '', truncated: !!r.truncated, notices };
+    const content = stripThink(r.message?.content || '', r.message?.reasoning_content || r.reasoning);
+    const emptied = !!(r.emptyAfterClean || (!String(content || '').trim() && r.rawContent));
+    return { content, model: r.model || m, reasoning: r.reasoning || '', truncated: !!r.truncated, notices, emptyAfterClean: emptied, rawContent: emptied ? r.rawContent : undefined };
   },
   async toggle(force) {
     const want = force ?? !this.on; const P = this.cfg();

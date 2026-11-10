@@ -108,10 +108,9 @@ function thinkingParams({ enabled = false, budget = null, effort = null } = {}) 
   const body = {
     chat_template_kwargs: { enable_thinking: !!enabled },
   };
-  if (!enabled) {
-    body.reasoning_format = 'none';
-    body.reasoning_effort = 'none';
-  } else {
+  // Thinking off: only enable_thinking:false. reasoning_format:"none" made Gemma 4
+  // (llama-server b11936 --jinja) emit <|channel>thought… which then looked empty.
+  if (enabled) {
     if (effort) body.reasoning_effort = effort;
     if (budget != null && Number.isFinite(+budget) && +budget > 0) body.reasoning_budget = Math.floor(+budget);
   }
@@ -134,6 +133,7 @@ function isUnknownParamError(err) {
   return /unknown( |_)?(field|parameter|argument)|unexpected property|not allowed|unrecognized|json schema/i.test(s);
 }
 
+const CHANNEL_MARK = /<\|channel\|>|<\|channel>|<channel\|>/i;
 function extractThink(s, reasoningContent) {
   let text = String(s || '');
   const parts = [];
@@ -144,21 +144,29 @@ function extractThink(s, reasoningContent) {
   take(/<reasoning>([\s\S]*?)<\/reasoning>/gi);
   // unclosed <think> at the start of the string (truncated thought)
   if (/^\s*<think>/i.test(text)) { parts.push(text.replace(/^\s*<think>/i, '').trim()); text = ''; }
-  // Gemma / llama.cpp channel tags: <|channel>thought … <|channel>final …  or <|channel|>thought
-  const chanRe = /<\|channel\|?>\s*(thought|reasoning|analysis|final|response)\b/gi;
-  if (chanRe.test(text)) {
-    const chunks = text.split(/<\|channel\|?>\s*/i).filter(Boolean);
+  // Channel tags:
+  //   <|channel>  / <|channel|>  open (Gemma 4, llama.cpp)
+  //   <channel|>                 Gemma 4 close of the thought block — text after it is the answer
+  //   <|channel|>thought … <|channel|>final …  (labelled channels)
+  // Open without a close is treated as truncated thinking (no visible answer).
+  if (CHANNEL_MARK.test(text)) {
+    const chunks = text.split(CHANNEL_MARK);
     const visible = [];
     for (const ch of chunks) {
-      const m = ch.match(/^(thought|reasoning|analysis|final|response)\b\s*/i);
-      if (!m) { visible.push(ch); continue; }
-      const body = ch.slice(m[0].length).trim();
-      if (/^(thought|reasoning|analysis)$/i.test(m[1])) { if (body) parts.push(body); }
-      else visible.push(body);
+      if (!ch) continue;
+      const think = ch.match(/^(thought|reasoning|analysis)\b\s*/i);
+      if (think) { const body = ch.slice(think[0].length).trim(); if (body) parts.push(body); continue; }
+      const vis = ch.match(/^(final|response)\b\s*/i);
+      if (vis) { const body = ch.slice(vis[0].length).trim(); if (body) visible.push(body); continue; }
+      const body = ch.trim();
+      if (body) visible.push(body);
     }
     text = visible.join('\n');
   }
   return { text: text.trim(), reasoning: parts.filter(Boolean).join('\n\n') };
+}
+function emptiedByThink(raw, extracted) {
+  return !!String(raw || '').trim() && !String((extracted && extracted.text) || '').trim();
 }
 
 function stripThink(s, reasoningContent) { return extractThink(s, reasoningContent).text; }
@@ -358,7 +366,7 @@ module.exports = {
   DEFAULT_RESERVE, DEFAULT_MAX_CONTINUE, GVS_SMALL_CTX, LMS_DEFAULT_BASE, GEMMA4_12B, CLOUD_MAX_OUT, KV_BYTES,
   isLocalLlama, nativeBase, parseNctx, estimateTokens, messagesToText,
   computeMaxTokens, cloudMaxOutput, thinkingParams, dropUnsupported, isUnknownParamError,
-  extractThink, stripThink, shouldContinue, nextContinueMessages, mergePieces,
+  extractThink, stripThink, emptiedByThink, shouldContinue, nextContinueMessages, mergePieces,
   mayAutoUse, migrateLmStudio,
   kvTypeBytes, hybridKvBytes, genericKvBytes, recommendCtx, looksGemma412B, metaFromGgufKv,
   recommendFromGguf, gvsCtxInfo, fallbackAutoCtx, resolveLaunchCtx, llamaExtraFlags,

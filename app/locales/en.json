@@ -1644,5 +1644,7 @@
  "v265.fa_on": "Flash Attention (-fa on)",
  "v265.kv_type": "KV cache type",
  "v265.refresh_ctx": "Refresh ctx",
- "v265.rec_fallback": "temporary 32768 — model metadata could not be read"
+ "v265.rec_fallback": "temporary 32768 — model metadata could not be read",
+ "v265.empty_after_clean": "The model returned only thinking / empty text after cleaning — view the raw",
+ "v265.view_raw": "View the raw text"
 }

@@ -41,7 +41,7 @@ ok(L.mergePieces(['abc', 'def']) === 'abcdef', 'non-overlapping pieces concatena
 
 console.log('thinking params + stripThink');
 let th = L.thinkingParams({ enabled: false });
-ok(th.chat_template_kwargs && th.chat_template_kwargs.enable_thinking === false && th.reasoning_format === 'none', 'thinking default off via chat_template_kwargs', th);
+ok(th.chat_template_kwargs && th.chat_template_kwargs.enable_thinking === false && !('reasoning_format' in th) && !('reasoning_effort' in th), 'thinking-off sends only enable_thinking:false, no reasoning_format', th);
 th = L.thinkingParams({ enabled: true, budget: 512 });
 ok(th.chat_template_kwargs.enable_thinking === true && th.reasoning_budget === 512 && !th.reasoning_format, 'thinking on sends budget, not a silent share of the answer', th);
 ok(L.isUnknownParamError(new Error('unknown field: chat_template_kwargs')), 'unknown-field errors are detected for retry');
@@ -50,6 +50,17 @@ ok(L.stripThink('hello', 'hidden chain') === 'hello', 'reasoning_content stays o
 const ex = L.extractThink('<|channel|>thought\nplan\n<|channel|>final\nAnswer', null);
 ok(ex.text === 'Answer' && /plan/.test(ex.reasoning), 'Gemma channel tags: thought vs final', ex);
 ok(L.extractThink('<reasoning>r</reasoning>ok').text === 'ok', 'reasoning tags stripped');
+// v2.6.5.1: Gemma 4 (llama-server b11936) closes thought with <channel|>
+const gemma = L.extractThink('<|channel>thought\n<channel|>Hi there!', null);
+ok(gemma.text === 'Hi there!' && gemma.reasoning === '', 'Gemma 4 <|channel>thought + <channel|> leaves the answer, empty thought', gemma);
+const gemmaBody = L.extractThink('<|channel>thought\nplan here\n<channel|>Hi there!', null);
+ok(gemmaBody.text === 'Hi there!' && gemmaBody.reasoning === 'plan here', 'open+close with thought body', gemmaBody);
+const trunc = L.extractThink('<|channel>thought\nI was thinking about this', null);
+ok(trunc.text === '' && trunc.reasoning === 'I was thinking about this' && L.emptiedByThink('<|channel>thought\nI was thinking about this', trunc), 'open without close is truncated thinking', trunc);
+ok(L.extractThink('<think>secret</think>end').text === 'end' && L.extractThink('<think>secret</think>end').reasoning === 'secret', '<think> still works next to channel tests');
+const multi = L.extractThink('<|channel>thought\na\n<channel|>A\n<|channel>thought\nb\n<channel|>B', null);
+ok(multi.text === 'A\nB' && multi.reasoning === 'a\n\nb', 'multiple thought/answer blocks', multi);
+ok(!L.emptiedByThink('<|channel>thought\n<channel|>Hi there!', gemma), 'emptiedByThink is false when the answer survived');
 
 console.log('LM Studio probe policy');
 ok(!L.mayAutoUse({ id: 'lmstudio', enabled: true, userOn: false }), 'enabled-by-default LM Studio is not auto-used');
@@ -116,7 +127,7 @@ console.log('ai.prepare / props / tokenize against a stub llama-server');
 
   const ch = await ai.chat(p, { model: 'stub', messages: [{ role: 'user', content: 'hi' }], ...prep.body });
   ok(ch.finish === 'stop' && ch.reasoning === 'thoughts' && ch.message.reasoning_content === 'thoughts', 'chat returns finish + reasoning_content', ch);
-  ok(chatBodies[0].chat_template_kwargs && chatBodies[0].chat_template_kwargs.enable_thinking === false, 'thinking-off is sent', chatBodies[0]);
+  ok(chatBodies[0].chat_template_kwargs && chatBodies[0].chat_template_kwargs.enable_thinking === false && !('reasoning_format' in chatBodies[0]) && !('reasoning_effort' in chatBodies[0]), 'thinking-off body has no reasoning_format', chatBodies[0]);
 
   // unknown thinking fields → retry without them
   const srv2 = http.createServer((q, resp) => {

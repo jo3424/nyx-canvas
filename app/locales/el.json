@@ -1644,5 +1644,7 @@
  "v265.fa_on": "Flash Attention (-fa on)",
  "v265.kv_type": "Τύπος KV cache",
  "v265.refresh_ctx": "Ανανέωση ctx",
- "v265.rec_fallback": "προσωρινή τιμή 32768 — δεν διαβάστηκαν τα metadata του μοντέλου"
+ "v265.rec_fallback": "προσωρινή τιμή 32768 — δεν διαβάστηκαν τα metadata του μοντέλου",
+ "v265.empty_after_clean": "Το μοντέλο επέστρεψε μόνο σκέψη/κενό κείμενο μετά το καθάρισμα — δες το raw",
+ "v265.view_raw": "Δες το raw κείμενο"
 }
