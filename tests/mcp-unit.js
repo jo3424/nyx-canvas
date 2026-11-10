@@ -28,7 +28,7 @@ function freshNyx(cfg) {
     safeEqual: (a, b) => String(a) === String(b),
     serve: (p, h) => { handler = h; },
     log() {},
-    appVersion: '2.6.6',
+    appVersion: '2.6.7',
     board: {
       search: async (a) => ({ count: 1, q: a.query }),
       read: async (a) => ({ cards: a }),
@@ -527,9 +527,9 @@ function loadBoard() {
   });
   for (const f of [homePic, fakeTxt, fakePng, tmp]) try { fs.rmSync(f, { recursive: true, force: true }); } catch (e) {}
 
-  await ok('Electron stays 45.2.3 and version is 2.6.6', () => {
+  await ok('Electron stays 45.2.3 and version is 2.6.7', () => {
     const pkg = require(path.join(ROOT, 'package.json'));
-    assert.strictEqual(pkg.version, '2.6.6');
+    assert.strictEqual(pkg.version, '2.6.7');
     assert.strictEqual(pkg.devDependencies.electron, '45.2.3');
   });
 

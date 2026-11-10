@@ -44,20 +44,6 @@ const Hub = {
   open() {
     Panels.openDrawer('ai', t('hub.004', { v0: iconSvg('brain', 20) }), (body) => this.build(body));
   },
-  // v2.6.3: one recommendation card: what it is for, exact files + sizes, link to the model page (opens in your browser), «Τι σημαίνει;». No downloads.
-  recFiles(files) {
-    const gb = (n) => (LANG === 'el' ? n.toFixed(2).replace('.', ',') : n.toFixed(2)) + ' GB';
-    return h('ul', { class: 'rec-files' }, ...(files || []).map(([f, size, tag]) => h('li', {}, h('code', {}, f), ' · ' + gb(size), tag ? h('span', { class: 'chip' }, t('core.r_tag_' + tag)) : null,
-      h('button', { class: 'icon-btn', title: t('core.r_copy'), html: iconSvg('copy', 13), onclick: () => { navigator.clipboard.writeText(f.split('/').pop()).then(() => toast('📋 ' + f.split('/').pop()), () => {}); } }))));
-  },
-  recCard(r) {
-    const link = (url) => h('button', { class: 'btn sm ghost', onclick: () => API.openExternal(url) }, iconSvg('external-link', 14), t('core.r_open'));
-    return h('div', { class: 'rec' + (r.star ? ' star' : ''), 'data-rec': r.id || '' }, h('b', {}, r.name), h('span', { class: 'chip' }, r.role), h('p', { class: 'muted small' }, r.note),
-      r.files ? this.recFiles(r.files) : null,
-      r.url ? h('div', { class: 'row gap wrap' }, link(r.url)) : null,
-      r.alt ? h('div', { class: 'rec-alt' }, h('small', {}, t('core.r_alt') + ': ', h('b', {}, r.alt.name)), h('p', { class: 'muted small' }, r.alt.note), this.recFiles(r.alt.files), h('div', { class: 'row gap wrap' }, link(r.alt.url))) : null,
-      r.why ? h('details', { class: 'rec-why' }, h('summary', {}, t('core.r_why')), h('p', { class: 'small' }, r.why)) : null);
-  },
   zonesBox() {
     const box = h('div', { class: 'zones', id: 'hub-zones' }, h('p', { class: 'muted small' }, t('v266.zones_loading')));
     const paint = async () => {
@@ -104,21 +90,9 @@ const Hub = {
     kids.push(h('p', { class: 'muted small' }, t('v266.you_decide')));
     return h('div', { class: 'zcard', 'data-zid': card.id }, ...kids);
   },
-  build(body) {
-    const A = Store.state.settings.ai;
-    // v2.6.6: model zones replace the static «Προτάσεις». Licences never exclude a model.
-    body.append(this.sec(t('v266.zones_title'), this.zonesBox(), h('p', { class: 'muted small' }, t('v266.zones_note', { v0: (typeof MODEL_ZONES !== 'undefined' && MODEL_ZONES.checkedAt) || '10/11/2026' }))));
-    // providers
-    const plist = h('div', { class: 'prov-list' });
-    for (const p of A.providers) plist.append(this.provRow(p));
-    body.append(this.sec(t('hub.007'), plist, h('p', { class: 'muted small' }, t('hub.008'))));
-    // per task
-    const tasks = h('div', { class: 'tasks' }); for (const [k, label, ic] of AI_TASKS) tasks.append(this.taskRow(k, label, ic));
-    body.append(this.sec(t('hub.009'), tasks));
-    // local servers
-    body.append(this.sec(t('hub.010'), this.serverBox('llama', 'llama-server', A.servers.llama, 'http://127.0.0.1:' + A.servers.llama.port + '/health'), this.serverBox('whisper', 'whisper-server', A.servers.whisper, 'http://127.0.0.1:' + A.servers.whisper.port + '/')));
-    // speech
-    const S = A.stt, T = A.tts;
+
+  speechForm() {
+    const A = Store.state.settings.ai; const S = A.stt, T = A.tts;
     const ttsBox = h('div', { class: 'tts-box', hidden: T.mode !== 'command' }, ...this.ttsRows(T));
     const sttBase = this.field(t('hub.014'), this.inp(S, 'base', 'http://127.0.0.1:8178')); sttBase.hidden = S.kind === 'groq';
     const groqBox = h('div', { class: 'groq-stt', hidden: S.kind !== 'groq' },
@@ -126,7 +100,7 @@ const Hub = {
       h('p', { class: 'muted small' }, t('v24.groq_stt_note')));
     const vsBox = h('div', { class: 'vs-box', hidden: T.mode !== 'vsserver' }, ...this.vsRows(T));
     const voiceBox = h('div', { class: 'voice-box', hidden: T.mode === 'command' || T.mode === 'vsserver' }, ...this.voiceRows(T));
-    body.append(this.sec(t('hub.011'),
+    return h('div', { class: 'speech-form' },
       selField(t('hub.012'), [['whispercpp', t('hub.013')], ['groq', t('v24.stt_groq')], ['openai', 'OpenAI-compatible /audio/transcriptions']], S.kind, (v) => { S.kind = v; Store.save(); sttBase.hidden = v === 'groq'; groqBox.hidden = v !== 'groq'; }),
       sttBase, groqBox, this.field(t('hub.015'), this.inp(S, 'language', 'el')),
       h('label', { class: 'chk' }, h('input', { type: 'checkbox', class: 'toggle', checked: S.autoSend ? true : null, onchange: (e) => { S.autoSend = e.target.checked; Store.save(); } }), h('span', {}, t('hub.016'))),
@@ -135,10 +109,11 @@ const Hub = {
       selField(t('hub.018'), [['system', t('v24.mode_system')], ['vsserver', t('v24.mode_vs')], ['command', t('hub.020')]], T.mode, (v) => { T.mode = v; Store.save(); ttsBox.hidden = v !== 'command'; vsBox.hidden = v !== 'vsserver'; voiceBox.hidden = v === 'command' || v === 'vsserver'; }),
       voiceBox, vsBox, ttsBox,
       h('label', { class: 'chk' }, h('input', { type: 'checkbox', class: 'toggle', checked: T.speak ? true : null, onchange: (e) => { T.speak = e.target.checked; Store.save(); } }), h('span', {}, t('hub.023'))),
-      h('button', { class: 'btn ghost sm tts-try', onclick: async (e) => { const b = e.currentTarget; b.disabled = true; const r = await Speech.speak(t('hub.024'), { report: true }); b.disabled = false; if (r) toast('🔊 ' + t('v23.tts_ok', { v0: ({ sapi: 'Windows SAPI', onecore: 'Windows OneCore', command: t('hub.020'), vsserver: 'vs-engine', web: t('v24.web_voice') })[r.via] || r.via, v1: r.voice || '—' })); } }, iconSvg('volume-2', 15), t('hub.025'))));
-    // assistant
-    const As = A.assistant;
-    body.append(this.sec(t('hub.026'),
+      h('button', { class: 'btn ghost sm tts-try', onclick: async (e) => { const b = e.currentTarget; b.disabled = true; const r = await Speech.speak(t('hub.024'), { report: true }); b.disabled = false; if (r) toast('🔊 ' + t('v23.tts_ok', { v0: ({ sapi: 'Windows SAPI', onecore: 'Windows OneCore', command: t('hub.020'), vsserver: 'vs-engine', web: t('v24.web_voice') })[r.via] || r.via, v1: r.voice || '—' })); } }, iconSvg('volume-2', 15), t('hub.025')));
+  },
+  assistantForm() {
+    const A = Store.state.settings.ai; const As = A.assistant;
+    return h('div', { class: 'assistant-form' },
       selField(t('hub.027'), [['auto', t('hub.028')], ['tools', t('hub.029')], ['json', t('hub.030')]], As.mode, (v) => { As.mode = v; Store.save(); }),
       h('label', { class: 'chk' }, h('input', { type: 'checkbox', class: 'toggle', checked: As.confirm ? true : null, onchange: (e) => { As.confirm = e.target.checked; Store.save(); } }), h('span', {}, t('hub.031'))),
       h('label', { class: 'chk' }, h('input', { type: 'checkbox', class: 'toggle', checked: A.autoTag ? true : null, onchange: (e) => { A.autoTag = e.target.checked; Store.save(); } }), h('span', {}, t('hub.032'))),
@@ -150,10 +125,10 @@ const Hub = {
         this.field(t('v265.think_budget'), h('input', { class: 'inp', type: 'number', min: 0, placeholder: t('v265.auto'), value: As.thinkingBudget || '', onchange: (e) => { As.thinkingBudget = +e.target.value || 0; Store.save(); } }), t('v265.think_budget_help'))),
       h('p', { class: 'muted small', id: 'hub-limit-live' }, t('v265.limit_hub')),
       this.field(t('v266.history_pct'), h('input', { class: 'inp', type: 'number', min: 0, max: 100, value: As.historyPct ?? 25, onchange: (e) => { let n = +e.target.value; if (!Number.isFinite(n)) n = 25; As.historyPct = Math.max(0, Math.min(100, n)); e.target.value = As.historyPct; Store.save(); } }), t('v266.history_pct_help')),
-      h('label', { class: 'field' }, h('span', {}, t('hub.034')), h('textarea', { class: 'inp', rows: 3, onchange: (e) => { As.extra = e.target.value; Store.save(); } }, As.extra || ''))));
-    // data location: portable / Syncthing
+      h('label', { class: 'field' }, h('span', {}, t('hub.034')), h('textarea', { class: 'inp', rows: 3, onchange: (e) => { As.extra = e.target.value; Store.save(); } }, As.extra || '')));
+  },
+  dataLocBox() {
     const dl = h('div', { class: 'data-loc' }, h('p', { class: 'muted small' }, '…'));
-    body.append(this.sec(t('hub.035'), dl));
     (async () => {
       const L = await API.inv('data:location').catch(() => null); const conf = await API.inv('data:conflicts').catch(() => []); dl.innerHTML = '';
       if (!L) return dl.append(h('p', { class: 'muted' }, t('hub.036')));
@@ -164,6 +139,37 @@ const Hub = {
           L.custom ? h('button', { class: 'btn ghost sm', onclick: async () => { await API.inv('data:setLocation', null); toast(t('hub.047')); } }, t('hub.048')) : null),
         conf.length ? h('p', { class: 'warn small' }, t('hub.049', { length: conf.length, v1: conf.slice(0, 3).join(', ') })) : h('p', { class: 'muted small' }, t('hub.050')));
     })();
+    return dl;
+  },
+  greekFlag(w = 18, h = 12) {
+    return `<svg class="flag-gr" width="${w}" height="${h}" viewBox="0 0 27 18" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><rect width="27" height="18" fill="#0d5eaf"/><g fill="#fff"><rect y="2" width="27" height="2"/><rect y="6" width="27" height="2"/><rect y="10" width="27" height="2"/><rect y="14" width="27" height="2"/><rect width="10" height="10" fill="#0d5eaf"/><rect x="4" width="2" height="10"/><rect y="4" width="10" height="2"/></g></svg>`;
+  },
+
+  tab: 'status',
+  build(body) {
+    const tabs = [
+      ['status', 'activity', t('v267.tab_status')],
+      ['models', 'brain', t('v267.tab_models')],
+      ['engines', 'cog', t('v267.tab_engines')],
+      ['cloud', 'cloud', t('v267.tab_cloud')],
+    ];
+    const bar = h('div', { class: 'hub-tabs', role: 'tablist' });
+    const panes = {};
+    const show = (id) => {
+      this.tab = id;
+      for (const [k] of tabs) {
+        bar.querySelector(`[data-hub-tab="${k}"]`)?.classList.toggle('on', k === id);
+        panes[k].classList.toggle('on', k === id);
+      }
+      panes[id]._paint?.();
+    };
+    for (const [id, ic, label] of tabs) {
+      bar.append(h('button', { class: 'hub-tab' + (this.tab === id ? ' on' : ''), type: 'button', 'data-hub-tab': id, role: 'tab', onclick: () => show(id) }, iconSvg(ic, 15), ' ' + label));
+      panes[id] = h('div', { class: 'hub-pane' + (this.tab === id ? ' on' : ''), 'data-hub-pane': id, role: 'tabpanel' });
+    }
+    body.append(bar, panes.status, panes.models, panes.engines, panes.cloud);
+    if (typeof this.paintHubTabs === 'function') this.paintHubTabs(panes, show);
+    else show(this.tab || 'status');
   },
   provRow(p) {
     const status = h('span', { class: 'pstat' }, p.enabled ? '' : t('hub.051'));

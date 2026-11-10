@@ -189,7 +189,7 @@ console.log('router /props?model=');
   ok(!/groqFallback &&/.test(fs.readFileSync(R + '/app/js/v25/core.js', 'utf8')), 'silent Groq fallback wrapper is gone');
 
   const pkg = require(R + '/package.json');
-  ok(pkg.version === '2.6.6' && pkg.devDependencies.electron === '45.2.3', 'version 2.6.6, Electron stays 45.2.3', pkg.version);
+  ok(pkg.version === '2.6.7' && pkg.devDependencies.electron === '45.2.3', 'version is current (2.6.7+), Electron stays 45.2.3', pkg.version);
   const log = require(R + '/CHANGELOG.json')['2.6.6'];
   ok(log && log.el.length && log.el.length === log.en.length, 'CHANGELOG 2.6.6 el+en same length', log && log.el.length);
 

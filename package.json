@@ -1,7 +1,7 @@
 {
   "name": "nyx-canvas",
   "productName": "Nyx Canvas",
-  "version": "2.6.6",
+  "version": "2.6.7",
   "description": "Nyx Canvas v2 — μαύρος άπειρος καμβάς με AI βοηθό, browser, βίντεο, plugins",
   "main": "boot.js",
   "author": "jonh",
@@ -43,7 +43,9 @@
     "test:mcp": "node tests/mcp-unit.js",
     "test:v2652": "xvfb-run -a -s \"-screen 0 2048x1280x24\" node tests/v2652.js",
     "test:v266unit": "node tests/v266-unit.js",
-    "test:v266": "xvfb-run -a -s \"-screen 0 2048x1280x24\" node tests/v266.js"
+    "test:v266": "xvfb-run -a -s \"-screen 0 2048x1280x24\" node tests/v266.js",
+    "test:v267unit": "node tests/v267-unit.js",
+    "test:v267": "xvfb-run -a -s \"-screen 0 2048x1280x24\" node tests/v267.js"
   },
   "devDependencies": {
     "@electron/asar": "^4.3.1",

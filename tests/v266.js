@@ -64,7 +64,7 @@ async function quit(app) { const done = new Promise(r => app.process().once('exi
   const forbidden = await startForbidden();
   const { app, win } = await launch();
   const shown = await win.evaluate(() => (typeof APP_VERSION !== 'undefined' ? APP_VERSION : null) || (Store.info && Store.info.version));
-  ok((shown || '').toString().includes('2.6.6'), 'app version 2.6.6', shown);
+  ok((shown || '').toString().includes('2.6.7'), 'app version 2.6.7', shown);
 
   await win.evaluate(({ port, bad }) => {
     const A = Store.state.settings.ai;
@@ -84,22 +84,35 @@ async function quit(app) { const done = new Promise(r => app.process().once('exi
   }, { port: router.port, bad: forbidden.port });
 
   await win.evaluate(() => Hub.open());
+  await win.evaluate(() => { document.querySelector('[data-hub-tab=models]')?.click(); document.querySelectorAll('[data-hub-pane=models] details').forEach(d => d.open = true); });
   await win.waitForTimeout(1200);
-  const hub = await win.evaluate(() => ({
+  const hub = await win.evaluate(() => {
+    const pane = document.querySelector('[data-hub-pane=models]') || document.body;
+    const txt = pane.innerText || pane.textContent || '';
+    const keepLive = document.querySelector('[data-hub-pane=models] [data-zone=keep]') || document.querySelector('[data-zone=keep]');
+    return {
     zones: !!document.querySelector('.zones'),
-    keep: (document.querySelector('[data-zone=keep]')?.textContent || ''),
-    pulid: (document.body.innerText || '').includes('PuLID'),
-    antelope: /antelopev2/i.test(document.body.innerText || ''),
+    keep: (keepLive?.textContent || ''),
+    pulid: /PuLID/.test(txt) || /PuLID/.test(pane.textContent || ''),
+    antelope: /antelopev2/i.test(txt) || /antelopev2/i.test(pane.textContent || ''),
     rt: /🔀/.test(document.body.innerText || '') && /Router v2/i.test(document.body.innerText || ''),
     sheet: /Google Sheet/.test(document.body.innerText || ''),
     hauhauNo: /δεν είναι πια η σύσταση|no longer the pick/.test(document.body.innerText || ''),
     hist: !!document.querySelector('.field') && /% του ctx|% of ctx/.test(document.body.innerText || ''),
     models: [...document.querySelectorAll('select.task-model option')].map(o => o.value).filter(Boolean),
-  }));
+  };
+  });
   ok(hub.zones && /gemma-4-12b|krikri-8b/.test(hub.keep), 'Hub zones: Κρατάω lists /v1/models', hub);
   ok(hub.pulid && hub.antelope, 'PuLID/InstantID cards mention antelopev2', hub);
   ok(!hub.rt && !hub.sheet && !hub.hauhauNo, 'Router V2, Google Sheet LoRA, and HauhauCS “not recommended” are gone', hub);
-  ok(hub.hist, 'history % setting is visible in the Hub', hub);
+  ok(true, 'history % setting moved to Settings (checked separately)');
+
+  await win.evaluate(() => { try { Panels.closeDrawer(); } catch (e) {} Panels.settings('assistant'); });
+  await win.waitForTimeout(400);
+  const histSet = await win.evaluate(() => /% του ctx|% of ctx/.test(document.body.innerText || '') && !!document.querySelector('.assistant-form'));
+  ok(histSet, 'history % setting is in Settings → Assistant');
+  await win.evaluate(() => { try { Panels.closeDrawer(); } catch (e) {} Hub.open(); });
+  await win.waitForTimeout(800);
   ok(hub.models.includes('gemma-4-12b') && hub.models.includes('krikri-8b'), 'task dropdowns come from /v1/models', hub.models);
 
   // 403 on Groq

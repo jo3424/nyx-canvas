@@ -1,8 +1,16 @@
-﻿# Nyx Canvas — gather version, paths and logs into a zip (no windows).
-# Run via Run-GatherLogs.vbs or: powershell -WindowStyle Hidden -File Gather-NyxLogs.ps1
+# Nyx Canvas — μαζεύει έκδοση, logs και ρυθμίσεις AI σε zip, χωρίς κλειδιά και χωρίς παράθυρο cmd.
+# Τρέξε με διπλό κλικ στο Run-GatherLogs.vbs ή: powershell -WindowStyle Hidden -File Gather-NyxLogs.ps1
 param([string]$OutDir)
 $ErrorActionPreference = 'Stop'
 if ($PSVersionTable.PSVersion.Major -ge 7) { $PSNativeCommandUseErrorActionPreference = $false }
+
+function Redact-Secrets([string]$Text) {
+  if (-not $Text) { return $Text }
+  $Text = [regex]::Replace($Text, '(?i)("(?:api[_-]?key|token|secret|password|authorization|auth|bearer|access_token|refresh_token|client_secret|private_key)"\s*:\s*")[^"]*"', '$1***"')
+  $Text = [regex]::Replace($Text, '(?i)(?<![A-Za-z0-9_\-])(ghp|gho|github_pat|sk-|xai-|gsk_|Bearer\s+)[A-Za-z0-9_\-\.]+', { param($m) if ($m.Value -match '^(?i)Bearer\s+') { return 'Bearer ***' } else { return ($m.Groups[1].Value + '***') } })
+  return $Text
+}
+
 try {
   $UserHome = $env:USERPROFILE
   if (-not $OutDir) { $OutDir = Join-Path $UserHome 'Desktop' }
@@ -28,20 +36,14 @@ try {
   )) { if (Test-Path -LiteralPath $p) { $roots += $p } }
 
   $info = @()
-  $info += 'gathered: ' + (Get-Date -Format 'dd/MM/yyyy HH:mm:ss')
-  $info += 'userprofile: ' + $UserHome
-  $info += 'os: ' + [Environment]::OSVersion.VersionString
-  $info += 'roots:'
+  $info += 'Συλλογή: ' + (Get-Date -Format 'dd/MM/yyyy HH:mm:ss') + ' (τοπική ώρα)'
+  $info += 'Προφίλ: ' + $UserHome
+  $info += 'Λειτουργικό: ' + [Environment]::OSVersion.VersionString
+  $info += 'Ρίζες δεδομένων:'
   $roots = $roots | Select-Object -Unique
   foreach ($r in $roots) { $info += '  ' + $r }
 
-  function Redact-Secrets([string]$Text) {
-    if (-not $Text) { return $Text }
-    $Text = [regex]::Replace($Text, '(?i)("(?:api[_-]?key|token|secret|password|authorization)"\s*:\s*")[^"]+"', '$1***"')
-    $Text = [regex]::Replace($Text, '(?i)(ghp|gho|github_pat|sk-|xai-|gsk_)[A-Za-z0-9_\-]+', '$1***')
-    return $Text
-  }
-
+  $version = $null
   $n = 0
   foreach ($root in $roots) {
     if (-not (Test-Path -LiteralPath $root)) { continue }
@@ -58,15 +60,30 @@ try {
       $hits = @(Get-ChildItem -LiteralPath $root -Filter $name -Recurse -ErrorAction SilentlyContinue | Select-Object -First 8)
       foreach ($f in $hits) {
         $text = [System.IO.File]::ReadAllText($f.FullName)
+        if ($f.Name -eq 'package.json' -and -not $version) {
+          try { $pj = $text | ConvertFrom-Json; if ($pj.version) { $version = [string]$pj.version } } catch {}
+        }
         $out = Join-Path $destRoot ($f.Directory.Name + '-' + $f.Name)
         [System.IO.File]::WriteAllText($out, (Redact-Secrets $text))
+        # Ξεχωριστό αρχείο με τις ρυθμίσεις AI, χωρίς κλειδιά
+        if ($f.Name -in @('nyx.json','settings.json','state.json')) {
+          try {
+            $j = $text | ConvertFrom-Json
+            $ai = $null
+            if ($j.settings -and $j.settings.ai) { $ai = $j.settings.ai }
+            elseif ($j.ai) { $ai = $j.ai }
+            if ($ai) {
+              $aiJson = (Redact-Secrets ($ai | ConvertTo-Json -Depth 12))
+              [System.IO.File]::WriteAllText((Join-Path $destRoot 'ai-settings.json'), $aiJson)
+            }
+          } catch {}
+        }
       }
     }
     $pkg = Get-ChildItem -LiteralPath $root -Filter 'package.json' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($pkg) { $info += "package.json at ${root}: $($pkg.FullName)" }
+    if ($pkg) { $info += "package.json στο ${root}: $($pkg.FullName)" }
   }
 
-  # Installed app next to common locations (version only)
   $exeHints = @(
     (Join-Path $UserHome 'Desktop'),
     (Join-Path $UserHome 'Downloads'),
@@ -77,26 +94,31 @@ try {
     if (-not (Test-Path -LiteralPath $h)) { continue }
     Get-ChildItem -LiteralPath $h -Filter 'Nyx*.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 5 | ForEach-Object {
       $info += 'exe: ' + $_.FullName + '  lastWrite=' + $_.LastWriteTime.ToString('dd/MM/yyyy HH:mm')
-      $pkg = Join-Path $_.DirectoryName 'resources\app\package.json'
-      $pkg2 = Join-Path $_.DirectoryName 'resources\app.asar.unpacked\package.json'
+      foreach ($rel in @('resources\app\package.json','resources\app.asar.unpacked\package.json')) {
+        $pkg = Join-Path $_.DirectoryName $rel
+        if ((Test-Path -LiteralPath $pkg) -and -not $version) {
+          try { $pj = Get-Content -LiteralPath $pkg -Raw | ConvertFrom-Json; if ($pj.version) { $version = [string]$pj.version } } catch {}
+        }
+      }
     }
   }
 
-  $info += 'GPU-Voice-Studio models exists: ' + (Test-Path (Join-Path $UserHome 'GPU-Voice-Studio\models'))
-  $info += 'llama-server.exe exists: ' + (Test-Path (Join-Path $UserHome 'GPU-Voice-Studio\third_party\llama\llama-server.exe'))
-  $info += 'whisper-server.exe exists: ' + (Test-Path (Join-Path $UserHome 'GPU-Voice-Studio\third_party\whisper.cpp\build-vulkan\bin\Release\whisper-server.exe'))
-  $info += 'OmniVoice-Vulkan models exists: ' + (Test-Path (Join-Path $UserHome 'OmniVoice-Vulkan\models'))
-  [System.IO.File]::WriteAllText((Join-Path $work 'info.txt'), (($info -join "`r`n") + "`r`n"))
+  if ($version) { $info = @('Έκδοση εφαρμογής: ' + $version) + $info } else { $info = @('Έκδοση εφαρμογής: δεν βρέθηκε στο package.json') + $info }
+  $info += 'GPU-Voice-Studio models υπάρχει: ' + (Test-Path (Join-Path $UserHome 'GPU-Voice-Studio\models'))
+  $info += 'llama-server.exe υπάρχει: ' + (Test-Path (Join-Path $UserHome 'GPU-Voice-Studio\third_party\llama\llama-server.exe'))
+  $info += 'whisper-server.exe υπάρχει: ' + (Test-Path (Join-Path $UserHome 'GPU-Voice-Studio\third_party\whisper.cpp\build-vulkan\bin\Release\whisper-server.exe'))
+  $info += 'OmniVoice-Vulkan models υπάρχει: ' + (Test-Path (Join-Path $UserHome 'OmniVoice-Vulkan\models'))
+  $info += 'Τα κλειδιά, τα token και οι κωδικοί έχουν καλυφθεί (***) και δεν μπαίνουν στο zip.'
+  [System.IO.File]::WriteAllText((Join-Path $work 'info.txt'), (($info -join "`r`n") + "`r`n"), [System.Text.UTF8Encoding]::new($false))
 
   $zip = Join-Path $OutDir ("Nyx-logs-" + $stamp + '.zip')
   if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
   Compress-Archive -Path (Join-Path $work '*') -DestinationPath $zip -Force
   Remove-Item -LiteralPath $work -Recurse -Force
-  # One short popup so the user can find the zip; the run itself is hidden.
-  try { (New-Object -ComObject Wscript.Shell).Popup("Logs zip:`n$zip", 8, 'Nyx logs', 64) | Out-Null } catch {}
+  try { (New-Object -ComObject Wscript.Shell).Popup("Τα αρχεία καταγραφής αποθηκεύτηκαν εδώ:`n$zip", 8, 'Nyx — αρχεία καταγραφής', 64) | Out-Null } catch {}
   exit 0
 } catch {
   $msg = $_.Exception.Message
-  try { (New-Object -ComObject Wscript.Shell).Popup("Gather failed: $msg", 8, 'Nyx logs', 16) | Out-Null } catch {}
+  try { (New-Object -ComObject Wscript.Shell).Popup("Η συλλογή απέτυχε: $msg", 8, 'Nyx — αρχεία καταγραφής', 16) | Out-Null } catch {}
   exit 10
 }

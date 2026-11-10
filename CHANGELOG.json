@@ -1,4 +1,18 @@
 {
+ "2.6.7": {
+  "el": [
+   "Το AI Hub χωρίζεται σε 4 καρτέλες σύμφωνα με το mockup: Κατάσταση, Μοντέλα, Μηχανές, Cloud. Όλα τα νούμερα είναι ζωντανά (/v1/models, /props?model=, VRAM, tokens/χρόνοι του τελευταίου αιτήματος). Αν η VRAM δεν είναι διαθέσιμη, το λέει καθαρά — δεν επινοείται τιμή. Στην Κατάσταση φαίνεται ό,τι έπεσε σε CPU, απέτυχε ή κόπηκε, με κόκκινο. Το μοντέλο ορίζεται μόνο στην καρτέλα Μοντέλα (dropdown από τον router), και για το Ιδιωτικό. Οι διαδρομές exe, οι επιπλέον παράμετροι και η αυτόματη εκκίνηση μένουν μόνο στα «Προχωρημένα». Το ctx του router εμφανίζεται ως η τιμή που έχεις βάλει (π.χ. 32768) και δεν ανεβαίνει μόνο του. Στα Cloud, οι χρησιμοποιούμενοι πάροχοι είναι πάνω (Groq, Venice, xAI, Νοικιασμένη GPU με όριο 10 $/μήνα)· οι υπόλοιποι στο «Περισσότεροι». Τα κλειδιά φυλάσσονται με Electron safeStorage (στα Windows αυτό είναι DPAPI). Το 403 μένει κόκκινο με «Νέο κλειδί» και δεν ξαναχρησιμοποιείται σιωπηλά. Η ελληνική σημαία είναι εικονίδιο SVG, όχι emoji. Το Hub ακολουθεί το σύστημα θεμάτων.",
+   "Οι ρυθμίσεις Βοηθού και Ομιλίας μεταφέρονται στις κύριες Ρυθμίσεις (οι τιμές σου μεταφέρονται χωρίς απώλεια). Το ποσοστό ιστορικού και η θέση των δεδομένων είναι επίσης εκεί.",
+   "Το Gather-Logs μαζεύει έκδοση εφαρμογής, logs και ρυθμίσεις AI χωρίς κλειδιά/token/κωδικούς, με ελληνικά μηνύματα, χωρίς παράθυρο cmd (Run-GatherLogs.vbs).",
+   "Αφαιρέθηκαν τα αχρησιμοποίητα MODEL_RECS / MODEL_FIT_NOTE. Το Electron μένει 45.2.3. Ακολουθεί η 2.6.8 (streaming και ταχύτερη ανάγνωση αρχείων). Η v2.7 μένει παγωμένη."
+  ],
+  "en": [
+   "The AI Hub is split into 4 tabs as in the mockup: Status, Models, Engines, Cloud. Every figure is live (/v1/models, /props?model=, VRAM, last-request tokens/timings). If VRAM is unavailable, the UI says so — no invented value. Status shows in red anything that fell to CPU, failed, or was truncated. The model is set only on the Models tab (dropdowns from the router), including Private. Exe paths, extra parameters and autostart stay only under Advanced. The router ctx is shown as the value you set (e.g. 32768) and is never auto-raised. On Cloud, used providers are at the top (Groq, Venice, xAI, rented GPU with a $10/month cap); the rest are under More. Keys are stored with Electron safeStorage (on Windows that is DPAPI). A 403 stays red with “New key” and is never reused silently. The Greek flag is an inline SVG, not an emoji. The Hub follows the theme system.",
+   "Assistant and Speech settings move to the main Settings (values are migrated, no data loss). History percentage and the data location are there too.",
+   "Gather-Logs collects the app version, app logs and AI settings without keys/tokens/passwords, with Greek messages, and no cmd window (Run-GatherLogs.vbs).",
+   "Unused MODEL_RECS / MODEL_FIT_NOTE were removed. Electron stays 45.2.3. Next: 2.6.8 (streaming and faster file reading). v2.7 stays frozen."
+  ]
+ },
  "2.6.6": {
   "el": [
    "Prompt: σταθερό πρόθεμα οδηγίες → εργαλεία → πίνακας, με την ημερομηνία/ώρα (Europe/Athens, ακρίβεια λεπτού) στο τέλος του system prompt, ώστε να δουλεύει το prompt cache του llama-server (cache_prompt:true). Το ιστορικό περιορίζεται σε ρυθμιζόμενο ποσοστό του πραγματικού n_ctx (προεπιλογή 25%, εμφανές και επεξεργάσιμο)· τα παλιά μηνύματα μπαίνουν ως περίληψη (μία φορά, με cache). Το πλήρες περιεχόμενο του πίνακα στέλνεται μόνο όταν χρειάζεται (π.χ. «γεια» στέλνει μόνο σύντομη κεφαλίδα). Στο panel φαίνονται tokens και χρόνος prompt (prompt_n, prompt_ms, cache_n, predicted_n, predicted_ms) του τελευταίου αιτήματος.",

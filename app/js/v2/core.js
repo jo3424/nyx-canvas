@@ -14,32 +14,14 @@ const PROVIDERS_DEFAULT = [
   { id: 'openai', name: 'OpenAI', kind: 'cloud', base: 'https://api.openai.com/v1', keyRef: 'key:openai', enabled: false, icon: 'bot' },
   { id: 'custom', name: 'Custom (OpenAI-compatible)', kind: 'cloud', base: '', keyRef: 'key:custom', enabled: false, icon: 'plug' },
 ];
-const AI_TASKS = [['chat', t('core.001'), 'message-circle'], ['commands', t('core.002'), 'terminal'], ['vision', t('core.003'), 'scan-eye'], ['summarize', t('core.004'), 'list-collapse'], ['embed', t('core.005'), 'binary'], ['private', t('v266.task_private'), 'venetian-mask']];
-// v2.6.3: recommendations for RX 7900 XTX 24 GB (Windows 11, llama-server/whisper-server on Vulkan).
-// Only links + exact file names/sizes (checked on Hugging Face 02/11/2026). Nyx never downloads models by itself.
-const HF_URL = 'https://huggingface.co/';
-const MODEL_RECS = [
-  { id: 'fast', star: true, name: 'Qwen3.8-27B · unsloth UD-Q4_K_M', role: t('core.007'), note: t('core.008'), why: t('core.r_fast_why'), url: HF_URL + 'unsloth/Qwen3.8-27B-GGUF',
-    files: [['Qwen3.8-27B-UD-Q4_K_M.gguf', 16.46], ['MTP/mtp-Qwen3.8-27B-Q4_0.gguf', 1.37, 'opt']] },
-  { id: 'vision', name: 'Qwen3.8-27B + mmproj-F16', role: t('core.009'), note: t('core.010'), why: t('core.r_vision_why'), url: HF_URL + 'unsloth/Qwen3.8-27B-GGUF',
-    files: [['Qwen3.8-27B-UD-Q4_K_M.gguf', 16.46, 'same'], ['mmproj-F16.gguf', 0.93]] },
-  { id: 'uncensored', name: 'orcarouter Qwen3.8-27B-Uncensored · Q4_K_M', role: t('core.011'), note: t('core.012'), why: t('core.r_unc_why'), url: HF_URL + 'orcarouter/Qwen3.8-27B-Uncensored-GGUF',
-    files: [['Qwen3.8-27B-Uncensored-Q4_K_M.gguf', 16.81], ['mmproj-Qwen3.8-27B-Uncensored-f16.gguf', 0.93, 'opt']],
-    alt: { name: 'huihui-ai Huihui-Qwen3.8-27B-abliterated · UD-DW-Q4_K_M', note: t('core.r_unc_alt'), url: HF_URL + 'huihui-ai/Huihui-Qwen3.8-27B-abliterated-GGUF', files: [['Huihui-Qwen3.8-27B-abliterated-UD-DW-Q4_K_M.gguf', 16.55], ['mmproj-model-bf16.gguf', 0.93, 'opt']] } },
-  { id: 'greek', name: 'Llama-Krikri-8B-Instruct · q4_k_m', role: t('core.013'), note: t('core.014'), why: t('core.r_greek_why'), url: HF_URL + 'ilsp/Llama-Krikri-8B-Instruct-GGUF',
-    files: [['llama-krikri-8b-instruct-q4_k_m.gguf', 5.04], ['llama-krikri-8b-instruct-q8_0.gguf', 8.72, 'opt']] },
-  { id: 'stt', name: 'whisper.cpp · ggml-large-v3', role: t('core.r_stt_role'), note: t('core.r_stt_note'), why: t('core.r_stt_why'), url: HF_URL + 'ggerganov/whisper.cpp',
-    files: [['ggml-large-v3.bin', 3.10], ['ggml-large-v3-turbo.bin', 1.62, 'alt']] },
-  { id: 'embed', name: 'text-embedding-nomic / bge-m3 (LM Studio)', role: 'Embeddings', note: t('core.015') },
-];
-const MODEL_FIT_NOTE = t('core.r_fit');
+const AI_TASKS = [['chat', t('core.001'), 'message-circle'], ['commands', t('core.002'), 'terminal'], ['greek', t('v267.task_greek'), 'flag'], ['private', t('v266.task_private'), 'venetian-mask'], ['vision', t('core.003'), 'scan-eye'], ['summarize', t('core.004'), 'list-collapse'], ['embed', t('core.005'), 'binary']];
 function aiDefaults(info) {
   const g = (r) => info?.gvs ? info.gvs.replace(/[\\/]$/, '') + '\\' + r : '';
   const home = info?.home || '';
   return {
     providers: structuredClone(PROVIDERS_DEFAULT),
-    tasks: { chat: { p: '', m: '' }, commands: { p: '', m: '' }, vision: { p: '', m: '' }, summarize: { p: '', m: '' }, embed: { p: '', m: '' }, private: { p: '', m: '' } }, // v2.3: '' = first enabled & reachable provider; v2.6.6 adds private
-    servers: { llama: { exe: g(GVS_REL.llamaExe), model: g(GVS_REL.llamaModel), port: 8080, ngl: 99, ctx: 0, fa: true, kvType: 'f16', extra: '', autoStart: false }, whisper: { exe: g(GVS_REL.whisperExe), model: g(GVS_REL.whisperModel), port: 8178, language: 'el', extra: '', autoStart: false } },
+    tasks: { chat: { p: '', m: '' }, commands: { p: '', m: '' }, greek: { p: '', m: '' }, vision: { p: '', m: '' }, summarize: { p: '', m: '' }, embed: { p: '', m: '' }, private: { p: '', m: '' } }, // v2.3: '' = first enabled; v2.6.6 private; v2.6.7 greek
+    servers: { llama: { exe: g(GVS_REL.llamaExe), model: g(GVS_REL.llamaModel), port: 8080, ngl: 99, ctx: 0, fa: true, kvType: 'f16', extra: '', autoStart: false, modelsDir: info?.gvs ? info.gvs.replace(/[\\/]$/, '') + '\\models' : '', modelsMax: 0, diskBudgetGB: 70 }, whisper: { exe: g(GVS_REL.whisperExe), model: g(GVS_REL.whisperModel), port: 8178, language: 'el', extra: '', autoStart: false } },
     stt: { kind: 'whispercpp', base: 'http://127.0.0.1:8178', language: 'el', autoSend: true, groqModel: 'whisper-large-v3-turbo' },
     tts: { mode: 'system', rate: 0, pitch: 0, device: 'Vulkan0', port: 0, refAudio: '', endpoint: '', exe: g(GVS_REL.tts), model: home ? home + '\\OmniVoice-Vulkan\\models\\omnivoice-base-Q8_0.gguf' : '', tokenizer: home ? home + '\\OmniVoice-Vulkan\\models\\omnivoice-tokenizer-Q8_0.gguf' : '', voice: '', template: '{exe} --model {model} --codec {tokenizer} --text-file {text_file} --output {out}', speak: false },
     assistant: { mode: 'auto', confirm: true, temperature: 0.3, extra: '', maxRounds: 6, thinking: false, thinkingBudget: 0, maxTokens: 0, maxContinue: 8, historyPct: 25 },
@@ -74,6 +56,14 @@ Store.load = async function () {
   // v2.6.6: auto no longer means "raise to the computed 262144"; 0/empty omits -c and the running server keeps its ctx.
   const L = S.ai.servers.llama; if (L && !L.ctxUserSet && (+L.ctx === 8192 || L.ctx === '' || L.ctx == null)) { L.ctx = 0; S.ai._migratedCtxAuto = true; }
   if (S.ai.assistant && (S.ai.assistant.historyPct == null || S.ai.assistant.historyPct === '')) S.ai.assistant.historyPct = 25;
+  if (S.ai.tasks && !S.ai.tasks.greek) S.ai.tasks.greek = { p: '', m: '' };
+  const Llm = S.ai.servers && S.ai.servers.llama;
+  if (Llm) {
+    if (Llm.diskBudgetGB == null || Llm.diskBudgetGB === '') Llm.diskBudgetGB = 70;
+    if (Llm.modelsMax == null) Llm.modelsMax = 0;
+    if (Llm.modelsDir == null) Llm.modelsDir = '';
+  }
+  S.ai.rentedGpu ||= { enabled: false, capUsd: 10, endpoint: '', extra: '' };
   // v2.6.6: «Μοντέλο ανά εργασία» is the only place a model is set, including Ιδιωτικό.
   if (!S.ai.tasks.private) {
     const Pv = S.ai.private || {};
@@ -194,7 +184,29 @@ const AI = {
     const err = new Error(cands.length ? t('v23.no_provider', { task: AI_TASKS.find(x => x[0] === task)?.[1] || task, v0: errs.join(' · ') }) : t('v23.no_enabled'));
     err.code = 'NOPROV'; throw err;
   },
-  last: {}, lastPrep: null, lastTimings: null,
+  last: {}, lastPrep: null, lastTimings: null, lastRequest: null,
+  noteRequest(partial) {
+    const prev = this.lastRequest || {};
+    const tm = (partial && (partial.timings || partial._timings)) || this.lastTimings || {};
+    const prep = (partial && (partial._prep || partial.prep)) || this.lastPrep || {};
+    const o = {
+      at: Date.now(),
+      model: (partial && partial.model) || prev.model || '',
+      n_ctx: prep.n_ctx != null ? prep.n_ctx : prev.n_ctx,
+      prompt_n: tm.prompt_n != null ? tm.prompt_n : (prep.promptTokens != null ? prep.promptTokens : prev.prompt_n),
+      prompt_ms: tm.prompt_ms != null ? tm.prompt_ms : prev.prompt_ms,
+      predicted_n: tm.predicted_n != null ? tm.predicted_n : prev.predicted_n,
+      predicted_ms: tm.predicted_ms != null ? tm.predicted_ms : prev.predicted_ms,
+      cache_n: tm.cache_n != null ? tm.cache_n : (tm.cached_n != null ? tm.cached_n : prev.cache_n),
+      truncated: !!(partial && (partial.truncated || partial.finish === 'length')),
+      failed: !!(partial && (partial.failed || partial.error)),
+      error: (partial && (partial.error || partial.errMsg)) || (partial && partial.failed ? String(partial.message || '') : '') || '',
+      cpu: !!(partial && partial.cpu),
+      finish: (partial && partial.finish) || prev.finish || '',
+    };
+    this.lastRequest = o;
+    return o;
+  },
   async prepare(p, messages, extra = {}) {
     const A = this.cfg().assistant || {};
     const r = await API.inv('ai:prepare', p, { messages, model: extra.model, thinking: extra.thinking ?? A.thinking, thinkingBudget: extra.thinkingBudget ?? A.thinkingBudget, maxTokensOverride: extra.maxTokensOverride ?? A.maxTokens, reserve: extra.reserve });
@@ -273,6 +285,7 @@ async function chatTurn(p, body, onNotice) {
     if (emptied && onNotice) onNotice('warn', t('v265.empty_after_clean'));
     r.message = { ...(r.message || {}), content: merged, reasoning_content: reasons.join('\n\n') || undefined };
     r.reasoning = reasons.join('\n\n'); r._prep = lastPrep; r.continued = i; r._timings = r._timings || r.timings || AI.lastTimings;
+    AI.noteRequest({ model: r.model, timings: r._timings, _prep: lastPrep, truncated: !!r.truncated || r.finish === 'length', finish: r.finish });
     if (emptied) { r.emptyAfterClean = true; r.rawContent = rawMerged; }
     return Object.assign(r, extra);
   };
@@ -286,7 +299,7 @@ async function chatTurn(p, body, onNotice) {
     if (prep.warnings && onNotice) for (const w of prep.warnings) if (w.code === 'tokenize_fail' || w.code === 'props_fail') onNotice('info', t('v265.warn_' + (w.code === 'tokenize_fail' ? 'tokenize' : 'props')));
     let r;
     try { r = await API.inv('ai:chat', p, { ...body, messages: msgs, ...(prep.body || {}) }); }
-    catch (e) { AI.markBlocked(p, e, true); throw e; }
+    catch (e) { AI.markBlocked(p, e, true); AI.noteRequest({ failed: true, error: cleanErr(e), model: body.model }); throw e; }
     if (r && !r.message && r.error && r.status === 403) { const e = new Error(r.error); e.status = 403; AI.markBlocked(p, e, true); throw e; }
     if (r.timings || r.usage) { AI.lastTimings = r.timings || null; r._timings = r.timings || null; }
     if (r.thinkingIgnored && onNotice) onNotice('info', t('v265.think_ignored'));

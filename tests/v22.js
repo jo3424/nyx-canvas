@@ -27,6 +27,10 @@ async function quit(app) { const done = new Promise(r => app.process().once('exi
 const clearToasts = (win) => win.evaluate(() => document.querySelectorAll('#toasts .toast').forEach(t => t.remove()));
 const toasts = (win) => win.evaluate(() => [...document.querySelectorAll('#toasts .toast')].map(t => t.textContent).join(' | '));
 const shotOf = async (win, sel, name) => { await win.evaluate((sel) => document.querySelector(sel)?.scrollIntoView({ block: 'start' }), sel); await win.waitForTimeout(350); await win.screenshot({ path: path.join(SHOTS, name) }); };
+const showHubTab = (win, tab, openDetails = true) => win.evaluate(({ tab, openDetails }) => {
+  document.querySelector(`[data-hub-tab="${tab}"]`)?.click();
+  if (openDetails) document.querySelectorAll('details.hub-adv, details.hub-more').forEach(d => { d.open = true; });
+}, { tab, openDetails });
 
 (async () => {
   const srv = http.createServer((q, r) => { if (q.url === '/v1/models') { r.setHeader('content-type', 'application/json'); return r.end(JSON.stringify({ data: [{ id: 'qwen3.6-35b-a3b' }, { id: 'krikri-8b' }] })); } r.statusCode = 404; r.end(); });
@@ -34,7 +38,7 @@ const shotOf = async (win, sel, name) => { await win.evaluate((sel) => document.
   let { app, win } = await launch();
   console.log('AI Hub — providers');
   await win.evaluate(({ LP, DEAD }) => { const A = Store.state.settings.ai; A.providers.find(p => p.id === 'lmstudio').base = `http://localhost:${DEAD}/v1`; const L = A.providers.find(p => p.id === 'llama'); L.base = `http://127.0.0.1:${LP}`; Store.save(); }, { LP, DEAD });
-  await win.evaluate(() => Hub.open()); await win.waitForSelector('[data-prov=lmstudio]');
+  await win.evaluate(() => Hub.open()); await showHubTab(win, 'cloud'); await win.waitForSelector('[data-prov=lmstudio]', { state: 'attached' });
   const off = await win.evaluate(() => { const p = Store.state.settings.ai.providers.find(x => x.id === 'lmstudio'); return { on: !!p.enabled, userOn: !!p.userOn, st: document.querySelector('[data-prov=lmstudio] .pstat')?.textContent || '', bad: document.querySelector('[data-prov=lmstudio] .pstat')?.classList.contains('bad') }; });
   ok(!off.on && !off.userOn && !off.bad && !/αρνήθηκε/.test(off.st), 'LM Studio is off by default and is not auto-probed', off);
   await win.evaluate(() => document.querySelector('[data-prov=lmstudio] .prov-head .toggle').click());
@@ -51,6 +55,7 @@ const shotOf = async (win, sel, name) => { await win.evaluate((sel) => document.
   await shotOf(win, '[data-prov=lmstudio]', 'v22-hub-providers.png');
 
   console.log('Local servers');
+  await showHubTab(win, 'engines');
   await win.waitForFunction(() => /ggml-large-v3-turbo/.test(Store.state.settings.ai.servers.whisper.model) && !Store.state.settings.ai.servers.whisper.model.includes('third_party'), null, { timeout: 12000 }).catch(() => {});
   const wm = await win.evaluate(() => Store.state.settings.ai.servers.whisper.model);
   ok(wm === WH, 'whisper model missing at the default path → found on disk and fixed automatically', wm);
@@ -65,7 +70,7 @@ const shotOf = async (win, sel, name) => { await win.evaluate((sel) => document.
   ok(!/Error invoking|remote method/.test(raw) && /whisper-server\.exe/.test(raw), 'IPC errors reach the UI without the Electron prefix', raw);
   await clearToasts(win);
   // 🔍 picker on llama model
-  await win.evaluate(() => { const S = Store.state.settings.ai.servers.llama; S.model = ''; Store.save(); Panels.drawerKind = null; Hub.open(); }); await win.waitForSelector('[data-srv=llama]');
+  await win.evaluate(() => { const S = Store.state.settings.ai.servers.llama; S.model = ''; Store.save(); Panels.drawerKind = null; Hub.open(); }); await showHubTab(win, 'engines'); await win.waitForSelector('[data-srv=llama]', { state: 'attached' });
   await win.evaluate(() => [...document.querySelectorAll('[data-srv=llama] .pfind')].find(b => !b.hidden && b.closest('.field').textContent.includes('gguf')).click());
   await win.waitForSelector('.find-item', { timeout: 10000 }).catch(() => {});
   const items = await win.evaluate(() => [...document.querySelectorAll('.find-item b')].map(b => b.textContent));
@@ -83,12 +88,12 @@ const shotOf = async (win, sel, name) => { await win.evaluate((sel) => document.
 
   console.log('TTS');
   const exe = await app.evaluate(() => process.execPath);
-  await win.evaluate(({ ENG, exe }) => { const T = Store.state.settings.ai.tts; T.mode = 'command'; T.exe = exe; T.template = `{exe} "${ENG}" --model {model} -o {out} < {text_file}`; Store.save(); Panels.drawerKind = null; Hub.open(); }, { ENG, exe });
+  await win.evaluate(({ ENG, exe }) => { const T = Store.state.settings.ai.tts; T.mode = 'command'; T.exe = exe; T.template = `{exe} "${ENG}" --model {model} -o {out} < {text_file}`; Store.save(); Panels.drawerKind = null; Panels.settings('speech'); }, { ENG, exe });
   await win.waitForSelector('.tts-out', { state: 'attached' });
   ok(await win.evaluate(() => !document.querySelector('.tts-box').hidden && document.querySelector('.tts-box').offsetHeight > 100), 'command mode shows the TTS engine fields (hidden in Windows-voice mode)');
   // ELECTRON_RUN_AS_NODE makes the electron binary behave like node for the fake engine
   await app.evaluate(() => { process.env.ELECTRON_RUN_AS_NODE = '1'; });
-  const ttsBtn = () => win.evaluate(() => [...document.querySelectorAll('.hub-sec button')].find(b => b.textContent.trim() === 'Δοκιμή').click());
+  const ttsBtn = () => win.evaluate(() => [...document.querySelectorAll('.speech-form button, .tts-box button, button')].find(b => b.textContent.trim() === 'Δοκιμή').click());
   await ttsBtn(); await win.waitForFunction(() => document.querySelector('.tts-out .ok, .tts-out .err'), null, { timeout: 20000 });
   let to = await win.evaluate(() => ({ t: document.querySelector('.tts-out').textContent, audio: !!document.querySelector('.tts-out audio') }));
   ok(/✓/.test(to.t) && to.audio && /7900 XTX/.test(to.t), 'Δοκιμή: runs the engine, plays the wav, shows stderr', to);

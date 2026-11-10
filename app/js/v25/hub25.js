@@ -6,11 +6,23 @@ const Hub25 = {
     const i = h('input', { class: 'inp grow', type: 'password', placeholder: 'API key', autocomplete: 'off' }); API.inv('secret:has', ref).then(has => { if (has) i.placeholder = t('hub.052'); });
     return Hub.field(label, h('div', { class: 'row gap' }, i, h('button', { class: 'btn sm', onclick: async () => { const v = i.value.trim(); if (!v) return; await API.inv('secret:set', ref, v); i.value = ''; i.placeholder = t('hub.052'); toast(t('hub.056')); } }, t('hub.057')), extra || null));
   },
-  fill(ph, serversSec) {
-    const A = Store.state.settings.ai; ph.innerHTML = '';
-    // sd-server goes inside «Τοπικοί servers»
-    const sd = this.sdBox(A.servers.sd); (serversSec || ph).append(sd);
-    ph.append(this.privateSec(), this.toolsSec(), this.servicesSec());
+  fill(slots, serversSec) {
+    const A = Store.state.settings.ai;
+    // v2.6.7: slots = { image, cloudMore, tools, sdAdv }. Legacy (ph, serversSec) still works.
+    if (slots && slots.nodeType === 1) {
+      const ph = slots; ph.innerHTML = '';
+      const sd = this.sdBox(A.servers.sd); (serversSec || ph).append(sd);
+      ph.append(this.privateSec(), this.toolsSec(), this.servicesSec());
+      return;
+    }
+    slots = slots || {};
+    if (slots.sdAdv) { slots.sdAdv.innerHTML = ''; slots.sdAdv.append(this.sdBox(A.servers.sd)); }
+    if (slots.image && !slots.sdAdv) { slots.image.innerHTML = ''; slots.image.append(this.sdBox(A.servers.sd)); }
+    if (slots.tools) { slots.tools.innerHTML = ''; slots.tools.append(this.toolsSec()); }
+    if (slots.cloudMore) {
+      slots.cloudMore.innerHTML = '';
+      slots.cloudMore.append(this.servicesSec());
+    }
   },
   // ---------- sd-server (stable-diffusion.cpp, Vulkan, single exe, own web UI) ----------
   async sdStart({ quiet = false } = {}) {

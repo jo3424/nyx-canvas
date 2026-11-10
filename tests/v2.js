@@ -68,13 +68,20 @@ async function ask(win, text, { confirm } = {}) {
 
   // ---------- AI Hub: point LM Studio at the stub, autodetect models
   await win.evaluate(({ LLM, WH }) => { const A = Store.state.settings.ai; const lm = A.providers.find(p => p.id === 'lmstudio'); lm.base = LLM; lm.enabled = true; lm.userOn = true; A.stt.base = WH; A.tasks.embed = { p: 'lmstudio', m: 'stub-embed-bge-m3' }; Store.save(); }, { LLM, WH });
-  await win.evaluate(() => Hub.open()); await win.waitForSelector('.prov', { timeout: 5000 });
-  await win.evaluate(() => [...document.querySelectorAll('.prov')][0].querySelector('button')?.click());
-  const pst = await win.waitForFunction(() => /μοντέλα/.test(document.querySelector('.prov .pstat')?.textContent || '') && document.querySelector('.prov .pstat').textContent, null, { timeout: 8000 }).then(h => h.jsonValue()).catch(() => null);
+  await win.evaluate(() => Hub.open());
+  await win.evaluate(() => { document.querySelector('[data-hub-tab=cloud]')?.click(); document.querySelectorAll('details.hub-more').forEach(d => d.open = true); });
+  await win.waitForSelector('[data-prov=lmstudio]', { timeout: 5000 });
+  await win.evaluate(() => document.querySelector('[data-prov=lmstudio] .row.gap .btn.ghost.sm')?.click());
+  const pst = await win.waitForFunction(() => /μοντέλα/.test(document.querySelector('[data-prov=lmstudio] .pstat')?.textContent || '') && document.querySelector('[data-prov=lmstudio] .pstat').textContent, null, { timeout: 8000 }).then(h => h.jsonValue()).catch(() => null);
   ok(/2 μοντέλα/.test(pst || ''), 'AI Hub: LM Studio ping lists stub models', pst);
   const hubTxt = await win.evaluate(() => document.body.textContent);
-  ok(/Qwen3\.8-27B/.test(hubTxt) && /Δεδομένα/.test(hubTxt), 'Hub shows Qwen recommendations + data section');
+  ok(/Qwen-Image-2\.1/.test(hubTxt) && await win.evaluate(() => !!document.querySelector('.zones')), 'Hub model zones include Qwen-Image-2.1');
   ok(/OpenRouter/.test(hubTxt) && /Venice/.test(hubTxt) && /xAI/.test(hubTxt) && /Custom/.test(hubTxt), 'Hub lists cloud providers');
+  await win.evaluate(() => { try { Panels.closeDrawer(); } catch (e) {} Panels.settings('general'); });
+  await win.waitForTimeout(400);
+  ok(await win.evaluate(() => !!document.querySelector('.data-loc') || /Δεδομένα/.test(document.body.innerText || '')), 'Data location lives in Settings');
+  await win.evaluate(() => { try { Panels.closeDrawer(); } catch (e) {} Hub.open(); });
+  await win.waitForTimeout(300);
   await snapShot(win, 'v2-hub.png');
   await win.evaluate(() => Panels.closeDrawer?.()); await win.keyboard.press('Escape'); await win.waitForTimeout(300);
 

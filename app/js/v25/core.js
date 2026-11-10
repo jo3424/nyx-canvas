@@ -144,9 +144,11 @@ const People = {
   const _build = Hub.build.bind(Hub);
   Hub.build = function (body) {
     _build(body);
-    const secs = body.querySelectorAll('.hub-sec'); const after = secs[3] || secs[secs.length - 1];
-    const ph = h('div', { class: 'v25-hub' }, h('p', { class: 'muted small' }, '…')); after ? after.after(ph) : body.append(ph);
-    Lazy.run('hub25', () => Hub25.fill(ph, after));
+    const image = body.querySelector('.hub-image-slot');
+    const cloudMore = body.querySelector('.hub-cloud-more-slot');
+    const tools = body.querySelector('.hub-tools-slot');
+    const sdAdv = body.querySelector('.hub-sd-adv');
+    Lazy.run('hub25', () => Hub25.fill({ image, cloudMore, tools, sdAdv }));
   };
   const _as = Hub.autoStart.bind(Hub);
   Hub.autoStart = async function () { await _as(); if (Store.state?.settings?.ai?.servers?.sd?.autoStart) Lazy.run('hub25', () => Hub25.sdStart({ quiet: true })); };

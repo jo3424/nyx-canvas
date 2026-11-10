@@ -209,9 +209,12 @@ const Panels = {
   // ---------- settings ----------
   settings(tab) {
     if (tab) this.setTab = tab; const tb = this.setTab || 'general';
+    if (tab) this.drawerKind = null;
     this.openDrawer('settings', `${iconSvg('settings-2', 20)} ${t('settings')}`, (body) => {
-      body.append(h('div', { class: 'seg tabs3 set-tabs' }, ...[['general', t('set21.tab_general')], ['update', t('set21.tab_update')], ['tools', t('set21.tab_tools')]].map(([k, l]) => h('button', { class: tb === k ? 'on' : '', 'data-settab': k, onclick: () => { this.setTab = k; this.drawerKind = null; this.settings(); } }, l))));
+      body.append(h('div', { class: 'seg tabs3 set-tabs' }, ...[['general', t('set21.tab_general')], ['assistant', t('v267.set_assistant')], ['speech', t('v267.set_speech')], ['update', t('set21.tab_update')], ['tools', t('set21.tab_tools')]].map(([k, l]) => h('button', { class: tb === k ? 'on' : '', 'data-settab': k, onclick: () => { this.setTab = k; this.drawerKind = null; this.settings(); } }, l))));
       if (tb === 'update' || tb === 'tools') return loadScript('js/v2/settings-v21.js').then(() => tb === 'update' ? Settings21.update(body) : Settings21.tools(body)); // lazy: only when the tab opens
+      if (tb === 'assistant') return body.append(h('h4', {}, t('v267.set_assistant')), Hub.assistantForm());
+      if (tb === 'speech') return body.append(h('h4', {}, t('v267.set_speech')), Hub.speechForm());
       const S = Store.state.settings; const sv = () => Store.save();
       const chk = (label, val, cb) => h('label', { class: 'chk' }, h('input', { type: 'checkbox', class: 'toggle', checked: val ? true : null, onchange: (e) => cb(e.target.checked) }), h('span', {}, label));
       body.append(
@@ -228,6 +231,7 @@ const Panels = {
         h('div', { class: 'row gap wrap' }, h('button', { class: 'btn', onclick: () => Features.exportBackup() }, iconSvg('download', 15), ' ' + t('set_export')), h('button', { class: 'btn ghost', onclick: () => Features.importBackup() }, iconSvg('upload', 15), ' ' + t('set_import')), h('button', { class: 'btn ghost', onclick: () => API?.openDataFolder() }, iconSvg('folder-open', 15), ' ' + t('set_folder'))),
         h('p', { class: 'muted small' }, (LANG === 'el' ? t('panels.031') : 'Autosave on every change + daily backup (14 days) in ') + (Store.info.userData || 'localStorage')),
         h('h4', {}, '⌨️ ' + t('set_keys')), h('div', { class: 'keys' }, ...KEYS.map(([k, d]) => h('div', { class: 'krow' }, h('kbd', {}, k), h('span', {}, d)))),
+        h('h4', {}, t('hub.035')), Hub.dataLocBox(),
         h('p', { class: 'muted small' }, `Nyx Canvas v${Store.info.version || 'dev'} · Emoji/stickers: Twemoji (CC-BY 4.0) · Icons: Lucide (ISC), Tabler (MIT) · Fonts: OFL`));
     });
   },
