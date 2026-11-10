@@ -182,7 +182,9 @@ Hub.paintHubTabs = function (panes, show) {
       for (const z of ['cand', 'other', 'rej']) {
         const node = zones.querySelector('[data-zone="' + z + '"]');
         if (!node || node.parentElement?.tagName === 'DETAILS') continue;
-        const title = node.querySelector('h5')?.textContent || z;
+        const titleEl = node.querySelector('h5');
+        const title = titleEl?.textContent || z;
+        if (titleEl) titleEl.hidden = true;
         const det = h('details', { class: 'hub-more', open: true });
         det.append(h('summary', {}, title));
         node.parentElement?.insertBefore(det, node);

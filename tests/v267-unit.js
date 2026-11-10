@@ -62,5 +62,18 @@ for (const k of Object.keys(el).filter((k) => k.startsWith('v267.'))) {
   ok(a === b, 'placeholders ' + k);
 }
 
+console.log('candidate cap');
+{
+  const z = require(R + '/app/js/v2/model-zones.js');
+  ok(z.ZONE_CANDIDATE_MAX === 3 && Object.values(z.MODEL_ZONES.candidates).every((a) => a.length <= 3), 'MODEL_ZONES has ≤3 candidates per category');
+  const fake = { candidates: { image: [1, 2, 3, 4].map((n) => ({ id: 'img-' + n })), video: [{ id: 'vid-1' }] }, other: [] };
+  const lim = z.limitZoneCandidates(fake);
+  ok(lim.candidates.image.length === 3 && lim.other.some((c) => c.id === 'img-4') && lim.candidates.video.length === 1, 'limitZoneCandidates moves the 4th image to other');
+  const hub = fs.readFileSync(R + '/app/js/v2/hub.js', 'utf8') + fs.readFileSync(R + '/app/js/v2/hub-tabs.js', 'utf8');
+  ok(/limitZoneCandidates/.test(hub) && /v267\.zone_cand_cat/.test(hub), 'Hub groups candidates with a per-category count');
+  ok(!/zones_summary/.test(hub), 'Hub no longer uses a single combined Υποψήφια count');
+  ok(!/\{v0\}/.test(el['v267.zones_summary'] || ''), 'zones_summary has no combined numeric placeholder');
+}
+
 console.log(`\nv2.6.7 unit: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

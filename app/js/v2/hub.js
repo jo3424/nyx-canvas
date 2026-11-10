@@ -60,13 +60,16 @@ const Hub = {
       else if (!installed.length) keep.append(h('p', { class: 'muted small' }, t('v266.zone_keep_empty')));
       for (const m of installed) keep.append(h('div', { class: 'zcard keep', 'data-model': m.id }, h('b', {}, String(m.id).split(/[\\/]/).pop()), h('p', { class: 'muted small' }, m.owned || m.type || 'llama-server')));
       box.append(keep);
-      const Z = (typeof MODEL_ZONES !== 'undefined') ? MODEL_ZONES : { candidates: {}, other: [], rejected: [] };
+      const rawZ = (typeof MODEL_ZONES !== 'undefined') ? MODEL_ZONES : { candidates: {}, other: [], rejected: [] };
+      const Z = (typeof limitZoneCandidates === 'function') ? limitZoneCandidates(rawZ) : rawZ;
       const cand = h('div', { class: 'zone', 'data-zone': 'cand' }, h('h5', {}, t('v266.zone_cand')));
       const groups = Object.entries(Z.candidates || {});
       if (!groups.length) cand.append(h('p', { class: 'muted small' }, '—'));
       for (const [cat, list] of groups) {
-        cand.append(h('h6', {}, t('v266.cat_' + cat) === ('v266.cat_' + cat) ? cat : t('v266.cat_' + cat)));
-        for (const card of (list || []).slice(0, 3)) cand.append(this.zoneCard(card));
+        const kept = (list || []).slice(0, typeof ZONE_CANDIDATE_MAX === 'number' ? ZONE_CANDIDATE_MAX : 3);
+        const label = t('v266.cat_' + cat) === ('v266.cat_' + cat) ? cat : t('v266.cat_' + cat);
+        cand.append(h('h6', { 'data-zone-cat': cat, 'data-count': String(kept.length) }, t('v267.zone_cand_cat', { v0: label, v1: kept.length })));
+        for (const card of kept) cand.append(this.zoneCard(card));
       }
       box.append(cand);
       const other = h('div', { class: 'zone', 'data-zone': 'other' }, h('h5', {}, t('v266.zone_other')));

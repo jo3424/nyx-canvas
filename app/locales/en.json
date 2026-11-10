@@ -1763,7 +1763,7 @@
  "v267.disk_unknown": "Disk: models-dir was not found or could not be read",
  "v267.disk_budget": "Disk display budget (GB)",
  "v267.disk_budget_help": "A neutral display figure, not an automatic deletion cap. Default 70. Visible and editable.",
- "v267.zones_summary": "Candidates for comparison ({v0}) · Also available · Rejected",
+ "v267.zones_summary": "Candidates (up to 3 per category) · Also available · Rejected",
  "v267.license_unknown": "licence not checked",
  "v267.zone_keep_pill": "Keeping",
  "v267.no_mmproj": "— no model with mmproj —",
@@ -1793,5 +1793,6 @@
  "v267.ctx_user": "{v0}",
  "v267.ctx_live": "{v0} (live from the server)",
  "v267.prov_llama_only": "llama-server (router)",
- "v267.data_in_settings": "The data location is in Settings."
+ "v267.data_in_settings": "The data location is in Settings.",
+ "v267.zone_cand_cat": "{v0} ({v1})"
 }

@@ -29,10 +29,31 @@ const MODEL_ZONES = {
   rejected: [],
 };
 
+const ZONE_CANDIDATE_MAX = 3;
+
+// Keep at most `max` candidates per category. Anything past that goes to «Άλλα διαθέσιμα» (no silent drop, no duplicates).
+function limitZoneCandidates(zones, max = ZONE_CANDIDATE_MAX) {
+  const src = zones || { candidates: {}, other: [], rejected: [] };
+  const candidates = {};
+  const other = [...(src.other || [])];
+  const seen = new Set(other.map((c) => c && c.id).filter(Boolean));
+  for (const [cat, list] of Object.entries(src.candidates || {})) {
+    const arr = Array.isArray(list) ? list : [];
+    candidates[cat] = arr.slice(0, max);
+    for (const card of arr.slice(max)) {
+      if (!card) continue;
+      if (card.id && seen.has(card.id)) continue;
+      if (card.id) seen.add(card.id);
+      other.push(card);
+    }
+  }
+  return { checkedAt: src.checkedAt, candidates, other, rejected: src.rejected || [] };
+}
+
 function zoneMatchId(installedId, card) {
   const a = String(installedId || '').toLowerCase();
   const names = [card.id, card.name, ...(card.aliases || [])].map((s) => String(s || '').toLowerCase());
   return names.some((n) => n && (a.includes(n.replace(/\s+/g, '')) || a.includes(n) || n.includes(a.split(/[\\/]/).pop().replace(/\.[^.]+$/, ''))));
 }
 
-if (typeof module === 'object' && module.exports) module.exports = { MODEL_ZONES, zoneMatchId };
+if (typeof module === 'object' && module.exports) module.exports = { MODEL_ZONES, zoneMatchId, limitZoneCandidates, ZONE_CANDIDATE_MAX };
