@@ -113,3 +113,19 @@ label.consent{padding:8px;border-radius:var(--radius);background:rgba(255,176,32
 .as-tools .btn.to-canvas { display: inline-flex; align-items: center; gap: 6px; }
 .at-chip.heavy { border-color: var(--accent); }
 #modal .confirm-list { margin: 8px 0 0; padding-left: 1.2em; }
+/* v2.6.8.2 — token line on attachment chips: orange when not everything fits, file list for zips, summary button */
+.at-chip.over { border-color: #e8890c; }
+.at-chip.over .st { color: #e8890c; }
+.at-chip .at-tok { font-size: 11px; line-height: 1.35; padding-right: 18px; color: var(--ok, #30a46c); }
+.at-chip .at-tok.over { color: #e8890c; font-weight: 600; }
+.at-chip .at-src { font-weight: 400; opacity: .85; }
+.at-chip .at-src.estimate { font-style: italic; }
+.at-chip .at-files { font-size: 11px; width: 100%; }
+.at-chip .at-files summary { cursor: pointer; color: var(--muted, #8a8f98); }
+.at-chip .at-files ul { list-style: none; margin: 3px 0 0; padding: 0 18px 0 0; max-height: 140px; overflow: auto; user-select: text; }
+.at-chip .at-files li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.at-chip .at-files li.full { color: var(--ok, #30a46c); }
+.at-chip .at-files li.digest { color: #e8890c; }
+.at-chip .at-files li.listed { opacity: .7; }
+.at-chip .at-sum { font-size: 11px; border: 1px solid var(--line); border-radius: 6px; background: none; color: var(--accent); cursor: pointer; padding: 1px 6px; margin-top: 2px; }
+.at-chip.at-card .at-row { padding-right: 16px; }

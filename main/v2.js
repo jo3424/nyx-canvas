@@ -176,7 +176,7 @@ function wire(ctx) {
   H('ai:prepare', (p, opts) => ai.prepare(p, opts || {}));
   H('ai:props', (p, opts) => ai.props(p, opts || {}));
   H('ai:routerInfo', (p, opts) => ai.routerInfo(p, opts || {}));
-  H('ai:tokenize', (p, content) => ai.tokenize(p, content));
+  H('ai:tokenize', (p, content, opts) => ai.tokenize(p, content, opts || {}));
   H('ai:context', (p, opts) => ai.contextInfo(p, opts || {}));
   H('ai:recommendCtx', (file, o) => { const limits = require('./limits'); if (file) return limits.recommendFromGguf(file, o || {}); return limits.recommendCtx({ meta: limits.GEMMA4_12B, weightsBytes: (o && o.weightsBytes) || 6.71 * 2 ** 30, ...(o || {}) }); });
   H('ai:embed', (p, model, input) => ai.embed(p, model, input));

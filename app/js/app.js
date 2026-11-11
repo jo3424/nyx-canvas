@@ -45,6 +45,7 @@ const App = {
       }
       if (c && k === 'k') { e.preventDefault(); return Panels.palette(); }
       if (typing) return;
+      if (typeof LogCopy !== 'undefined' && LogCopy.key && LogCopy.key(e)) return;
       if (e.key === ' ' && !e.repeat) { Canvas.spaceDown = true; document.body.classList.add('panning'); e.preventDefault(); return; }
       if (e.key === 'Escape') { if (!$('#modal').hidden) return; if (!$('#ctxmenu').hidden) return Panels.closeMenu(); if (!$('#drawer').hidden) return Panels.closeDrawer(); if (Voice.rec) { Voice.cancelled = true; return Voice.stop(); } Canvas.deselect(); Tools.pick('select'); return; }
       if (c) {

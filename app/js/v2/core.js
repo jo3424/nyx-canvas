@@ -224,7 +224,7 @@ const AI = {
   },
   async prepare(p, messages, extra = {}) {
     const A = this.cfg().assistant || {};
-    const r = await API.inv('ai:prepare', p, { messages, model: extra.model, thinking: extra.thinking ?? A.thinking, thinkingBudget: extra.thinkingBudget ?? A.thinkingBudget, maxTokensOverride: extra.maxTokensOverride ?? A.maxTokens, reserve: extra.reserve });
+    const r = await API.inv('ai:prepare', p, { messages, model: extra.model, thinking: extra.thinking ?? A.thinking, thinkingBudget: extra.thinkingBudget ?? A.thinkingBudget, maxTokensOverride: extra.maxTokensOverride ?? A.maxTokens, reserve: extra.reserve, tools: extra.tools && extra.tools.length ? extra.tools : undefined });
     this.lastPrep = r; return r;
   },
   _streamId: null,
@@ -293,7 +293,8 @@ async function invokeChat(p, body, onNotice, onDelta) {
   const useStream = body.stream !== false;
   if (!useStream) return API.inv('ai:chat', p, body);
   const id = body._streamId || newStreamId();
-  AI._streamId = id;
+  // v2.6.8.2: background (attachment) requests keep their own id so Stop and send-pause never mix them up.
+  if (!body._bg) AI._streamId = id;
   const unsub = (typeof API !== 'undefined' && API.onAiStream) ? API.onAiStream((ev) => {
     if (!ev || ev.id !== id) return;
     if (ev.type === 'load' || ev.notice) { if (onNotice) onNotice('load', ev.notice || ev.text || t('v268.loading_model')); }
@@ -327,8 +328,14 @@ async function chatTurn(p, body, onNotice, onDelta) {
   for (let i = 0; i <= maxC; i++) {
     const msgs = i === 0 ? origin : NyxLimits.nextContinueMessages(origin, NyxLimits.mergePieces(pieces));
     let prep = {};
-    try { prep = await AI.prepare(p, msgs, { model: body.model, thinking: body.thinking ?? A.thinking, thinkingBudget: body.thinkingBudget ?? A.thinkingBudget, maxTokensOverride: body.max_tokens || body.maxTokensOverride || A.maxTokens }); lastPrep = prep; }
+    const prepOpts = { model: body.model, tools: body.tools, thinking: body.thinking ?? A.thinking, thinkingBudget: body.thinkingBudget ?? A.thinkingBudget, maxTokensOverride: body.max_tokens || body.maxTokensOverride || A.maxTokens };
+    try { prep = await AI.prepare(p, msgs, prepOpts); lastPrep = prep; }
     catch (e) { if (e && e.code === 'ABORTED') throw e; if (onNotice) onNotice('err', t('v265.prep_fail', { v0: cleanErr(e) })); prep = {}; }
+    // v2.6.8.2: pre-send check — system + history + attachments + reserve ≤ n_ctx. Trim attachments, never send over the limit.
+    if (i === 0 && typeof Att !== 'undefined' && Att.fitPrompt) {
+      try { const f = await Att.fitPrompt(msgs, prep, onNotice, (m) => AI.prepare(p, m, prepOpts)); if (f) { prep = f; lastPrep = f; } }
+      catch (e) { if (e && e.code === 'ABORTED') throw e; }
+    }
     if (prep.reason === 'prompt_overflow') throw new Error(t('v265.prompt_overflow', { v0: prep.n_ctx, v1: prep.promptTokens }));
     if (prep.omitted && !shownNoCap && onNotice) { shownNoCap = true; onNotice('info', t('v265.no_cap', { v0: prep.reason })); }
     if (prep.warnings && onNotice) for (const w of prep.warnings) if (w.code === 'tokenize_fail' || w.code === 'props_fail') onNotice('info', t('v265.warn_' + (w.code === 'tokenize_fail' ? 'tokenize' : 'props')));

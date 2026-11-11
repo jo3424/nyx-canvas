@@ -222,7 +222,7 @@ const Assistant = {
       h('div', { class: 'as-msgs', id: 'as-msgs' }),
       h('div', { class: 'as-sugg', id: 'as-sugg' }, ...[t('assistant.065'), t('assistant.066'), t('assistant.067'), t('assistant.068'), t('assistant.069')].map(s => h('button', { class: 'chip', onclick: () => this.send(s) }, s))),
       h('div', { class: 'as-input' }, h('button', { class: 'ib mic', id: 'as-mic', title: t('assistant.070'), html: iconSvg('mic', 18), onclick: () => this.mic() }),
-        h('textarea', { id: 'as-q', rows: 1, placeholder: t('assistant.071'), onkeydown: (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.stopPropagation(); return App.undo(); } e.stopPropagation(); if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.send(); } if (e.key === 'Escape') this.hide(); }, oninput: (e) => { e.target.style.height = 'auto'; e.target.style.height = Math.min(140, e.target.scrollHeight) + 'px'; } }),
+        h('textarea', { id: 'as-q', rows: 1, placeholder: t('assistant.071'), onkeydown: (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.stopPropagation(); if (e.target.value) return; e.preventDefault(); return App.undo(); } e.stopPropagation(); if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.send(); } if (e.key === 'Escape') this.hide(); }, oninput: (e) => { e.target.style.height = 'auto'; e.target.style.height = Math.min(140, e.target.scrollHeight) + 'px'; } }),
         h('button', { class: 'ib send', id: 'as-send', title: t('assistant.072'), html: iconSvg('send', 18), onclick: () => this.onSendClick() })));
     el.append(h('div', { class: 'as-rs', title: t('v24.as_resize') }));
     document.body.append(el); this.render(); this.syncThink();

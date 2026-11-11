@@ -259,9 +259,13 @@ Agent.confirmAlways = async function (title, list, ok) { const A = Store.state.s
     const q = $('#as-q'); let v = (text ?? q?.value ?? '').trim();
     if (!v && !Att.list.length) return;
     let L = null;
-    if (Att.list.length) { if (Att.list.some(e => !e.fastOk && (e.state === 'work' || e.state === 'wait'))) toast(t('v25.at_waiting'), { ms: 2500 }); L = await Att.take(); if (!v) v = t('v25.at_default'); }
-    Agent._pendingAtts = L; if (q) q.value = '';
-    return _send(v, voice);
+    // v2.6.8.2: the background stage pauses (its in-flight request is aborted) so this message is first at the router; it resumes after the reply.
+    Att.pauseHeavy();
+    try {
+      if (Att.list.length) { if (Att.list.some(e => !e.fastOk && (e.state === 'work' || e.state === 'wait'))) toast(t('v2682.send_now'), { ms: 2500 }); L = await Att.take(); if (!v) v = t('v25.at_default'); }
+      Agent._pendingAtts = L; if (q) q.value = '';
+      return await _send(v, voice);
+    } finally { Att.resumeHeavy(); }
   };
   const _push = A.push.bind(A);
   A.push = function (m) { if (m.role === 'user' && Agent._pendingAtts) { m = { ...m, atts: Att.meta(Agent._pendingAtts) }; } return _push(m); };
@@ -269,6 +273,7 @@ Agent.confirmAlways = async function (title, list, ok) { const A = Store.state.s
   const _run = A.run.bind(A);
   A.run = async function (text, onNotice, onDelta) {
     const L = Agent._pendingAtts; Agent._pendingAtts = null;
+    if (!L) Att._blocks = [];
     const prompt = L ? text + Att.context(L) : text;
     if (Private?.on) { const R = Agent.begin(); try { return await Promise.race([_run(prompt, onNotice, onDelta), R.aborted.then(() => ({ content: '⏹ ' + t('v25.ag_cancelled'), actions: [] }))]); } finally { Agent.end(R); } }
     const S = Agent.S(); const AS = Store.state.settings.ai.assistant; const mr = AS.maxRounds; AS.maxRounds = Math.max(mr || 6, S.maxRounds || 10);

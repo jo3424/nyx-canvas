@@ -15,7 +15,7 @@ let fails = 0, passes = 0;
 const ok = (c, m, x) => { console.log((c ? '  ✓ ' : '  ✗ ') + m + (!c && x !== undefined ? '  → ' + JSON.stringify(x).slice(0, 800) : '')); c ? passes++ : fails++; };
 
 console.log('version + changelog + electron');
-ok((pkg.version === '2.6.8.1') && pkg.devDependencies.electron === '45.2.3', 'version 2.6.8.1, Electron 45.2.3', pkg.version);
+ok((pkg.version === '2.6.8.1' || pkg.version.startsWith('2.6.8.')) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.8.1+, Electron 45.2.3', pkg.version);
 const log = require(R + '/CHANGELOG.json')['2.6.8.1'];
 ok(log && log.el.length === log.en.length && log.el.length === 3, 'CHANGELOG 2.6.8.1 has 3 el+en groups', log && log.el.length);
 ok(/χωρίς LLM|without an LLM/i.test(log.el[0] + log.en[0]) && /12000|24000/.test(log.el[0] + log.en[0]), 'group 1 is attachments without LLM on upload');
@@ -32,7 +32,7 @@ console.log('attach.js — no fixed caps, no LLM on fast path, take waits only f
 const attSrc = fs.readFileSync(path.join(R, 'app/js/v25/attach.js'), 'utf8');
 ok(!/\b12000\b/.test(attSrc) && !/\b24000\b/.test(attSrc) && !/\bMAXCTX\b/.test(attSrc), 'no 12000/24000/MAXCTX in attach.js');
 ok(/async fast\(/.test(attSrc) && /async heavy\(/.test(attSrc), 'two-stage fast/heavy functions');
-ok(/e\.fastReady = this\.fast\(/.test(attSrc) && /await Promise\.all\(L\.map\(e => e\.fastReady/.test(attSrc), 'take() waits only for fastReady');
+ok(/e\.fastReady = this\.fast\(/.test(attSrc) && /Promise\.all\(L\.map\(e => e\.fastReady/.test(attSrc), 'take() waits only for fastReady (2.6.8.2: with a short grace)');
 ok(!/await Promise\.all\(L\.map\(e => e\.done\)\)/.test(attSrc), 'take() no longer awaits e.done (the old lock)');
 ok(/refreshNctx/.test(attSrc) && /probe:\s*true/.test(attSrc), 'n_ctx refresh uses probe, not /props?model= on upload');
 ok(/this\.cache/.test(attSrc) && /hashOf/.test(attSrc), 'per-hash cache');
@@ -95,7 +95,7 @@ ok(/v2681\.canvas_confirm/.test(hubSrc) && /v2681\.attach_reserve/.test(hubSrc),
 
 console.log('/props?model= is not short-aborted (root cause of remaining 500)');
 const aiSrc = fs.readFileSync(path.join(R, 'main/ai.js'), 'utf8');
-ok(/opts\.model \? 0 : 4000/.test(aiSrc), 'props() default timeout is 0 when ?model= is set');
+ok(/opts\.model \? 0 : 4000/.test(aiSrc) || (/opts\.model \? PROPS_MODEL_MS : 4000/.test(aiSrc) && ai.PROPS_MODEL_MS >= 60000), 'props() with ?model= is never short-aborted (0 in 2.6.8.1, 120 s ceiling from 2.6.8.2)');
 ok(/assistant\.js/.test(fs.readFileSync(path.join(R, 'app/js/v2/assistant.js'), 'utf8')) || true, 'placeholder');
 ok(/probe:\s*true/.test(fs.readFileSync(path.join(R, 'app/js/v2/assistant.js'), 'utf8')), 'assistant.run context is a probe');
 

@@ -220,6 +220,7 @@ async function fetchNative(p, path, opts = {}, timeout = 4000) {
   }
   throw first || new Error(t('ai.019', { v0: trimBase(p.base), v1: path }));
 }
+const PROPS_MODEL_MS = 120000;
 function modelQuery(model) { return model ? ('?model=' + encodeURIComponent(String(model))) : ''; }
 function isNeedModel(e) { return !!(e && (e.status === 400 || /\b400\b/.test(String(e.message || e)))); }
 
@@ -229,7 +230,8 @@ async function props(p, opts = {}) {
   // is what the server logs as 500 "request cancelled while waiting for model".
   // Only use a short timeout when the caller is a probe (no ?model=). With ?model=,
   // wait until the model is ready unless the user cancels (timeout 0 = no timer).
-  const timeout = ('timeout' in opts) ? opts.timeout : (opts.model ? 0 : 4000);
+  // v2.6.8.2: the wait for a load has a ceiling (PROPS_MODEL_MS, 120 s) instead of no timer at all.
+  const timeout = ('timeout' in opts) ? (opts.timeout === 0 && opts.model ? PROPS_MODEL_MS : opts.timeout) : (opts.model ? PROPS_MODEL_MS : 4000);
   const run = () => fetchNative(p, '/props' + q, { signal: opts.signal }, timeout);
   const r = (opts.model && opts.gate !== false) ? await withGate(p, run) : await run();
   const n_ctx = limits.parseNctx(r.json);
@@ -258,17 +260,32 @@ async function slots(p, opts = {}) {
   const n_ctx = limits.parseNctx(r.json);
   return { ok: true, n_ctx, raw: r.json, root: r.root, source: 'slots', model: opts.model || null };
 }
-async function tokenize(p, content) {
-  const body = JSON.stringify({ content: String(content || '') });
+async function tokenize(p, content, opts = {}) {
+  // v2.6.8.2: router mode needs the model id (body + ?model=). Callers outside a chat pass onlyIfLoaded so a count never starts a load.
+  const model = opts.model || '';
+  if (opts.onlyIfLoaded && model && !(await modelLoaded(p, model))) return { count: null, skipped: 'not_loaded' };
+  const body = JSON.stringify(model ? { content: String(content || ''), model } : { content: String(content || '') });
   let r, last;
   for (const path of ['/tokenize', '/v1/tokenize']) {
-    try { r = await fetchNative(p, path, { method: 'POST', body }, 15000); break; } catch (e) { last = e; }
+    try { r = await fetchNative(p, path + modelQuery(model), { method: 'POST', body }, opts.timeout || 15000); break; } catch (e) { last = e; }
   }
   if (!r) throw last || new Error('tokenize');
   const j = r.json;
   const tokens = Array.isArray(j?.tokens) ? j.tokens : Array.isArray(j) ? j : (j?.ids || []);
   if (!Array.isArray(tokens)) throw new Error('tokenize: unexpected response');
   return { count: tokens.length, root: r.root };
+}
+// Loaded = /v1/models says loaded, or /slots shows the model. Unknown counts as not loaded.
+async function modelLoaded(p, model) {
+  // models() keeps only ids, so read the raw list here (status / loaded flags), then /slots.
+  try {
+    const r = await fetchNative(p, '/v1/models', {}, 2000);
+    const j = r.json || {};
+    const arr = Array.isArray(j.data) ? j.data : Array.isArray(j.models) ? j.models : [];
+    const list = arr.map(m => ({ ...m, id: m.id || m.name || m.model }));
+    if (entryLoading(modelEntry(p, model, list)) === false) return true;
+  } catch (e) {}
+  return slotsLoaded(p, model);
 }
 async function contextInfo(p, opts = {}) {
   const warnings = [];
@@ -294,7 +311,7 @@ async function contextInfo(p, opts = {}) {
     return { n_ctx, source, root, warnings, raw, router, model, models: modelList || undefined, probe: true };
   }
   const tryProps = async (m) => {
-    const r = await props(p, { model: m, timeout: ('timeout' in opts) ? opts.timeout : (m ? 0 : 4000), signal: opts.signal });
+    const r = await props(p, { model: m, timeout: ('timeout' in opts) ? opts.timeout : (m ? PROPS_MODEL_MS : 4000), signal: opts.signal });
     n_ctx = r.n_ctx; source = m ? 'props_model' : 'props'; raw = r.raw; root = r.root; model = m || model;
   };
   const trySlots = async (m) => {
@@ -364,14 +381,14 @@ async function prepare(p, opts = {}) {
       if (c.router) warnings.push({ code: 'router_mode', message: 'llama-server router mode', model: c.model });
     } catch (e) { warnings.push({ code: 'context_fail', message: String(e.message || e) }); }
     try {
-      const tok = await withGate(p, () => tokenize(p, limits.messagesToText(messages)));
+      const tok = await withGate(p, () => tokenize(p, limits.requestToText(messages, opts.tools), { model: opts.model }));
       promptTokens = tok.count; tokSrc = 'tokenize';
     } catch (e) {
-      promptTokens = limits.estimateTokens(messages); tokSrc = 'estimate';
+      promptTokens = limits.estimateTokens(messages, opts.tools); tokSrc = 'estimate';
       warnings.push({ code: 'tokenize_fail', message: String(e.message || e), estimated: promptTokens });
     }
   } else {
-    promptTokens = limits.estimateTokens(messages); tokSrc = 'estimate';
+    promptTokens = limits.estimateTokens(messages, opts.tools); tokSrc = 'estimate';
   }
   const cloudMax = limits.cloudMaxOutput(p, opts.model);
   const limit = limits.computeMaxTokens({ nCtx, promptTokens, reserve: opts.reserve, override: opts.maxTokensOverride, cloudMax, kind: p?.kind });
@@ -502,9 +519,12 @@ function modelEntry(p, model, list) {
 }
 function entryLoading(m) {
   if (!m) return null;
-  const st = String(m.status || m.state || '');
+  const raw = m.status || m.state || '';
+  const st = String((raw && typeof raw === 'object') ? (raw.value || raw.status || '') : raw);
+  // v2.6.8.2: «loaded» / «unloaded» used to match /load(ing)?/ and count as loading. Router b12230 sends status { value }.
+  if (m.loaded === true || m.ready === true || /^(ok|ready|loaded)$/i.test(st)) return false;
+  if (/^unloaded$/i.test(st)) return m.loaded === false ? true : null;
   if (m.loading === true || /load(ing)?/i.test(st)) return true;
-  if (m.loaded === true || m.ready === true || st === 'ok' || st === 'ready' || st === 'loaded') return false;
   if (m.loaded === false) return true;
   return null;
 }
@@ -689,6 +709,8 @@ async function chatStreamOnce(p, body, { signal, onDelta } = {}) {
 async function chatStream(p, body, { signal, onDelta, onStatus } = {}) {
   const hook = onStatus || ((kind, msg) => { if (onDelta) onDelta({ type: kind, text: msg || '', notice: msg }); });
   return withLoadRetry(p, body, () => withGate(p, async () => {
+    // v2.6.8.2: a request cancelled while it waited in the queue never reaches the server.
+    if (signal && signal.aborted) throw abortedErr();
     // After a 500, waitForModel has already run. Before the first try, a silent ready-check avoids a cancelled first request.
     const local = limits.isLocalLlama(p) || p?.kind === 'local';
     if (local && body.model) {
@@ -698,4 +720,4 @@ async function chatStream(p, body, { signal, onDelta, onStatus } = {}) {
   }), { signal, onStatus: hook });
 }
 
-module.exports = { parseWait, waitOf, jfetch, models, ping, chat, chatStream, chatBody, parseSSE, assembleDelta, isLoadCancel, isImageInputError, mmprojHint, withImageHint, waitForModel, modelEntry, entryLoading, withLoadRetry, withGate, prepare, props, parseRouterMax, routerInfo, slots, tokenize, contextInfo, embed, transcribe, tts, runCmd, fillTemplate, buildTtsCmd, cmdQuote, exeHelp, netCode, netMessage, baseVariants, hintFor, findLms, lmsServerStart, isForbidden, isNeedModel, modelQuery, _baseCache: baseCache, _thinkCache: thinkCache, NetError };
+module.exports = { parseWait, waitOf, jfetch, models, ping, chat, chatStream, chatBody, parseSSE, assembleDelta, isLoadCancel, isImageInputError, mmprojHint, withImageHint, waitForModel, modelEntry, entryLoading, withLoadRetry, withGate, prepare, props, parseRouterMax, routerInfo, slots, tokenize, modelLoaded, PROPS_MODEL_MS, contextInfo, embed, transcribe, tts, runCmd, fillTemplate, buildTtsCmd, cmdQuote, exeHelp, netCode, netMessage, baseVariants, hintFor, findLms, lmsServerStart, isForbidden, isNeedModel, modelQuery, _baseCache: baseCache, _thinkCache: thinkCache, NetError };

@@ -407,3 +407,8 @@ details.hub-adv>summary::-webkit-details-marker,details.hub-more>summary::-webki
 .ib.send.stop { color: var(--danger, #f85149); }
 .as-notice.load { color: var(--accent, #7c5cbf); }
 .hub-mmproj-note { margin: .35em 0 .6em; }
+/* v2.6.8.2 — copyable logs */
+.srv-log:focus,.logs:focus{outline:1px solid var(--accent);outline-offset:1px}
+.log-copy{margin:4px 0 0}
+.log-copy.done{color:var(--ok,#30a46c)}
+pre[hidden]+.log-copy{display:none}
