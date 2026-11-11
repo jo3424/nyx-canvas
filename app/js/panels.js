@@ -240,7 +240,7 @@ const Panels = {
     const P = $('#palette'); const q = $('#pal-q'); const list = $('#pal-list');
     P.hidden = false; q.value = ''; q.placeholder = t('search_ph') + '…'; q.focus(); let idx = 0; let results = [];
     const cmds = () => [
-      ['plus-square', t('new_board'), 'Ctrl+T', () => App.newBoard()], ['type', t('t_text'), 'T', () => { const c = Canvas.center(); Tools.createText(c.x, c.y); }], ['sticky-note', t('t_sticky'), 'N', () => Features.addAtCenter({ type: 'sticky', w: 220, h: 220, paper: '#ffe66d', font: 'Playpen Sans', size: 20, html: '' }, true)],
+      ['plus-square', t('new_board'), 'Ctrl+T', () => App.newBoard()], ['type', t('t_text'), 'T', () => { const c = Canvas.center(); Tools.createText(c.x, c.y); }], ['sticky-note', t('t_sticky'), 'N', () => Features.addAtCenter(stickyDefaults(), true)],
       ['smile-plus', t('t_library'), 'Ctrl+E', () => this.library()], ['image', t('ins_image'), '', () => Features.pickAndAdd('image')], ['video', t('ins_video'), '', () => Features.pickAndAdd('video')], ['music', t('ins_audio'), '', () => Features.pickAndAdd('audio')], ['link', t('ins_link'), '', () => Features.addLink()],
       ['timer', t('ins_countdown'), '', () => Features.newCountdown()], ['tv', t('ins_show'), '', () => Features.showSearch()], ['radar', t('ins_tracker'), '', () => Features.newTracker()], ['alarm-clock', t('ins_reminder'), '', () => Features.newReminderCard()], ['mic', t('ins_voice'), 'Ctrl+Shift+R', () => Voice.toggle()],
       ['credit-card', t('subs'), '', () => this.subs()], ['bell', t('reminders'), '', () => this.reminders()], ['palette', t('themes'), '', () => this.themes()], ['settings-2', t('settings'), '', () => this.settings()], ['app-window', t('widget'), 'Ctrl+Alt+N', () => API?.toggleWidget()],
@@ -305,18 +305,40 @@ const Panels = {
     setTimeout(() => { const off = (e) => { if (!m.contains(e.target)) { this.closeMenu(); removeEventListener('pointerdown', off, true); } }; addEventListener('pointerdown', off, true); }, 0);
   },
   closeMenu() { $('#ctxmenu').hidden = true; },
+  paperKindSub(at, existing) {
+    const cur = existing ? (existing.paperKind || '') : (Store.state.settings.stickyKind || '');
+    const kids = PAPER_KINDS.map(([k, ic]) => h('button', {
+      class: 'chip' + (cur === k ? ' on' : ''),
+      title: t('v23.pk_' + (k || 'classic')),
+      'data-pk': k || 'classic',
+      onclick: () => {
+        this.closeMenu();
+        if (existing) {
+          Store.change(() => { if (k) existing.paperKind = k; else delete existing.paperKind; });
+          Items.mount(existing); Canvas.drawSel(); Minimap.drawSoon();
+        } else {
+          Store.state.settings.stickyKind = k; Store.save();
+          const p = at || Canvas.center();
+          Features.addAt(stickyDefaults({ paperKind: k }), p.x, p.y, true);
+        }
+      },
+    }, iconSvg(ic, 14), ' ' + t('v23.pk_' + (k || 'classic'))));
+    return h('div', { class: 'msub pk-sub' }, h('span', {}, t('v23.paper_kind') + ':'), ...kids);
+  },
   ctx(e) {
+
     const node = e.target.closest('.item'); const p = Canvas.s2w(e.clientX, e.clientY); const I = (n) => iconSvg(n, 15);
     if (!node) {
       return this.menu(e.clientX, e.clientY, [
         [I('clipboard-paste'), t('paste'), () => Clip.paste(p), '', 'Ctrl+V'], '-',
-        [I('type'), t('t_text'), () => Tools.createText(p.x, p.y)], [I('sticky-note'), t('t_sticky'), () => Features.addAt({ type: 'sticky', w: 220, h: 220, paper: '#ffe66d', font: 'Playpen Sans', size: 20, html: '' }, p.x, p.y, true)],
+        [I('type'), t('t_text'), () => Tools.createText(p.x, p.y)], [I('sticky-note'), t('t_sticky'), () => Features.addAt(stickyDefaults(), p.x, p.y, true)], ['', '', null, this.paperKindSub(p)],
         [I('smile-plus'), t('t_library'), () => this.library()], [I('image'), t('ins_image'), () => Features.pickAndAdd('image', p)], [I('timer'), t('ins_countdown'), () => Features.newCountdown(p)], [I('alarm-clock'), t('ins_reminder'), () => Features.newReminderCard(p)], [I('tv'), t('ins_show'), () => Features.showSearch(p)], '-',
         [I('maximize'), t('zoom_fit'), () => Canvas.fit(), '', 'Shift+1'], [I('box-select'), LANG === 'el' ? t('panels.034') : 'Select all', () => Canvas.select(Store.items().map(i => i.id)), '', 'Ctrl+A']]);
     }
     const id = node.dataset.id; if (!Canvas.sel.has(id)) Canvas.select([id]); const items = Canvas.selItems(); const it = items[0]; const one = items.length === 1;
     const rows = [];
     if (one && ['text', 'sticky', 'shape', 'reminder'].includes(it.type)) rows.push([I('pencil'), t('edit'), () => Canvas.edit(it.id), '', '2×Click']);
+    if (one && it.type === 'sticky') rows.push(['', '', null, this.paperKindSub(null, it)]);
     if (one && ['countdown', 'show', 'tracker', 'link', 'subs'].includes(it.type)) rows.push([I('pencil'), t('edit'), () => Features.editItem(it)]);
     if (one && ['image', 'video', 'audio', 'file'].includes(it.type)) rows.push([I('external-link'), t('open'), () => API?.openMedia(it.file)]);
     if (one && it.type === 'image') rows.push([I('smile'), LANG === 'el' ? t('panels.035') : 'Save to my memes', () => { Store.state.library.memes.push({ file: it.file, thumb: it.thumb, name: it.name || 'meme', w: it.w, h: it.h }); Store.save(); toast('🖼️ ✓'); }]);

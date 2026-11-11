@@ -7,6 +7,14 @@ const PALETTE = ['#ffffff', '#c9cdd6', '#6b7280', '#111318', '#ff4d6d', '#ff8a4c
 const STICKY = ['#ffe66d', '#ffb86b', '#ff8fab', '#c3a6ff', '#8fd3ff', '#9ef0c4', '#f5f5f5', '#2b2f3a', '#ffadad', '#ffd6a5', '#caffbf', '#a0c4ff', '#e9d5ff', '#d4a373', '#264653', '#1d3557'];
 // v2.3: paper kinds (it.paperKind). '' = classic sticky with tape.
 const PAPER_KINDS = [['', 'sticky-note'], ['lined', 'notebook-text'], ['grid', 'grid-3x3'], ['dotted', 'grip'], ['kraft', 'package'], ['index', 'id-card'], ['torn', 'scissors'], ['polaroid', 'image'], ['pin', 'pin'], ['glass', 'gem']];
+function stickyDefaults(extra) {
+  const S = (Store.state && Store.state.settings) || {};
+  const k = extra && 'paperKind' in extra ? extra.paperKind : (S.stickyKind || '');
+  const o = { type: 'sticky', w: 220, h: 220, paper: S.stickyColor || STICKY[0], font: 'Playpen Sans', size: 20, html: '', r: (Math.random() * 4 - 2), ...(extra || {}) };
+  if (k) o.paperKind = k; else delete o.paperKind;
+  return o;
+}
+
 const paperDark = (c) => { const m = /^#?([0-9a-f]{6})$/i.exec(c || ''); if (!m) return false; const v = parseInt(m[1], 16); return (0.299 * (v >> 16) + 0.587 * (v >> 8 & 255) + 0.114 * (v & 255)) < 120; };
 
 const Items = {

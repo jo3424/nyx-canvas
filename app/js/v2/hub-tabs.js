@@ -38,6 +38,9 @@ Hub.paintHubTabs = function (panes, show) {
     if (/krikri|llama-3\.1|llama3\.1/.test(s)) return { license: 'Llama 3.1 Community License', note: '', url: '' };
     return { license: t('v267.license_unknown'), note: '', url: '' };
   };
+  const raceMs = (p, ms, fb) => Promise.race([Promise.resolve(p).catch(() => fb), new Promise((r) => setTimeout(() => r(fb), ms))]);
+  const maxLabel = (n) => (n != null && Number.isFinite(+n) && +n >= 0) ? String(Math.floor(+n)) : t('v2671.max_unknown');
+  const routerDown = (port) => t('v2671.router_down', { v0: port || 8080 });
   const dot = (kind) => h('span', { class: 'hub-dot ' + (kind || 'x') });
   const pill = (txt, cls) => h('span', { class: 'hub-pill' + (cls ? ' ' + cls : '') }, txt);
   const row = (...kids) => h('div', { class: 'hub-row' }, ...kids);
@@ -52,56 +55,44 @@ Hub.paintHubTabs = function (panes, show) {
     });
   };
 
-  const paintStatus = async (el) => {
-    el.innerHTML = '';
+  const paintStatus = (el) => {
     const A = Store.state.settings.ai;
     const llama = A.providers.find((p) => p.id === 'llama') || { id: 'llama', base: 'http://127.0.0.1:' + (A.servers.llama.port || 8080) + '/v1', kind: 'local' };
-    const mid = (A.tasks && (A.tasks.commands?.m || A.tasks.chat?.m || A.tasks.greek?.m)) || '';
-    let ctxR = null, models = [], perf = null;
-    try { models = llama.enabled ? (await AI.models(llama.id, true)) || [] : []; } catch (e) { models = []; }
-    try { ctxR = await API.inv('ai:context', { ...llama, base: llama.base }, { model: mid || (models[0] && models[0].id) || undefined }); } catch (e) { ctxR = { warnings: [{ message: cleanErr(e) }] }; }
-    try { perf = await API.inv('perf:snapshot'); } catch (e) { perf = { gpu: { error: cleanErr(e) } }; }
+    const port = A.servers.llama.port || 8080;
     const meta = llamaMeta(A.servers.llama);
-    const nCtx = ctxR?.n_ctx || meta.ctx || null;
-    const loaded = Array.isArray(models) ? models.filter((m) => m.loaded === true || m.state === 'loaded') : [];
-    const loadedKnown = models.some((m) => m && (m.loaded === true || m.loaded === false || m.state));
-    const loadCount = loadedKnown ? loaded.length : null;
-    const loadMax = meta.max || null;
-    const loadLabel = loadCount != null
-      ? (loadMax ? loadCount + ' / ' + loadMax : String(loadCount))
-      : (models.length ? models.length + (loadMax ? ' / ' + loadMax : '') : '—');
-    const loadSub = loadCount != null ? t('v267.stat_loaded') : (models.length ? t('v267.available') : t('v267.loaded_unknown'));
-    const ad = perf && perf.gpu && perf.gpu.adapter;
-    const vramKnown = ad && (ad.used != null || ad.total);
     const last = AI.lastRequest || null;
-    const speed = last && last.predicted_n != null && last.predicted_ms > 0 ? (last.predicted_n / (last.predicted_ms / 1000)) : null;
-    const ctxShown = meta.ctx || nCtx;
-    const ctxLabel = meta.ctx ? t('v267.ctx_user', { v0: meta.ctx }) : (nCtx ? t('v267.ctx_live', { v0: nCtx }) : '—');
+    const cached = el._live || {};
 
+    const loadB = h('b', { 'data-st': 'load' }, cached.loadLabel || '…');
+    const loadS = h('span', { 'data-st': 'load-sub' }, cached.loadSub || t('v2671.loading'));
+    const vramB = h('b', { 'data-st': 'vram' }, cached.vramB || '…');
+    const vramS = h('span', { 'data-st': 'vram-sub' }, cached.vramS || t('v2671.loading'));
+    const ctxB = h('b', { 'data-st': 'ctx' }, cached.ctxB || (meta.ctx ? (meta.ctx >= 1024 ? Math.round(meta.ctx / 1024) + 'K' : String(meta.ctx)) : '…'));
+    const ctxS = h('span', {}, t('v267.stat_ctx'));
+    const speed = last && last.predicted_n != null && last.predicted_ms > 0 ? (last.predicted_n / (last.predicted_ms / 1000)) : null;
     const stats = h('div', { class: 'hub-stats' },
-      h('div', { class: 'hub-stat' }, h('b', {}, loadLabel), h('span', {}, loadSub)),
-      h('div', { class: 'hub-stat' }, h('b', { 'data-gvs-vram': vramKnown ? String(ad.used || 0) : '' }, vramKnown ? fmtGB(ad.used) : '—'), h('span', {}, vramKnown ? t('v267.stat_vram', { v0: fmtGB(ad.total) }) : t('v267.stat_vram_unknown') + (perf?.gpu?.error ? ' · ' + perf.gpu.error : ''))),
-      h('div', { class: 'hub-stat' }, h('b', { 'data-gvs-ctx': ctxShown ? String(ctxShown) : '' }, ctxShown ? (ctxShown >= 1024 ? Math.round(ctxShown / 1024) + 'K' : String(ctxShown)) : '—'), h('span', {}, t('v267.stat_ctx'))),
+      h('div', { class: 'hub-stat' }, loadB, loadS),
+      h('div', { class: 'hub-stat' }, vramB, vramS),
+      h('div', { class: 'hub-stat' }, ctxB, ctxS),
       h('div', { class: 'hub-stat' }, h('b', {}, speed != null ? Math.round(speed) + ' t/s' : '—'), h('span', {}, speed != null ? t('v267.stat_speed') : t('v267.stat_speed_none'))));
 
-    const hl = await API.inv('proc:health', this.healthUrl('llama', A.servers.llama)).catch(() => ({ ok: false }));
-    const hw = await API.inv('proc:health', this.healthUrl('whisper', A.servers.whisper)).catch(() => ({ ok: false }));
-    const llamaOn = !!(this.procState.llama?.running || hl.ok || hl.status);
-    const whisperOn = !!(this.procState.whisper?.running || hw.ok || hw.status);
+    const llamaDot = dot(cached.llamaKind || 'x'); llamaDot.setAttribute('data-st', 'llama-dot');
+    const llamaMsg = h('span', { class: 'grow', 'data-st': 'llama-msg' }, t('v267.llm_router') + ' · :' + port);
+    const llamaPill = h('span', { 'data-st': 'llama-pill' });
+    if (cached.loadedNames) llamaPill.append(pill(cached.loadedNames));
+    const whisperDot = dot(cached.whisperOn ? 'g' : 'x');
     const ttsOn = !!(this.procState.tts?.running);
     const sdOn = !!(this.procState.sd?.running);
-    const loadedNames = (loadedKnown ? loaded : models).map((m) => String(m.id || '').split(/[\\/]/).pop()).filter(Boolean).slice(0, 4);
     const running = h('div', {},
       h('div', { class: 'hub-h4' }, t('v267.running')),
-      row(dot(llamaOn ? 'g' : 'x'), h('span', { class: 'grow' }, t('v267.llm_router') + ' · :' + (A.servers.llama.port || 8080)), loadedNames.length ? pill(loadedNames.join(' · ')) : null),
-      row(dot(whisperOn ? 'g' : 'x'), h('span', { class: 'grow' }, t('v267.stt_row') + ' · :' + (A.servers.whisper.port || 8178)), pill((A.servers.whisper.model || A.stt.kind || '').toString().split(/[\\/]/).pop() || 'whisper')),
-      row(dot(ttsOn ? 'g' : (A.tts.mode === 'system' ? 'x' : 'x')), h('span', { class: 'grow' }, t('v267.tts_row')), ttsOn ? pill('OmniVoice') : h('button', { class: 'btn sm', onclick: () => this.startTtsEngine?.() || toast(t('v267.not_configured')) }, t('hub.064').trim())),
+      row(llamaDot, llamaMsg, llamaPill),
+      row(whisperDot, h('span', { class: 'grow' }, t('v267.stt_row') + ' · :' + (A.servers.whisper.port || 8178)), pill((A.servers.whisper.model || A.stt.kind || '').toString().split(/[\\/]/).pop() || 'whisper')),
+      row(dot(ttsOn ? 'g' : 'x'), h('span', { class: 'grow' }, t('v267.tts_row')), ttsOn ? pill('OmniVoice') : h('button', { class: 'btn sm', onclick: () => this.startTtsEngine?.() || toast(t('v267.not_configured')) }, t('hub.064').trim())),
       row(dot(sdOn ? 'g' : 'x'), h('span', { class: 'grow' }, t('v267.image_row')), sdOn ? pill('sd-server') : h('span', { class: 'muted small' }, t('v267.not_configured'))));
 
     const lastBox = h('div', {}, h('div', { class: 'hub-h4' }, t('v267.last_msg')));
     if (!last) lastBox.append(h('p', { class: 'muted small' }, t('v267.last_none')));
     else {
-      const pct = last.n_ctx ? Math.round((+last.prompt_n || 0) * 100 / last.n_ctx) : 0;
       const large = last.n_ctx && last.prompt_n != null && last.prompt_n > (last.n_ctx * 0.25);
       const issues = [];
       if (last.cpu) issues.push(t('v267.on_cpu'));
@@ -117,9 +108,75 @@ Hub.paintHubTabs = function (panes, show) {
     }
     lastBox.append(h('p', { class: 'muted small' }, t('v267.status_note')));
     const tools = h('div', { class: 'hub-tools-slot' });
+    el.innerHTML = '';
     el.append(stats, running, lastBox, h('div', { class: 'hub-h4' }, t('v267.tools_row')), tools);
     refill25(el);
     el._painted = true;
+
+    const tok = el._fillTok = (el._fillTok || 0) + 1;
+    const mid = (A.tasks && (A.tasks.commands?.m || A.tasks.chat?.m || A.tasks.greek?.m)) || '';
+    (async () => {
+      const modelsP = llama.enabled ? raceMs(AI.models(llama.id, true), 1200, []) : Promise.resolve([]);
+      const ctxP = raceMs(API.inv('ai:context', { ...llama, base: llama.base }, { model: mid || undefined }), 1200, null);
+      const perfP = raceMs(API.inv('perf:snapshot'), 1200, null);
+      const infoP = raceMs(API.inv('ai:routerInfo', llama, { timeout: 800 }), 900, null);
+      const hlP = raceMs(API.inv('proc:health', this.healthUrl('llama', A.servers.llama), 800), 900, { ok: false });
+      const hwP = raceMs(API.inv('proc:health', this.healthUrl('whisper', A.servers.whisper), 800), 900, { ok: false });
+      const [models0, ctxR0, perf0, info0, hl0, hw0] = await Promise.all([modelsP, ctxP, perfP, infoP, hlP, hwP]);
+      if (el._fillTok !== tok || !document.contains(el)) return;
+      const models = Array.isArray(models0) ? models0 : [];
+      const ctxR = ctxR0 && !ctxR0._timeout ? ctxR0 : ctxR0;
+      const perf = perf0 || { gpu: {} };
+      const info = info0 && info0.ok ? info0 : null;
+      const hl = hl0 || { ok: false };
+      const hw = hw0 || { ok: false };
+
+      const liveMax = (info && info.max_instances != null) ? info.max_instances : (meta.max || null);
+      const nCtx = ctxR?.n_ctx || meta.ctx || null;
+      const loaded = models.filter((m) => m.loaded === true || m.state === 'loaded');
+      const loadedKnown = models.some((m) => m && (m.loaded === true || m.loaded === false || m.state));
+      const loadCount = loadedKnown ? loaded.length : null;
+      const loadMax = liveMax;
+      const loadLabel = loadCount != null
+        ? (loadMax != null ? loadCount + ' / ' + loadMax : String(loadCount))
+        : (models.length ? models.length + (loadMax != null ? ' / ' + loadMax : '') : '—');
+      const loadSub = loadCount != null ? t('v267.stat_loaded') : (models.length ? t('v267.available') : t('v267.loaded_unknown'));
+      const ad = perf && perf.gpu && perf.gpu.adapter;
+      const vramKnown = ad && (ad.used != null || ad.total);
+      const ctxShown = meta.ctx || nCtx;
+      loadB.textContent = loadLabel;
+      loadS.textContent = loadSub;
+      vramB.textContent = vramKnown ? fmtGB(ad.used) : '—';
+      if (vramKnown) vramB.setAttribute('data-gvs-vram', String(ad.used || 0));
+      vramS.textContent = vramKnown ? t('v267.stat_vram', { v0: fmtGB(ad.total) }) : t('v267.stat_vram_unknown') + (perf?.gpu?.error ? ' · ' + perf.gpu.error : '');
+      ctxB.textContent = ctxShown ? (ctxShown >= 1024 ? Math.round(ctxShown / 1024) + 'K' : String(ctxShown)) : '—';
+      if (ctxShown) ctxB.setAttribute('data-gvs-ctx', String(ctxShown));
+
+      const llamaOn = !!(this.procState.llama?.running || hl.ok || hl.status);
+      const whisperOn = !!(this.procState.whisper?.running || hw.ok || hw.status);
+      llamaDot.className = 'hub-dot ' + (llamaOn ? 'g' : 'r');
+      if (!llamaOn) {
+        llamaMsg.textContent = t('v267.llm_router') + ' · ' + routerDown(port);
+        llamaMsg.classList.add('hub-down');
+      } else {
+        llamaMsg.textContent = t('v267.llm_router') + ' · :' + port;
+        llamaMsg.classList.remove('hub-down');
+      }
+      const loadedNames = (loadedKnown ? loaded : models).map((m) => String(m.id || '').split(/[\\/]/).pop()).filter(Boolean).slice(0, 4);
+      llamaPill.innerHTML = '';
+      if (loadedNames.length) llamaPill.append(pill(loadedNames.join(' · ')));
+      whisperDot.className = 'hub-dot ' + (whisperOn ? 'g' : 'x');
+
+      el._live = {
+        loadLabel, loadSub,
+        vramB: vramB.textContent, vramS: vramS.textContent,
+        ctxB: ctxB.textContent,
+        llamaKind: llamaOn ? 'g' : 'r',
+        whisperOn, loadedNames: loadedNames.join(' · '),
+        liveMax,
+      };
+      this._routerLive = { max: liveMax, down: !llamaOn, port, at: Date.now() };
+    })().catch((e) => console.warn('hub status fill', e));
   };
 
   const paintModels = async (el) => {
@@ -197,45 +254,86 @@ Hub.paintHubTabs = function (panes, show) {
   const paintEngines = (el) => {
     el.innerHTML = '';
     const A = Store.state.settings.ai;
-    const compact = (id, title, summary, startId) => {
+    const compact = (id, title, summary, startId, opts) => {
+      opts = opts || {};
       const st = h('span', { class: 'srv-st' });
       const log = h('pre', { class: 'srv-log', hidden: true });
       const box = h('div', { class: 'srv', 'data-srv': id });
+      const sumEl = h('span', { class: 'muted small', 'data-st': 'summary' }, summary);
+      let live = !!(this.procState[startId || id]?.running);
+      let mine = live;
+      let lastHealth = null;
+      const port = opts.port;
       const upd = (s) => {
-        if (s) this.procState[id] = s;
-        const r = this.procState[id] || {};
-        st.className = 'srv-st ' + (r.running ? 'on' : 'off');
-        st.textContent = r.running ? t('hub.061', { pid: r.pid }) : (r.exit != null ? t('hub.062', { exit: r.exit }) : t('hub.063'));
+        if (s) this.procState[startId || id] = s;
+        const r = this.procState[startId || id] || {};
+        mine = !!r.running;
+        live = !!(mine || (lastHealth && (lastHealth.ok || lastHealth.status)));
+        if (opts.health && lastHealth && !live) {
+          st.className = 'srv-st err';
+          st.textContent = routerDown(port);
+        } else if (live && !mine && opts.health) {
+          st.className = 'srv-st on';
+          st.textContent = t('v2671.external_on', { v0: port || 8080 });
+        } else {
+          st.className = 'srv-st ' + (r.running ? 'on' : 'off');
+          st.textContent = r.running ? t('hub.061', { pid: r.pid }) : (r.exit != null ? t('hub.062', { exit: r.exit }) : (opts.health ? routerDown(port) : t('hub.063')));
+          if (opts.health && !r.running) st.className = 'srv-st err';
+        }
         log.textContent = (r.cmd ? '> ' + r.cmd + '\n' : '') + ((r.log || []).join('\n'));
       };
       API.inv('proc:status', startId || id).then(upd).catch(() => {});
       if (API.onProcStatus) API.onProcStatus((s) => { if (s.id === (startId || id)) upd(s); });
-      const running = () => !!(this.procState[startId || id]?.running);
+      const runningMine = () => !!(this.procState[startId || id]?.running);
       const go = async (e) => {
         const b = e.currentTarget; b.disabled = true;
         try {
-          if (running()) upd(await API.inv('proc:stop', startId || id));
+          if (runningMine()) upd(await API.inv('proc:stop', startId || id));
           else if (id === 'sd') await Lazy.run('hub25', () => Hub25.sdStart());
           else await this.startServer(startId || id);
-        } finally { b.disabled = false; }
+        } finally { b.disabled = false; syncDot(); }
       };
-      const startLbl = () => running() ? t('hub.065').trim() : t('hub.064').trim();
-      const btn = h('button', { class: 'btn sm primary', onclick: go }, startLbl());
+      const startLbl = () => runningMine() ? t('hub.065').trim() : t('hub.064').trim();
+      const btn = h('button', { class: 'btn sm primary', 'data-st': 'start', onclick: go }, startLbl());
       const logs = h('button', { class: 'btn sm ghost', onclick: () => { log.hidden = !log.hidden; } }, t('v267.logs'));
-      box.append(row(dot('x'), h('span', { class: 'grow' }, h('b', {}, title), h('br'), h('span', { class: 'muted small' }, summary)), st, btn, logs), log);
-      const syncDot = () => { const d = box.querySelector('.hub-dot'); if (d) d.className = 'hub-dot ' + (running() ? 'g' : 'x'); btn.textContent = startLbl(); };
+      box.append(row(dot('x'), h('span', { class: 'grow' }, h('b', {}, title), h('br'), sumEl), st, btn, logs), log);
+      const syncDot = () => {
+        const d = box.querySelector('.hub-dot');
+        const on = !!(runningMine() || (opts.health && lastHealth && (lastHealth.ok || lastHealth.status)));
+        if (d) d.className = 'hub-dot ' + (on ? 'g' : (opts.health ? 'r' : 'x'));
+        btn.textContent = startLbl();
+        upd(this.procState[startId || id]);
+      };
+      if (opts.health) {
+        const ping = async () => {
+          lastHealth = await API.inv('proc:health', this.healthUrl(id, opts.cfg || A.servers[id] || {}), 800).catch(() => ({ ok: false }));
+          syncDot();
+        };
+        ping();
+        const ivH = setInterval(() => { if (!document.contains(box)) return clearInterval(ivH); ping(); }, 2500);
+      }
       const iv = setInterval(() => { if (!document.contains(box)) return clearInterval(iv); syncDot(); }, 800);
       setTimeout(syncDot, 200);
+      box._setSummary = (txt) => { sumEl.textContent = txt; };
       return box;
     };
     const L = A.servers.llama, W = A.servers.whisper, meta = llamaMeta(L);
     const ctxShow = meta.ctx || '—';
     const dirShow = (meta.dir || modelsDirOf(L) || '—').toString().split(/[\\/]/).slice(-2).join('\\');
     const build = /b12\d+/.test(String(L.exe || L.extra || '')) ? (String(L.exe + L.extra).match(/b12\d+/) || ['b12230'])[0] : t('v267.llm_build_unknown');
+    const maxShow = maxLabel(this._routerLive && this._routerLive.max != null ? this._routerLive.max : (meta.max || null));
+    const llamaBox = compact('llama', t('v267.llm_router'), t('v267.llm_summary', { v0: build, v1: dirShow, v2: maxShow, v3: ctxShow, v4: 'Vulkan' }), 'llama', { health: true, port: L.port || 8080, cfg: L });
     el.append(
-      compact('llama', t('v267.llm_router'), t('v267.llm_summary', { v0: build, v1: dirShow, v2: meta.max || '—', v3: ctxShow, v4: 'Vulkan' })),
+      llamaBox,
       compact('whisper', t('v267.stt_row'), t('v267.stt_summary', { v0: (W.model || '').split(/[\\/]/).pop() || 'ggml', v1: W.language || A.stt.language || 'el', v2: W.port || 8178 })),
     );
+    const llamaProv = A.providers.find((p) => p.id === 'llama') || { id: 'llama', base: 'http://127.0.0.1:' + (L.port || 8080) + '/v1', kind: 'local' };
+    raceMs(API.inv('ai:routerInfo', llamaProv, { timeout: 800 }), 900, null).then((info) => {
+      const live = (info && info.ok && info.max_instances != null) ? info.max_instances : (meta.max || null);
+      this._routerLive = { ...(this._routerLive || {}), max: live, at: Date.now() };
+      llamaBox._setSummary?.(t('v267.llm_summary', { v0: build, v1: dirShow, v2: maxLabel(live), v3: ctxShow, v4: 'Vulkan' }));
+    });
+
     const ttsMode = A.tts.mode;
     const ttsBox = h('div', { class: 'srv', 'data-srv': 'tts' });
     if (ttsMode === 'system') {
@@ -263,10 +361,32 @@ Hub.paintHubTabs = function (panes, show) {
         this.field('GPU layers (-ngl)', this.inp(L, 'ngl', '99', 'number')),
         this.ctxField(L),
         this.field(t('v267.models_max'), this.inp(L, 'modelsMax', '2', 'number')),
+        this.field(t('v2671.n_parallel'), this.inp(L, 'np', '1', 'number')),
         this.field(t('v267.disk_budget'), this.inp(L, 'diskBudgetGB', '70', 'number'), t('v267.disk_budget_help'))),
       this.llamaCtxExtras(L),
       this.field(t('hub.069'), this.inp(L, 'extra', t('v22.ph_llama')), t('v22.extra_help')),
-      h('label', { class: 'chk' }, h('input', { type: 'checkbox', class: 'toggle', checked: L.autoStart ? true : null, onchange: (e) => { L.autoStart = e.target.checked; Store.save(); } }), h('span', {}, t('v22.autostart')))
+      h('label', { class: 'chk' }, h('input', { type: 'checkbox', class: 'toggle', checked: L.autoStart ? true : null, onchange: (e) => { L.autoStart = e.target.checked; Store.save(); } }), h('span', {}, t('v22.autostart'))),
+      (() => {
+        const box = h('div', { class: 'win-auto' });
+        const paint = (st) => {
+          const on = !!(st && st.on);
+          L.winAutostart = on; Store.save();
+          box.innerHTML = '';
+          box.append(
+            h('label', { class: 'chk' }, h('input', { type: 'checkbox', class: 'toggle', checked: on ? true : null, onchange: async (e) => {
+              const want = e.target.checked;
+              try {
+                const r = await API.inv('proc:winAutostart', { on: want, cfg: L });
+                toast(r.on ? t('v2671.win_autostart_on') : t('v2671.win_autostart_off'), { ms: 6000 });
+                paint(r);
+              } catch (err) { e.target.checked = !want; toast('⚠️ ' + t('v2671.win_autostart_fail', { v0: cleanErr(err) }), { kind: 'err', ms: 9000 }); }
+            } }), h('span', {}, t('v2671.win_autostart'))),
+            h('p', { class: 'muted small' }, t('v2671.win_autostart_help', { v0: L.port || 8080 }) + (st && st.path ? ' · ' + st.path : ''))
+          );
+        };
+        API.inv('proc:winAutostart').then(paint).catch(() => paint({ on: !!L.winAutostart }));
+        return box;
+      })()
     );
     this._rows.llama = { exe: llamaExe, model: llamaModel, modelsDir: llamaDir, log: null };
     const whisAdv = h('div', { 'data-srv': 'whisper' });

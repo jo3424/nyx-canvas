@@ -159,7 +159,8 @@ function wire(ctx) {
   H('ai:ping', (p) => ai.ping(p));
   H('ai:chat', (p, body) => ai.chat(p, body));
   H('ai:prepare', (p, opts) => ai.prepare(p, opts || {}));
-  H('ai:props', (p) => ai.props(p));
+  H('ai:props', (p, opts) => ai.props(p, opts || {}));
+  H('ai:routerInfo', (p, opts) => ai.routerInfo(p, opts || {}));
   H('ai:tokenize', (p, content) => ai.tokenize(p, content));
   H('ai:context', (p, opts) => ai.contextInfo(p, opts || {}));
   H('ai:recommendCtx', (file, o) => { const limits = require('./limits'); if (file) return limits.recommendFromGguf(file, o || {}); return limits.recommendCtx({ meta: limits.GEMMA4_12B, weightsBytes: (o && o.weightsBytes) || 6.71 * 2 ** 30, ...(o || {}) }); });
@@ -223,7 +224,12 @@ function wire(ctx) {
   H('proc:precheck', (id, cfg) => { const e = procs.precheck(id, cfg); return e ? { ok: false, field: e.field, error: e.message } : { ok: true }; });
   H('proc:stop', (id) => procs.stop(id));
   H('proc:status', (id) => procs.status(id));
-  H('proc:health', async (url) => { try { const c = new AbortController(); setTimeout(() => c.abort(), 2000); const r = await fetch(url, { signal: c.signal }); return { ok: r.ok, status: r.status }; } catch (e) { return { ok: false }; } });
+  H('proc:health', async (url, ms) => { try { const c = new AbortController(); const wait = (ms > 0 ? +ms : 2000); setTimeout(() => c.abort(), wait); const r = await fetch(url, { signal: c.signal }); return { ok: r.ok, status: r.status }; } catch (e) { return { ok: false }; } });
+  H('proc:winAutostart', (opts) => {
+    opts = opts || {};
+    if (opts.on === true || opts.on === false) return procs.winAutostartSet(!!opts.on, opts.cfg || {});
+    return procs.winAutostartGet();
+  });
   // system tools
   require('./toolindex').wire(C, H);
   v25 = require('./v25').wire(C, H, { procs, secrets, send, safeMedia, saveBuf, finder, systools });

@@ -214,9 +214,26 @@ function isNeedModel(e) { return !!(e && (e.status === 400 || /\b400\b/.test(Str
 
 async function props(p, opts = {}) {
   const q = modelQuery(opts.model);
-  const r = await fetchNative(p, '/props' + q, {}, 4000);
+  const r = await fetchNative(p, '/props' + q, {}, opts.timeout || 4000);
   const n_ctx = limits.parseNctx(r.json);
   return { ok: true, n_ctx, raw: r.json, root: r.root, source: 'props', model: opts.model || null };
+}
+function parseRouterMax(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const n = raw.max_instances ?? raw.models_max ?? raw.modelsMax ?? (raw.router && (raw.router.max_instances ?? raw.router.models_max));
+  if (n == null || !Number.isFinite(+n)) return null;
+  return Math.floor(+n);
+}
+async function routerInfo(p, opts = {}) {
+  const timeout = opts.timeout || 800;
+  try {
+    const r = await props(p, { timeout });
+    const max = parseRouterMax(r.raw);
+    const role = r.raw && r.raw.role;
+    return { ok: true, role: role || (max != null ? 'router' : null), max_instances: max, n_ctx: r.n_ctx, raw: r.raw, root: r.root };
+  } catch (e) {
+    return { ok: false, status: e.status, error: String(e.message || e), max_instances: null };
+  }
 }
 async function slots(p, opts = {}) {
   const q = modelQuery(opts.model);
@@ -404,4 +421,4 @@ function exeHelp(exe) {
     ch.on('close', () => { clearTimeout(tm); res({ ok: true, out: out.slice(0, 6000) }); });
   });
 }
-module.exports = { parseWait, waitOf, jfetch, models, ping, chat, prepare, props, slots, tokenize, contextInfo, embed, transcribe, tts, runCmd, fillTemplate, buildTtsCmd, cmdQuote, exeHelp, netCode, netMessage, baseVariants, hintFor, findLms, lmsServerStart, isForbidden, isNeedModel, modelQuery, _baseCache: baseCache, _thinkCache: thinkCache };
+module.exports = { parseWait, waitOf, jfetch, models, ping, chat, prepare, props, parseRouterMax, routerInfo, slots, tokenize, contextInfo, embed, transcribe, tts, runCmd, fillTemplate, buildTtsCmd, cmdQuote, exeHelp, netCode, netMessage, baseVariants, hintFor, findLms, lmsServerStart, isForbidden, isNeedModel, modelQuery, _baseCache: baseCache, _thinkCache: thinkCache };

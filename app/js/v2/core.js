@@ -157,6 +157,14 @@ const AI = {
   async models(pid, force) { const c = this.modelCache[pid]; if (!force && c && Date.now() - c.at < 60e3) return c.list; const p = this.prov(pid); if (!p) throw new Error(t('v23.no_provider_short')); const r = await API.inv('ai:models', p); if (r && !Array.isArray(r) && r.error && r.code) { const e = new Error(r.error); e.code = r.code; e.status = r.status; if (e.status === 403) this.markBlocked(p, e); throw e; } this.modelCache[pid] = { list: r, at: Date.now() }; return r; },
   // v2.6.6: try the resolved provider, then other enabled ones. A 403 provider is marked red and never reused silently. Any fallback is visible.
   async pickModel(task) {
+    const c = (this.cfg().tasks || {})[task] || {};
+    if (!c.m && (task === 'private' || c.p)) {
+      const name = ((typeof AI_TASKS !== 'undefined' && AI_TASKS.find(x => x[0] === task)) || [task, task])[1];
+      const err = new Error(t('v2671.need_model', { v0: name }));
+      err.code = 'NOMODEL';
+      toast('⚠️ ' + err.message, { kind: 'err', ms: 8000 });
+      throw err;
+    }
     const { p, m } = this.task(task);
     if (p && m) return { p, m };
     const cands = [p, ...this.enabled().filter(x => x !== p)].filter(Boolean); const errs = [];

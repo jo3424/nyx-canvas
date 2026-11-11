@@ -12,7 +12,7 @@
     right.insertBefore(tb('btn-assistant', 'sparkles', t('boot.001'), () => Assistant.toggle()), before);
     right.insertBefore(tb('btn-browser', 'globe', 'Browser (Ctrl+B)', () => Browser.toggle()), before);
     right.insertBefore(tb('btn-store', 'blocks', t('boot.002'), () => PluginStore.open()), before);
-    right.insertBefore(tb('btn-tools', 'wrench', t('boot.003'), () => Hub.tools()), before);
+    // v2.6.7.1: the wrench «Εργαλεία συστήματος» icon opened Settings (same as Ρυθμίσεις). Tools stay under Ρυθμίσεις → Εργαλεία & διαδρομές and Ctrl+K.
     right.insertBefore(tb('btn-ai', 'cpu', t('boot.004'), () => Hub.open()), before);
     Assistant.init(); Browser.init(); Automations.init();
     PluginStore.refresh().then(() => PluginStore.syncCards()).catch(e => console.warn('plugins', e));

@@ -376,7 +376,7 @@ const Assistant = {
     const includeBoard = NyxPrompt.needsBoard(text, { toolsCalled: [] });
     const doActs = async (list) => { const out = []; for (const a of list) { const r = await Cmd.exec(a.tool, a.args); actions.push({ tool: a.tool, args: typeof a.args === 'string' ? JSON.parse(a.args || '{}') : a.args, ok: r?.ok !== false, cancelled: r?.cancelled }); out.push({ tool: a.tool, result: r }); } return out; };
     const offline = async (why) => { const acts = LocalIntent.parse(text); if (!acts) throw new Error(why + t('assistant.106')); await doActs(acts); return { content: t('assistant.107', { why }), actions, model: 'local' }; };
-    let pm; try { pm = await AI.pickModel('commands'); model = pm.m; } catch (e) { return offline(e.message); }
+    let pm; try { pm = await AI.pickModel('commands'); model = pm.m; } catch (e) { if (e && e.code === 'NOMODEL') return { content: '⚠️ ' + cleanErr(e), error: true }; return offline(e.message); }
     let nCtx = AI.lastPrep && AI.lastPrep.n_ctx;
     try { const c = await API.inv('ai:context', pm.p, { model: pm.m }); if (c && c.n_ctx) nCtx = c.n_ctx; } catch (e) {}
     const hist = this.history({ nCtx });

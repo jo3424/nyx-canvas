@@ -243,8 +243,13 @@ const Hub = {
       }
       msel.value = c.m || '';
       const shown = c.m || r.m;
-      res.textContent = r.p ? '→ ' + r.p.name + (shown ? ' · ' + String(shown).split(/[\\/]/).pop().slice(0, 40) : ' · ' + t('v266.pick_model')) : '⚠️ ' + t('v23.no_enabled');
-      res.classList.toggle('bad', !r.p || AI.isBlocked(r.p && r.p.id));
+      if (!c.m) {
+        res.textContent = '⚠️ ' + t('v2671.need_model_row');
+        res.classList.add('bad');
+      } else {
+        res.textContent = r.p ? '→ ' + r.p.name + (shown ? ' · ' + String(shown).split(/[\\/]/).pop().slice(0, 40) : ' · ' + t('v266.pick_model')) : '⚠️ ' + t('v23.no_enabled');
+        res.classList.toggle('bad', !r.p || AI.isBlocked(r.p && r.p.id));
+      }
     };
     psel.onchange = () => { c.p = psel.value; c.m = ''; if (c.p === 'lmstudio') { const lm = A.providers.find(x => x.id === 'lmstudio'); if (lm) { lm.enabled = true; lm.userOn = true; } } Store.save(); row._refresh(); Assistant.updModel?.(); };
     msel.onchange = () => { c.m = msel.value; if (c.m && !c.p) c.p = AI.task(k).p?.id || ''; Store.save(); if (k === 'embed') Search.index = {}; row._refresh(); Assistant.updModel?.(); };
@@ -281,6 +286,7 @@ const Hub = {
     try {
       const st = await API.inv('proc:start', id, cfg); this.procState[id] = st;
       if (id === 'whisper') { A.stt.base = 'http://127.0.0.1:' + cfg.port; Store.save(); }
+      if (id === 'llama' && cfg.winAutostart) API.inv('proc:winAutostart', { on: true, cfg }).catch(() => {});
       if (!quiet) toast('▶️ ' + name); return { ok: true, st };
     } catch (e) { const m = cleanErr(e); if (!quiet) toast('⚠️ ' + name + ': ' + m.split('\n')[0], { kind: 'err', ms: 9000 }); const lg = this._rows[id]?.log; if (lg) { lg.hidden = false; } return { ok: false, error: m }; }
   },

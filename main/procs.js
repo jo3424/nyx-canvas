@@ -7,20 +7,109 @@ const nyxPath = require('./paths');
 const limits = require('./limits');
 const procs = {}; // id -> { child, log:[], startedAt, cmd }
 function splitArgs(s) { const out = []; const re = /"([^"]*)"|(\S+)/g; let m; while ((m = re.exec(s || ''))) out.push(m[1] ?? m[2]); return out; }
+function extraHas(extra, re) { return re.test(String(extra || '')); }
+function routerDir(c) {
+  if (c && c.modelsDir) return String(c.modelsDir);
+  const m = String((c && c.extra) || '').match(/--models-dir(?:=|\s+)(?:"([^"]+)"|(\S+))/);
+  return (m && (m[1] || m[2])) || '';
+}
+function isRouterMode(c) { return !!routerDir(c); }
+function modelsMaxOf(c) {
+  if (c && c.modelsMax != null && c.modelsMax !== '' && Number.isFinite(+c.modelsMax) && +c.modelsMax >= 0) return Math.floor(+c.modelsMax);
+  const m = String((c && c.extra) || '').match(/--models-max(?:=|\s+)(\d+)/);
+  return m ? +m[1] : null;
+}
 function argsFor(id, c) {
   const a = [];
+  const extra = (c && c.extra) || '';
   if (id === 'llama') {
-    a.push('-m', c.model, '--host', '127.0.0.1', '--port', String(c.port || 8080));
-    if (c.ngl !== '') a.push('-ngl', String(c.ngl ?? 99));
-    const ctx = c._resolvedCtx || c.ctx;
-    if (ctx && ctx !== 'auto') a.push('-c', String(ctx));
-    a.push(...limits.llamaExtraFlags(c));
-    if (c.jinja !== false) a.push('--jinja');
+    if (isRouterMode(c)) {
+      // Router mode (llama-server b12230): no -m; exact flags the user uses, plus --jinja for tool calling.
+      if (!extraHas(extra, /(^|\s)(--host)\b/)) a.push('--host', '127.0.0.1');
+      if (!extraHas(extra, /(^|\s)--port\b/)) a.push('--port', String(c.port || 8080));
+      const dir = routerDir(c);
+      if (dir && !extraHas(extra, /--models-dir\b/)) a.push('--models-dir', dir);
+      const max = modelsMaxOf(c);
+      if (max != null && !extraHas(extra, /--models-max\b/)) a.push('--models-max', String(max));
+      const ctx = c._resolvedCtx || c.ctx;
+      if (ctx && ctx !== 'auto' && !extraHas(extra, /(^|\s)(-c|--ctx-size)\b/)) a.push('--ctx-size', String(ctx));
+      if (c.ngl !== '' && !extraHas(extra, /(^|\s)(-ngl|--n-gpu-layers)\b/)) a.push('--n-gpu-layers', String(c.ngl ?? 99));
+      const np = (c.np != null && c.np !== '') ? +c.np : 1;
+      if (Number.isFinite(np) && !extraHas(extra, /(^|\s)(-np|--parallel)\b/)) a.push('-np', String(Math.floor(np)));
+      if (c.fa !== false && !extraHas(extra, /(^|\s)(-fa|--flash-attn)\b/)) a.push('--flash-attn', 'on');
+      if ((c.kvType === 'q8_0' || c.kvCache === 'q8_0') && !/--cache-type-k\b/.test(extra)) a.push('--cache-type-k', 'q8_0', '--cache-type-v', 'q8_0');
+      if (c.jinja !== false && !extraHas(extra, /--jinja\b/) && !extraHas(extra, /--no-jinja\b/)) a.push('--jinja');
+    } else {
+      a.push('-m', c.model, '--host', '127.0.0.1', '--port', String(c.port || 8080));
+      if (c.ngl !== '') a.push('-ngl', String(c.ngl ?? 99));
+      const ctx = c._resolvedCtx || c.ctx;
+      if (ctx && ctx !== 'auto') a.push('-c', String(ctx));
+      a.push(...limits.llamaExtraFlags(c));
+      if (c.jinja !== false) a.push('--jinja');
+    }
   }
   else if (id === 'whisper') { a.push('-m', c.model, '--host', '127.0.0.1', '--port', String(c.port || 8178)); if (c.language) a.push('-l', c.language); if (c.convert) a.push('--convert'); }
   // v2.5: stable-diffusion.cpp sd-server (native Vulkan): models are picked in its web UI from --model-dir
   else if (id === 'sd') { if (c.modelDir) a.push('--model-dir', c.modelDir); if (c.loraDir) a.push('--lora-model-dir', c.loraDir); if (c.upscaleDir) a.push('--hires-upscalers-dir', c.upscaleDir); a.push('--listen-ip', '127.0.0.1', '--listen-port', String(c.port || 7860)); }
   return a.concat(splitArgs(c.extra));
+}
+const STARTUP_NAME = 'Nyx-llama-router.vbs';
+function startupDir() {
+  if (process.env.NYX_STARTUP_DIR) return process.env.NYX_STARTUP_DIR;
+  if (process.platform === 'win32' && process.env.APPDATA) return path.join(process.env.APPDATA, 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup');
+  return '';
+}
+function vbsEscape(s) { return String(s).replace(/"/g, '""'); }
+function cmdToken(a) { a = String(a); return /[\s"]/.test(a) || a === '' ? '"' + a.replace(/"/g, '""') + '"' : a; }
+function startupVbs(c) {
+  c = resolveServerCfg(c || {});
+  const port = +c.port || 8080;
+  const args = argsFor('llama', c);
+  const runCmd = [c.exe, ...args].map(cmdToken).join(' ');
+  const health = 'http://127.0.0.1:' + port + '/health';
+  return [
+    "' Nyx Canvas — hidden llama-server router start with Windows. Generated; rewrite from Engines > Advanced.",
+    'On Error Resume Next',
+    'Dim http, sh',
+    'Set http = CreateObject("MSXML2.ServerXMLHTTP.6.0")',
+    'If http Is Nothing Then Set http = CreateObject("MSXML2.XMLHTTP")',
+    'If Not http Is Nothing Then',
+    '  http.setTimeouts 400, 400, 400, 800',
+    '  http.Open "GET", "' + vbsEscape(health) + '", False',
+    '  http.Send',
+    '  If Err.Number = 0 Then',
+    '    If http.Status >= 200 And http.Status < 500 Then WScript.Quit 0',
+    '  End If',
+    '  Err.Clear',
+    'End If',
+    'Set sh = CreateObject("WScript.Shell")',
+    'sh.Run "' + vbsEscape(runCmd) + '", 0, False',
+  ].join('\r\n') + '\r\n';
+}
+function winAutostartGet() {
+  const dir = startupDir(), file = dir ? path.join(dir, STARTUP_NAME) : '';
+  const on = !!(file && fs.existsSync(file));
+  return { on, path: file, dir, available: !!dir, platform: process.platform };
+}
+function winAutostartSet(on, c) {
+  const dir = startupDir();
+  if (!dir) throw new ProcError('startup', t('v2671.startup_nodir'));
+  const file = path.join(dir, STARTUP_NAME);
+  if (!on) {
+    if (fs.existsSync(file)) fs.unlinkSync(file);
+    return { on: false, path: file, dir };
+  }
+  c = resolveServerCfg(c || {});
+  if (!c.exe || !fs.existsSync(c.exe)) throw new ProcError('exe', t('procs.001') + (c.exe || '—'), { field: 'exe' });
+  if (isRouterMode(c)) {
+    const d = routerDir(c);
+    if (!d || !fs.existsSync(d) || !fs.statSync(d).isDirectory()) throw new ProcError('modelsDir', t('procs.014', { v0: d || '—' }), { field: 'modelsDir' });
+  } else if (!c.model || !fs.existsSync(c.model)) {
+    throw new ProcError('model', t('procs.011'), { field: 'model' });
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(file, startupVbs(c), 'utf8');
+  return { on: true, path: file, dir };
 }
 const alive = (c) => !!c && c.exitCode == null && c.signalCode == null;
 function status(id) { const p = procs[id]; return p ? { running: alive(p.child), pid: p.child?.pid, startedAt: p.startedAt, log: p.log.slice(-60), exit: p.exit, cmd: p.cmd, ctxInfo: p.ctxInfo || null } : { running: false, log: [] }; }
@@ -45,13 +134,18 @@ function killProc(p, force) {
   try { p.child.kill(force ? 'SIGKILL' : undefined); } catch (e) {}
 }
 function resolveServerCfg(c) {
-  return nyxPath.resolveCfgPaths(c || {}, ['exe', 'model', 'modelDir', 'loraDir', 'upscaleDir']);
+  return nyxPath.resolveCfgPaths(c || {}, ['exe', 'model', 'modelDir', 'modelsDir', 'loraDir', 'upscaleDir']);
 }
 function precheck(id, c) {
   c = resolveServerCfg(c);
   if (!c.exe || !fs.existsSync(c.exe)) return new ProcError('exe', t('procs.001') + (c.exe || '—'), { field: 'exe' });
   if (fs.statSync(c.exe).isDirectory()) return new ProcError('exe', t('procs.010', { v0: c.exe }), { field: 'exe' });
   if (id === 'sd') { if (c.modelDir && !fs.existsSync(c.modelDir)) return new ProcError('model', t('v25.sd_nodir', { v0: c.modelDir }), { field: 'modelDir' }); return null; }
+  if (id === 'llama' && isRouterMode(c)) {
+    const d = routerDir(c);
+    if (!d || !fs.existsSync(d) || !fs.statSync(d).isDirectory()) return new ProcError('modelsDir', t('procs.014', { v0: d || '—' }), { field: 'modelsDir' });
+    return null;
+  }
   if (!c.model) return new ProcError('model', t('procs.011'), { field: 'model' });
   if (!fs.existsSync(c.model)) return new ProcError('model', t('procs.002') + c.model, { field: 'model' });
   return null;
@@ -92,4 +186,4 @@ function stopAll() { for (const id of Object.keys(procs)) stop(id); }
 function stopWait(id, ms = 15000) { const p = procs[id]; if (!alive(p?.child)) return Promise.resolve(status(id)); return new Promise((res) => { const done = () => { clearTimeout(tm); res(status(id)); }; const tm = setTimeout(() => { killProc(p, true); setTimeout(done, 300); }, ms); p.child.once('exit', done); try { killProc(p); } catch (e) { done(); } }); }
 // v2.5: memory of the managed servers (Performance panel)
 function pids() { const o = {}; for (const [id, p] of Object.entries(procs)) if (alive(p.child)) o[id] = p.child.pid; return o; }
-module.exports = { start, stop, stopWait, stopAll, status, splitArgs, argsFor, precheck, portBusy, pids, batchLine, isBatch };
+module.exports = { start, stop, stopWait, stopAll, status, splitArgs, argsFor, precheck, portBusy, pids, batchLine, isBatch, isRouterMode, routerDir, modelsMaxOf, startupVbs, startupDir, winAutostartGet, winAutostartSet, STARTUP_NAME };

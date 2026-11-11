@@ -46,7 +46,13 @@ const Tools = {
       o.append(h('span', { class: 'hint' }, LANG === 'el' ? t('tools.001') : 'Drag over drawings to erase'));
     } else if (cur === 'text' || cur === 'sticky') {
       o.append(h('span', { class: 'hint' }, LANG === 'el' ? t('tools.002') : 'Click on the canvas to write'));
-      if (cur === 'sticky') o.append(...STICKY.map(c => h('button', { class: 'sw' + ((S.stickyColor || STICKY[0]) === c ? ' on' : ''), style: { '--c': c }, onclick: () => { S.stickyColor = c; Store.save(); this.opts(); } })));
+      if (cur === 'sticky') {
+        o.append(...STICKY.map(c => h('button', { class: 'sw' + ((S.stickyColor || STICKY[0]) === c ? ' on' : ''), style: { '--c': c }, onclick: () => { S.stickyColor = c; Store.save(); this.opts(); } })));
+        o.append(h('div', { class: 'sep' }));
+        o.append(h('span', { class: 'hint' }, t('v23.paper_kind')));
+        o.append(...PAPER_KINDS.map(([k, ic]) => h('button', { class: 'ob' + ((S.stickyKind || '') === k ? ' on' : ''), title: t('v23.pk_' + (k || 'classic')), 'data-pk': k || 'classic', onclick: () => { S.stickyKind = k; Store.save(); this.opts(); } }, iconSvg(ic, 18))));
+        o.append(h('span', { class: 'hint' }, t('v2671.paper_hint')));
+      }
     }
     o.hidden = !o.childElementCount;
   },
@@ -67,7 +73,7 @@ const Tools = {
       if (!e.shiftKey) this.pick('select');
       const host = it0 && Canvas.HOSTS.includes(it0.type) ? it0 : null; const tx = this.createText(p.x, p.y); if (host) { tx.parent = host.id; Store.save(); } return;
     }
-    if (cur === 'sticky') { const it = Store.change(() => Store.addItem({ type: 'sticky', x: p.x - 110, y: p.y - 110, w: 220, h: 220, paper: S.stickyColor || STICKY[0], font: 'Playpen Sans', size: 20, html: '', r: (Math.random() * 4 - 2) })); Items.mount(it); this.pick('select'); Canvas.edit(it.id); Minimap.drawSoon(); Canvas.emptyHint(); return; }
+    if (cur === 'sticky') { const it = Store.change(() => Store.addItem(stickyDefaults({ x: p.x - 110, y: p.y - 110 }))); Items.mount(it); this.pick('select'); Canvas.edit(it.id); Minimap.drawSoon(); Canvas.emptyHint(); return; }
     if (['shape', 'frame'].includes(cur)) return this.dragRect(e, p, cur);
     if (['arrow', 'line'].includes(cur)) return this.dragArrow(e, p, cur);
   },

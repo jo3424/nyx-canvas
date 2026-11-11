@@ -1794,5 +1794,20 @@
  "v267.ctx_live": "{v0} (live from the server)",
  "v267.prov_llama_only": "llama-server (router)",
  "v267.data_in_settings": "The data location is in Settings.",
- "v267.zone_cand_cat": "{v0} ({v1})"
+ "v267.zone_cand_cat": "{v0} ({v1})",
+ "procs.014": "models-dir folder not found: {v0}",
+ "v2671.router_down": "not running on :{v0}",
+ "v2671.max_unknown": "unknown",
+ "v2671.need_model": "Choose a model for the “{v0}” task. Nothing is sent without a model.",
+ "v2671.need_model_row": "Choose a model for this task",
+ "v2671.win_autostart": "Start with Windows (no window)",
+ "v2671.win_autostart_help": "Writes a hidden VBS to the Windows Startup folder, using the Advanced arguments (models-dir, models-max, --ctx-size, --flash-attn on, --n-gpu-layers, -np). If :{v0} already answers, a second router is not started.",
+ "v2671.win_autostart_on": "It will start with Windows, with no window.",
+ "v2671.win_autostart_off": "Removed from Windows Startup.",
+ "v2671.win_autostart_fail": "Could not write the Startup entry: {v0}",
+ "v2671.startup_nodir": "The Windows Startup folder was not found. Set NYX_STARTUP_DIR or run Nyx on Windows.",
+ "v2671.n_parallel": "Parallel slots (-np)",
+ "v2671.paper_hint": "10 paper kinds. Pick a type here before clicking the canvas, or change it from the style bar and with a right-click.",
+ "v2671.loading": "loading…",
+ "v2671.external_on": "external on :{v0}"
 }

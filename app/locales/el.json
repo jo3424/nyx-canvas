@@ -1794,5 +1794,20 @@
  "v267.ctx_live": "{v0} (ζωντανό από τον server)",
  "v267.prov_llama_only": "llama-server (router)",
  "v267.data_in_settings": "Η θέση των δεδομένων είναι στις Ρυθμίσεις.",
- "v267.zone_cand_cat": "{v0} ({v1})"
+ "v267.zone_cand_cat": "{v0} ({v1})",
+ "procs.014": "Δεν βρέθηκε ο φάκελος models-dir: {v0}",
+ "v2671.router_down": "δεν τρέχει στο :{v0}",
+ "v2671.max_unknown": "άγνωστο",
+ "v2671.need_model": "Διάλεξε μοντέλο για την εργασία «{v0}». Δεν στέλνεται χωρίς μοντέλο.",
+ "v2671.need_model_row": "Διάλεξε μοντέλο για αυτή την εργασία",
+ "v2671.win_autostart": "Εκκίνηση με τα Windows (χωρίς παράθυρο)",
+ "v2671.win_autostart_help": "Γράφει ένα κρυφό VBS στον φάκελο Εκκίνηση των Windows, με τα ορίσματα των Προχωρημένων (models-dir, models-max, --ctx-size, --flash-attn on, --n-gpu-layers, -np). Αν το :{v0} απαντά ήδη, δεν ξεκινά δεύτερο router.",
+ "v2671.win_autostart_on": "Θα ξεκινά με τα Windows, χωρίς παράθυρο.",
+ "v2671.win_autostart_off": "Αφαιρέθηκε από την εκκίνηση των Windows.",
+ "v2671.win_autostart_fail": "Δεν μπόρεσα να γράψω την εκκίνηση: {v0}",
+ "v2671.startup_nodir": "Δεν βρέθηκε ο φάκελος Εκκίνηση των Windows. Όρισε NYX_STARTUP_DIR ή τρέξε το Nyx στα Windows.",
+ "v2671.n_parallel": "Παράλληλα slots (-np)",
+ "v2671.paper_hint": "10 είδη χαρτιού. Διάλεξε τύπο εδώ πριν κάνεις κλικ στον καμβά, ή άλλαξέ τον από τη γραμμή στυλ και με δεξί κλικ.",
+ "v2671.loading": "φορτώνει…",
+ "v2671.external_on": "εξωτερικός στο :{v0}"
 }

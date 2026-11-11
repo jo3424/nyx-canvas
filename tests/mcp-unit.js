@@ -527,9 +527,9 @@ function loadBoard() {
   });
   for (const f of [homePic, fakeTxt, fakePng, tmp]) try { fs.rmSync(f, { recursive: true, force: true }); } catch (e) {}
 
-  await ok('Electron stays 45.2.3 and version is 2.6.7', () => {
+  await ok('Electron stays 45.2.3 and version is 2.6.7.x', () => {
     const pkg = require(path.join(ROOT, 'package.json'));
-    assert.strictEqual(pkg.version, '2.6.7');
+    assert.ok(pkg.version === '2.6.7' || pkg.version.startsWith('2.6.7.'), pkg.version);
     assert.strictEqual(pkg.devDependencies.electron, '45.2.3');
   });
 
