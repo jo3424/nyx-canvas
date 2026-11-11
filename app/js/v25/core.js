@@ -90,7 +90,7 @@ const Private = {
     }
     return got;
   },
-  async run(text) {
+  async run(text, onNotice, onDelta) {
     const { p, m } = await this.pick();
     const nCtx = (AI.lastPrep && AI.lastPrep.n_ctx) || 0;
     const hist = NyxPrompt.trimHistory(this.chat.filter(x => x.content).map(x => ({ role: x.role, content: String(x.content) })), { nCtx, percent: (Store.state.settings.ai.assistant || {}).historyPct ?? 25, labels: Assistant.boardLabels && Assistant.boardLabels() });
@@ -99,7 +99,8 @@ const Private = {
     const msgs = [{ role: 'system', content: t('v25.pv_system') + '\n\n' + date }, ...prior, { role: 'user', content: text }];
     const notices = [];
     if (hist.trimmed) notices.push({ kind: 'info', text: t('v266.hist_trimmed', { v0: (Store.state.settings.ai.assistant || {}).historyPct ?? 25, v1: hist.dropped || 0 }) });
-    const r = await AI.chatTurn(p, { model: m, messages: msgs, temperature: 0.8 }, (kind, msg) => notices.push({ kind, text: msg }));
+    const notify = (kind, msg) => { notices.push({ kind, text: msg }); if (onNotice) onNotice(kind, msg); };
+    const r = await AI.chatTurn(p, { model: m, messages: msgs, temperature: 0.8 }, notify, onDelta);
     const content = stripThink(r.message?.content || '', r.message?.reasoning_content || r.reasoning);
     const emptied = !!(r.emptyAfterClean || (!String(content || '').trim() && r.rawContent));
     return { content, model: r.model || m, reasoning: r.reasoning || '', truncated: !!r.truncated, notices, emptyAfterClean: emptied, rawContent: emptied ? r.rawContent : undefined };
@@ -116,8 +117,8 @@ const Private = {
   const A = Assistant; const _push = A.push.bind(A), _render = A.render.bind(A), _history = A.history.bind(A), _run = A.run.bind(A), _upd = A.updModel.bind(A), _init = A.init.bind(A);
   A.push = function (m) { if (!Private.on) return _push(m); Private.chat.push({ at: Date.now(), ...m }); if (Private.chat.length > 200) Private.chat.splice(0, Private.chat.length - 200); this.render(); };
   A.render = function () { if (!Private.on) return _render(); const real = Store.state.chat; Store.state.chat = Private.chat; try { _render(); } finally { Store.state.chat = real; } $('#as-msgs')?.prepend(h('div', { class: 'pv-banner' }, '🎭 ' + t('v25.pv_banner'))); };
-  A.history = function () { if (!Private.on) return _history(); const real = Store.state.chat; Store.state.chat = Private.chat; try { return _history(); } finally { Store.state.chat = real; } };
-  A.run = function (text) { return Private.on ? Private.run(text) : _run(text); };
+  A.history = function (opts) { if (!Private.on) return _history(opts); const real = Store.state.chat; Store.state.chat = Private.chat; try { return _history(opts); } finally { Store.state.chat = real; } };
+  A.run = function (text, onNotice, onDelta) { return Private.on ? Private.run(text, onNotice, onDelta) : _run(text, onNotice, onDelta); };
   A.updModel = async function () { await _upd(); if (Private.on) { const el = $('#as-model'); const r = AI.task('private'); if (el) { el.textContent = '🎭 ' + (r.p ? r.p.name + (r.m ? ' · ' + String(r.m).split(/[\\/]/).pop().slice(0, 24) : '') : t('v23.no_enabled')); el.classList.toggle('bad', !r.p); } } };
   A.init = function () {
     _init(); const head = this.el?.querySelector('.as-head'); if (!head) return;

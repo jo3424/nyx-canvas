@@ -22,7 +22,27 @@ const Att = {
   async pick() { const ps = await API.inv('att:pick'); if (ps?.length) this.add(ps); },
   async addFiles(files) {
     const paths = [];
-    for (const f of files) { const p = API.pathForFile(f); if (p) paths.push(p); else { try { const r = await API.importBuffer(f.name, new Uint8Array(await f.arrayBuffer())); paths.push({ media: r.file, name: f.name, size: f.size }); } catch (e) { toast('⚠️ ' + f.name + ': ' + e.message, { kind: 'err' }); } } }
+    for (const f of files) {
+      const p = API.pathForFile(f);
+      if (p) { paths.push(p); continue; }
+      try {
+        // Stream large drops in chunks so the renderer is not frozen on a single arrayBuffer().
+        let u8;
+        if (f.stream && f.size > 4 * 1024 * 1024) {
+          const reader = f.stream().getReader();
+          const chunks = []; let n = 0;
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value); n += value.byteLength;
+            if (n % (8 * 1024 * 1024) < (value.byteLength || 0)) await new Promise((r) => setTimeout(r, 0));
+          }
+          u8 = new Uint8Array(n); let o = 0; for (const c of chunks) { u8.set(c, o); o += c.byteLength; }
+        } else u8 = new Uint8Array(await f.arrayBuffer());
+        const r = await API.importBuffer(f.name, u8);
+        paths.push({ media: r.file, name: f.name, size: f.size });
+      } catch (e) { toast('⚠️ ' + f.name + ': ' + e.message, { kind: 'err' }); }
+    }
     this.add(paths);
   },
   add(paths) {
@@ -100,7 +120,7 @@ const Att = {
   },
   async pdf(e) {
     const doc = await Extras.pdfDoc({ file: e.media }); let out = '';
-    for (let p = 1; p <= Math.min(doc.numPages, 300); p++) { const tc = await (await doc.getPage(p)).getTextContent(); out += `\n[${p}] ` + tc.items.map(x => x.str).join(' '); if (p % 10 === 0) this.prog(e, 25 + 55 * p / doc.numPages); if (out.length > 400000) break; }
+    for (let p = 1; p <= Math.min(doc.numPages, 300); p++) { const tc = await (await doc.getPage(p)).getTextContent(); out += `\n[${p}] ` + tc.items.map(x => x.str).join(' '); if (p % 2 === 0) await new Promise((r) => setTimeout(r, 0)); if (p % 10 === 0) this.prog(e, 25 + 55 * p / doc.numPages); if (out.length > 400000) break; }
     e.pages = doc.numPages; e.text = out.trim(); if (!e.text.replace(/\[\d+\]/g, '').trim()) { e.text = ''; e.error = t('v25.at_pdfscan'); }
   },
   async zip(e) {

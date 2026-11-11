@@ -1,6 +1,6 @@
 'use strict';
 // Nyx v2.6.6 — system prompt + history trim. Works in the renderer (script tag) and in Node tests (module.exports).
-// Order: stable prefix (instructions → tools → board) then date/time at the END (Europe/Athens, minute precision).
+// v2.6.8 order: stable prefix (instructions → tools), then history, then board, then date, then the current user message.
 const NyxPrompt = {
   TZ: 'Europe/Athens',
   DEFAULT_HISTORY_PCT: 25,
@@ -100,18 +100,64 @@ const NyxPrompt = {
     return JSON.parse(JSON.stringify(copy));
   },
 
-  buildSystem({ instructions, extra, toolsText, boardHeader, boardBody, now, labels }) {
+  // v2.6.8: system prefix is instructions → extra → tools only (no board, no date).
+  buildPrefix({ instructions, extra, toolsText }) {
     const chunks = [];
     const inst = String(instructions || '').trim();
     if (inst) chunks.push(inst);
     const ex = String(extra || '').trim();
     if (ex) chunks.push(ex);
     if (toolsText) chunks.push(String(toolsText).trim());
-    if (boardBody) chunks.push(String(boardBody).trim());
-    else if (boardHeader) chunks.push(String(boardHeader).trim());
-    const prefix = chunks.join('\n\n');
+    return chunks.join('\n\n');
+  },
+  // Kept for older tests: prefix + optional date suffix. Board is no longer in the system string.
+  buildSystem({ instructions, extra, toolsText, boardHeader, boardBody, now, labels }) {
+    const prefix = this.buildPrefix({ instructions, extra, toolsText });
     const date = now || this.dateLine(new Date(), this.TZ, 'el-GR', labels);
     return prefix + (prefix ? '\n\n' : '') + date;
+  },
+  wireMessages(messages) {
+    return (messages || []).map((m) => {
+      const o = { role: m.role, content: m.content };
+      if (m.tool_calls) o.tool_calls = m.tool_calls;
+      if (m.tool_call_id) o.tool_call_id = m.tool_call_id;
+      if (m.name) o.name = m.name;
+      return o;
+    });
+  },
+  // Order: stable system+tools prefix, then history, then board, then date, then the current user message.
+  assembleMessages({ instructions, extra, toolsText, history, user, boardHeader, boardBody, includeBoard, now, labels }) {
+    const msgs = [];
+    const prefix = this.buildPrefix({ instructions, extra, toolsText });
+    if (prefix) msgs.push({ role: 'system', content: prefix });
+    for (const m of history || []) {
+      if (!m) continue;
+      const o = { role: m.role, content: m.content };
+      if (m.digest) o.digest = true;
+      if (m.tool_calls) o.tool_calls = m.tool_calls;
+      if (m.tool_call_id) o.tool_call_id = m.tool_call_id;
+      if (m.name) o.name = m.name;
+      msgs.push(o);
+    }
+    if (includeBoard) {
+      const board = String(boardBody || boardHeader || '').trim();
+      if (board) msgs.push({ role: 'system', content: board, _board: true });
+    }
+    const date = now || this.dateLine(new Date(), this.TZ, 'el-GR', labels);
+    if (date) msgs.push({ role: 'system', content: String(date), _date: true });
+    if (user != null && user !== '') {
+      msgs.push(typeof user === 'string' ? { role: 'user', content: user } : { role: user.role || 'user', content: user.content, ...(user.tool_calls ? { tool_calls: user.tool_calls } : {}) });
+    }
+    return msgs;
+  },
+  // Byte-stable prefix: everything before the board (and before the date / current user that follow it).
+  prefixBeforeBoard(messages) {
+    const parts = [];
+    for (const m of messages || []) {
+      if (m && (m._board || m._date)) break;
+      parts.push(String((m && m.role) || '') + '\n' + String((m && m.content) || ''));
+    }
+    return parts.join('\n\n');
   },
 
   estimateTokens(messages, tools) {

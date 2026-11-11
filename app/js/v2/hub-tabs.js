@@ -117,7 +117,7 @@ Hub.paintHubTabs = function (panes, show) {
     const mid = (A.tasks && (A.tasks.commands?.m || A.tasks.chat?.m || A.tasks.greek?.m)) || '';
     (async () => {
       const modelsP = llama.enabled ? raceMs(AI.models(llama.id, true), 1200, []) : Promise.resolve([]);
-      const ctxP = raceMs(API.inv('ai:context', { ...llama, base: llama.base }, { model: mid || undefined }), 1200, null);
+      const ctxP = raceMs(API.inv('ai:context', { ...llama, base: llama.base }, { model: mid || undefined, probe: true, timeout: 800 }), 1200, null);
       const perfP = raceMs(API.inv('perf:snapshot'), 1200, null);
       const infoP = raceMs(API.inv('ai:routerInfo', llama, { timeout: 800 }), 900, null);
       const hlP = raceMs(API.inv('proc:health', this.healthUrl('llama', A.servers.llama), 800), 900, { ok: false });
@@ -195,7 +195,7 @@ Hub.paintHubTabs = function (panes, show) {
       }
       tasks.append(rowEl);
     }
-    el.append(tasks);
+    el.append(tasks, h('p', { class: 'muted small hub-mmproj-note', 'data-vision-hint': '1' }, t('v268.mmproj_card')));
     const more = h('details', { class: 'hub-more' }, h('summary', {}, t('v267.more_tasks')));
     for (const k of moreTasks) {
       const def = (AI_TASKS || []).find((x) => x[0] === k) || [k, k, 'box'];
@@ -224,8 +224,10 @@ Hub.paintHubTabs = function (panes, show) {
       const name = id.split(/[\\/]/).pop();
       const lic = licenseFor(id);
       const size = (m.size || m.bytes) ? fmtGB(m.size || m.bytes) : '';
-      inst.append(row(dot(m.loaded === false ? 'x' : 'g'), h('span', { class: 'grow', 'data-model': id }, name + (size ? ' · ' + size : '')), pill(lic.license), pill(t('v267.zone_keep_pill'))));
+      const card = row(dot(m.loaded === false ? 'x' : 'g'), h('span', { class: 'grow', 'data-model': id }, name + (size ? ' · ' + size : '')), pill(lic.license), pill(t('v267.zone_keep_pill')));
+      inst.append(card);
     }
+    inst.append(h('p', { class: 'muted small hub-mmproj-note', 'data-mmproj': '1' }, t('v268.mmproj_card')));
     const budget = +cfg.diskBudgetGB || 70;
     inst.append(disk != null
       ? h('p', { class: 'muted small', 'data-disk': String(disk) }, t('v267.disk', { v0: fmtNum(disk / 1073741824, 1), v1: budget }))

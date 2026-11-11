@@ -157,7 +157,22 @@ function wire(ctx) {
   // v2.6 (B-31): an unreachable local provider (LM Studio off…) is an expected answer, not a crash → no stack trace in the log
   H('ai:models', async (p) => { try { return await ai.models(p); } catch (e) { if (e && e.constructor?.name === 'NetError' && typeof e.code === 'string') return { error: String(e.message || e), code: e.code, status: e.status }; throw e; } });
   H('ai:ping', (p) => ai.ping(p));
+  const chatStreams = new Map();
   H('ai:chat', (p, body) => ai.chat(p, body));
+  H('ai:chatStream', async (p, body) => {
+    const id = String((body && body._streamId) || require('crypto').randomUUID());
+    const ctrl = new AbortController();
+    chatStreams.set(id, ctrl);
+    const onStatus = (kind, msg) => send('ai:stream', { id, type: kind, notice: msg, text: msg || '' });
+    try {
+      return await ai.chatStream(p, { ...body, signal: ctrl.signal, onStatus }, {
+        signal: ctrl.signal,
+        onStatus,
+        onDelta: (ev) => send('ai:stream', { id, ...ev }),
+      });
+    } finally { chatStreams.delete(id); }
+  });
+  H('ai:chatAbort', (id) => { const c = chatStreams.get(String(id || '')); if (c) c.abort(); return true; });
   H('ai:prepare', (p, opts) => ai.prepare(p, opts || {}));
   H('ai:props', (p, opts) => ai.props(p, opts || {}));
   H('ai:routerInfo', (p, opts) => ai.routerInfo(p, opts || {}));

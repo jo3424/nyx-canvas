@@ -184,7 +184,7 @@ const LocalIntent = {
 };
 
 const Assistant = {
-  busy: false, el: null,
+  busy: false, el: null, _cancelled: false,
   init() {
     const el = this.el = h('div', { id: 'assistant', class: 'assistant', hidden: true },
       h('div', { class: 'as-head' }, h('span', { class: 'as-logo', html: iconSvg('sparkles', 18) }), h('b', {}, t('assistant.061')), h('span', { class: 'as-model chip', id: 'as-model' }, '…'), h('span', { class: 'as-limit muted small', id: 'as-limit', title: t('v265.limit_tip') }, ''), h('div', { class: 'grow' }),
@@ -194,7 +194,7 @@ const Assistant = {
       h('div', { class: 'as-sugg', id: 'as-sugg' }, ...[t('assistant.065'), t('assistant.066'), t('assistant.067'), t('assistant.068'), t('assistant.069')].map(s => h('button', { class: 'chip', onclick: () => this.send(s) }, s))),
       h('div', { class: 'as-input' }, h('button', { class: 'ib mic', id: 'as-mic', title: t('assistant.070'), html: iconSvg('mic', 18), onclick: () => this.mic() }),
         h('textarea', { id: 'as-q', rows: 1, placeholder: t('assistant.071'), onkeydown: (e) => { e.stopPropagation(); if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.send(); } if (e.key === 'Escape') this.hide(); }, oninput: (e) => { e.target.style.height = 'auto'; e.target.style.height = Math.min(140, e.target.scrollHeight) + 'px'; } }),
-        h('button', { class: 'ib send', title: t('assistant.072'), html: iconSvg('send', 18), onclick: () => this.send() })));
+        h('button', { class: 'ib send', id: 'as-send', title: t('assistant.072'), html: iconSvg('send', 18), onclick: () => this.onSendClick() })));
     el.append(h('div', { class: 'as-rs', title: t('v24.as_resize') }));
     document.body.append(el); this.render(); this.syncThink();
     API?.onAssistantOpen?.(() => this.show(true));
@@ -331,13 +331,47 @@ const Assistant = {
     const extra = A.extra || '';
     let toolsText = '';
     if (json) toolsText = t('assistant.105') + NyxPrompt.stableToolsText(Object.entries(Cmd.T).map(([n, x]) => ({ name: n, description: x.d, parameters: x.p })));
+    const now = NyxPrompt.dateLine(opts.now || new Date(), NyxPrompt.TZ, LANG === 'en' ? 'en-GB' : 'el-GR', this.boardLabels());
+    return NyxPrompt.buildSystem({ instructions, extra, toolsText, now, labels: this.boardLabels() });
+  },
+  turnMessages(text, opts) {
+    opts = opts || {};
+    const A = Store.state.settings.ai.assistant;
+    const json = !!opts.json;
+    const instructions = t('v266.sys_instructions');
+    const extra = A.extra || '';
+    const toolsText = json ? (t('assistant.105') + NyxPrompt.stableToolsText(Object.entries(Cmd.T).map(([n, x]) => ({ name: n, description: x.d, parameters: x.p })))) : '';
     const b = Store.board();
     const others = Store.state.boards.filter(x => x.id !== b.id);
     const labels = this.boardLabels();
     const header = NyxPrompt.boardHeader(b, labels);
     const body = opts.includeBoard ? NyxPrompt.boardBody(b, Cmd.items(), others, labels) : '';
     const now = NyxPrompt.dateLine(opts.now || new Date(), NyxPrompt.TZ, LANG === 'en' ? 'en-GB' : 'el-GR', labels);
-    return NyxPrompt.buildSystem({ instructions, extra, toolsText, boardHeader: header, boardBody: body, now, labels });
+    const prior = opts.prior || [];
+    return NyxPrompt.wireMessages(NyxPrompt.assembleMessages({
+      instructions, extra, toolsText, history: prior, user: text,
+      boardHeader: header, boardBody: body, includeBoard: !!opts.includeBoard, now, labels,
+    }));
+  },
+  onSendClick() { if (this.busy) this.cancel(); else this.send(); },
+  setSending(on) {
+    const b = $('#as-send'); if (!b) return;
+    b.classList.toggle('stop', !!on);
+    b.title = on ? t('v268.stop') : t('assistant.072');
+    b.innerHTML = iconSvg(on ? 'square' : 'send', 18);
+  },
+  cancel() {
+    this._cancelled = true;
+    try { AI.abort(); } catch (e) {}
+  },
+  paintLive(el, raw, reasoning) {
+    if (!el) return;
+    const lim = (typeof NyxLimits !== 'undefined') ? NyxLimits : { extractThink: (s, r) => ({ text: s, reasoning: r || '' }) };
+    const ex = lim.extractThink(raw || '', reasoning || '');
+    const think = ex.reasoning ? h('div', { class: 'as-think muted small' }, ex.reasoning) : null;
+    const body = h('div', { class: 'md' }); body.innerHTML = md(ex.text || '…');
+    el.innerHTML = '';
+    el.append(h('div', { class: 'bubble live' }, think, body, h('span', { class: 'as-caret', 'aria-hidden': 'true' })));
   },
   history(opts) {
     opts = opts || {};
@@ -360,18 +394,29 @@ const Assistant = {
   async send(text, voice) {
     const q = $('#as-q'); text = (text ?? q.value).trim(); if (!text || this.busy) return; q.value = ''; q.style.height = 'auto';
     if (this.el.hidden) this.show();
-    this.push({ role: 'user', content: text, voice: !!voice }); this.busy = true; this.el.classList.add('busy');
-    const thinking = h('div', { class: 'as-msg r-assistant thinking' }, h('div', { class: 'bubble' }, h('span', { class: 'dots' }, h('i'), h('i'), h('i')))); $('#as-msgs').append(thinking); $('#as-msgs').scrollTop = 1e9;
+    this.push({ role: 'user', content: text, voice: !!voice }); this.busy = true; this._cancelled = false; this.el.classList.add('busy'); this.setSending(true);
+    const live = h('div', { class: 'as-msg r-assistant thinking streaming', 'data-live': '1' }, h('div', { class: 'bubble' }, h('span', { class: 'dots' }, h('i'), h('i'), h('i')))); $('#as-msgs').append(live); $('#as-msgs').scrollTop = 1e9;
     const notices = [];
-    const onNotice = (kind, msg) => { notices.push({ kind, text: msg }); const n = h('div', { class: 'as-notice ' + (kind || '') }, msg); thinking.before(n); $('#as-msgs').scrollTop = 1e9; };
+    const onNotice = (kind, msg) => {
+      notices.push({ kind, text: msg });
+      const exists = [...$('#as-msgs').querySelectorAll('.as-notice')].find((n) => n.textContent === msg);
+      if (exists) return;
+      const n = h('div', { class: 'as-notice ' + (kind || '') }, msg); live.before(n); $('#as-msgs').scrollTop = 1e9;
+    };
+    const onDelta = (ev) => {
+      if (!ev) return;
+      if (ev.type === 'delta') { this.paintLive(live, ev.raw || ev.text || '', ev.reasoning || ''); $('#as-msgs').scrollTop = 1e9; }
+    };
     let res;
-    try { res = await this.run(text, onNotice); } catch (e) { res = { content: '⚠️ ' + cleanErr(e), error: true }; }
-    thinking.remove(); this.busy = false; this.el.classList.remove('busy'); this.updModel();
+    try { res = await this.run(text, onNotice, onDelta); } catch (e) { res = { content: '⚠️ ' + cleanErr(e), error: true }; }
+    if (this._cancelled && res && !res.error) { res = { ...res, cancelled: true, content: (res.content || '') }; }
+    if (this._cancelled && res && res.error && /ακυρ|cancel|abort/i.test(String(res.content || ''))) res = { content: (live.querySelector('.md') && live.querySelector('.md').textContent) || t('v268.cancelled'), cancelled: true };
+    live.remove(); this.busy = false; this.setSending(false); this.el.classList.remove('busy'); this.updModel();
     this.push({ role: 'assistant', ...res, notices: (res && res.notices) || notices }); Automations.fire('assistant', res);
-    if (res.content && !res.error && Store.state.settings.ai.assistant && Store.state.settings.ai.tts.speak) Speech.speak(res.content);
+    if (res.content && !res.error && !res.cancelled && Store.state.settings.ai.assistant && Store.state.settings.ai.tts.speak) Speech.speak(res.content);
     return res;
   },
-  async run(text, onNotice) {
+  async run(text, onNotice, onDelta) {
     const A = Store.state.settings.ai.assistant; const actions = []; let model = '';
     const includeBoard = NyxPrompt.needsBoard(text, { toolsCalled: [] });
     const doActs = async (list) => { const out = []; for (const a of list) { const r = await Cmd.exec(a.tool, a.args); actions.push({ tool: a.tool, args: typeof a.args === 'string' ? JSON.parse(a.args || '{}') : a.args, ok: r?.ok !== false, cancelled: r?.cancelled }); out.push({ tool: a.tool, result: r }); } return out; };
@@ -383,8 +428,8 @@ const Assistant = {
     if (this._histTrim && this._histTrim.trimmed && onNotice) onNotice('info', t('v266.hist_trimmed', { v0: A.historyPct ?? 25, v1: this._histTrim.dropped || 0 }));
     // if current message is already in hist as last, drop it; system+hist+user added below
     const prior = hist.filter((m, i) => !(i === hist.length - 1 && m.role === 'user' && m.content === text));
-    const tryJson = async (msgs) => {
-      const r = await AI.chat('commands', [{ role: 'system', content: this.system(true, { includeBoard }) }, ...prior, { role: 'user', content: text }], { temperature: A.temperature, onNotice });
+    const tryJson = async () => {
+      const r = await AI.chat('commands', this.turnMessages(text, { json: true, includeBoard, prior }), { temperature: A.temperature, onNotice, onDelta });
       this.showLimit(r._prep || AI.lastPrep, r._timings || r.timings);
       const raw = stripThink(r.message.content || '', r.message?.reasoning_content || r.reasoning); const j = parseJsonLoose(raw);
       const emptied = !!(r.emptyAfterClean || (!String(raw || '').trim() && (r.rawContent || r.message.content)));
@@ -396,11 +441,11 @@ const Assistant = {
       return { content: say, actions, model: r.model, via: 'json', truncated: !!r.truncated, continued: r.continued || 0, reasoning: r.reasoning || '' };
     };
     if (A.mode === 'json') { try { return await tryJson(); } catch (e) { if (netDown(e.message)) return offline(t('assistant.110')); throw e; } } // i18n-ignore
-    const msgs = [{ role: 'system', content: this.system(false, { includeBoard }) }, ...prior, { role: 'user', content: text }];
+    const msgs = this.turnMessages(text, { json: false, includeBoard, prior });
     const tools = Cmd.tools();
     for (let round = 0; round < (A.maxRounds || 6); round++) {
       let r;
-      try { r = await AI.chatTurn(pm.p, { model: pm.m, messages: msgs, tools, tool_choice: 'auto', temperature: A.temperature }, onNotice); }
+      try { r = await AI.chatTurn(pm.p, { model: pm.m, messages: msgs, tools, tool_choice: 'auto', temperature: A.temperature }, onNotice, onDelta); }
       catch (e) { const em = String(e.message || e); if (netDown(em)) return offline(t('assistant.110')); if (A.mode === 'auto' && round === 0) return await tryJson(); throw e; } // i18n-ignore
       model = r.model || model; const m = r.message || {};
       let calls = m.tool_calls || [];

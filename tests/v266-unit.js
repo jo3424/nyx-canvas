@@ -24,7 +24,8 @@ ok(/Τρίτη/.test(fmt.weekday) || /Tuesday|Tue/.test(fmt.weekday) || fmt.week
 const sys = P.buildSystem({
   instructions: 'INST', extra: 'EXTRA', toolsText: '- search_cards(): find', boardHeader: 'Active board: «Home». Use tools.', now: 'Now: Τρίτη 10/11/2026 22:17 (Europe/Athens)',
 });
-ok(sys.indexOf('INST') < sys.indexOf('EXTRA') && sys.indexOf('EXTRA') < sys.indexOf('search_cards') && sys.indexOf('search_cards') < sys.indexOf('Active board') && sys.indexOf('Active board') < sys.indexOf('Now:'), 'stable prefix instructions → extra → tools → board, date at end', sys);
+ok(sys.indexOf('INST') < sys.indexOf('EXTRA') && sys.indexOf('EXTRA') < sys.indexOf('search_cards') && sys.indexOf('search_cards') < sys.indexOf('Now:'), 'stable prefix instructions → extra → tools, date at end (board moved after history in 2.6.8)', sys);
+ok(!/Active board/.test(sys), 'buildSystem no longer puts the board in the system prefix');
 ok(sys.trim().endsWith('(Europe/Athens)'), 'date is the suffix');
 const a = P.buildSystem({ instructions: 'INST', boardHeader: 'H', now: 'Now: A' });
 const b = P.buildSystem({ instructions: 'INST', boardHeader: 'H', now: 'Now: B' });
@@ -189,7 +190,7 @@ console.log('router /props?model=');
   ok(!/groqFallback &&/.test(fs.readFileSync(R + '/app/js/v25/core.js', 'utf8')), 'silent Groq fallback wrapper is gone');
 
   const pkg = require(R + '/package.json');
-  ok((pkg.version === '2.6.7' || pkg.version.startsWith('2.6.7.')) && pkg.devDependencies.electron === '45.2.3', 'version is current (2.6.7+), Electron stays 45.2.3', pkg.version);
+  ok((pkg.version === '2.6.8' || pkg.version.startsWith('2.6.8') || pkg.version === '2.6.7' || pkg.version.startsWith('2.6.7.')) && pkg.devDependencies.electron === '45.2.3', 'version is current (2.6.8), Electron stays 45.2.3', pkg.version);
   const log = require(R + '/CHANGELOG.json')['2.6.6'];
   ok(log && log.el.length && log.el.length === log.en.length, 'CHANGELOG 2.6.6 el+en same length', log && log.el.length);
 

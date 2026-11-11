@@ -51,12 +51,17 @@ function parseWait(v) {
 }
 function waitOf(hd) { const g = (k) => hd?.get ? hd.get(k) : hd?.[k]; return parseWait(g('retry-after')) || Math.max(parseWait(g('x-ratelimit-reset-requests')), parseWait(g('x-ratelimit-reset-tokens'))) || 0; }
 const RATE_AUTO_WAIT = 20; // seconds we silently wait (max 2 times) before giving up
+function abortedErr(url) { const e = new NetError('aborted', t('v268.cancelled'), { url }); e.code = 'ABORTED'; return e; }
 async function jfetch(url, opts = {}, timeout = 180000, _try = 0) {
-  const ctrl = new AbortController(); const tm = setTimeout(() => ctrl.abort(), timeout);
+  const ext = opts.signal;
+  const ctrl = new AbortController();
+  const tm = timeout > 0 ? setTimeout(() => ctrl.abort(), timeout) : null;
+  const onAb = () => ctrl.abort();
+  if (ext) { if (ext.aborted) ctrl.abort(); else ext.addEventListener('abort', onAb, { once: true }); }
   let r;
   try { r = await fetch(url, { ...opts, signal: ctrl.signal });
     if (r.status === 429) {
-      const w = waitOf(r.headers); const txt = await r.text().catch(() => ''); clearTimeout(tm);
+      const w = waitOf(r.headers); const txt = await r.text().catch(() => ''); if (tm) clearTimeout(tm);
       if (_try < 2 && w > 0 && w <= RATE_AUTO_WAIT) { await new Promise(res => setTimeout(res, Math.ceil(w * 1000) + 250)); return jfetch(url, opts, timeout, _try + 1); }
       let det = ''; try { const j = JSON.parse(txt); det = j.error?.message || j.message || ''; } catch (e) {}
       const host = (() => { try { return new URL(url).host; } catch (e) { return url; } })();
@@ -65,16 +70,18 @@ async function jfetch(url, opts = {}, timeout = 180000, _try = 0) {
   }
   catch (e) {
     if (e instanceof NetError) throw e;
+    if (e?.name === 'AbortError' && ext && ext.aborted) throw abortedErr(url);
     const code = netCode(e);
     if (code === 'timeout' && timeout >= 30000) throw new NetError('timeout', tr('ai.001'), { url });
     throw new NetError(code || 'network', netMessage(code, url, 0, e?.cause?.message || e?.message), { url });
   }
   try {
+    if (opts._raw) return r;
     const txt = await r.text(); let j = null; try { j = JSON.parse(txt); } catch (e) {}
-    if (!r.ok) { const det = (j && (j.error?.message || j.error || j.message)) || txt.slice(0, 300); throw new NetError('http', netMessage('http', url, r.status, typeof det === 'string' ? det : JSON.stringify(det)), { status: r.status, url }); }
+    if (!r.ok) { const det = (j && (j.error?.message || j.error || j.message)) || txt.slice(0, 300); const err = new NetError('http', netMessage('http', url, r.status, typeof det === 'string' ? det : JSON.stringify(det)), { status: r.status, url, detail: typeof det === 'string' ? det : '' }); throw withImageHint(err); }
     return j ?? txt;
-  } catch (e) { if (e instanceof NetError) throw e; if (e?.name === 'AbortError') throw new NetError('timeout', tr('ai.001'), { url }); throw e; }
-  finally { clearTimeout(tm); }
+  } catch (e) { if (e instanceof NetError) throw e; if (e?.name === 'AbortError') throw (ext && ext.aborted ? abortedErr(url) : new NetError('timeout', tr('ai.001'), { url })); throw e; }
+  finally { if (tm) clearTimeout(tm); if (ext) ext.removeEventListener('abort', onAb); }
 }
 // localhost may resolve to ::1 while LM Studio/llama-server listen on 127.0.0.1 only → try IPv4 / IPv6 explicitly,
 // and a missing /v1 suffix (404) → try base + '/v1'. The working base is cached per configured base.
@@ -159,34 +166,38 @@ function applyThink(req, body) {
 function isForbidden(e) { return !!(e && (e.status === 403 || e.code === 'forbidden' || /\b403\b/.test(String(e.message || e)))); }
 
 async function chat(p, body) {
-  const req = { model: body.model, messages: body.messages, temperature: body.temperature ?? 0.4, stream: false };
-  if (body.max_tokens) req.max_tokens = body.max_tokens;
-  if (body.tools?.length) { req.tools = body.tools; req.tool_choice = body.tool_choice || 'auto'; }
-  if (body.response_format) req.response_format = body.response_format;
-  // llama-server prompt cache: stable prefix is reused when this is true. Cloud servers do not get the flag.
-  if (body.cache_prompt != null ? body.cache_prompt : (limits.isLocalLlama(p) || p?.kind === 'local')) req.cache_prompt = true;
-  applyThink(req, body);
-  const url = baseOf(p) + '/chat/completions';
-  let j;
-  try {
-    j = await jfetch(url, { method: 'POST', headers: headers(p), body: JSON.stringify(req) }, body.timeout || 240000);
-  } catch (e) {
-    const usedThink = THINK_KEYS.some(k => k in req);
-    if (usedThink && limits.isUnknownParamError(e)) {
-      const key = trimBase(p.base);
-      thinkCache.set(key, THINK_KEYS);
-      const req2 = { ...req }; for (const k of THINK_KEYS) delete req2[k];
-      j = await jfetch(url, { method: 'POST', headers: headers(p), body: JSON.stringify(req2) }, body.timeout || 240000);
-      const ch0 = j?.choices?.[0]; if (!ch0) throw new Error(t('ai.004'));
-      const msg0 = ch0.message || { role: 'assistant', content: ch0.text || '' };
-      return { message: msg0, finish: ch0.finish_reason, usage: j.usage || null, model: j.model || body.model, thinkingIgnored: true, timings: j.timings || null };
+  const local = limits.isLocalLlama(p) || p?.kind === 'local';
+  const timeout = body.timeout != null ? body.timeout : (local ? 0 : 240000);
+  const run = async (reqBody) => {
+    const req = { model: reqBody.model, messages: reqBody.messages, temperature: reqBody.temperature ?? 0.4, stream: false };
+    if (reqBody.max_tokens) req.max_tokens = reqBody.max_tokens;
+    if (reqBody.tools?.length) { req.tools = reqBody.tools; req.tool_choice = reqBody.tool_choice || 'auto'; }
+    if (reqBody.response_format) req.response_format = reqBody.response_format;
+    if (reqBody.cache_prompt != null ? reqBody.cache_prompt : local) req.cache_prompt = true;
+    applyThink(req, reqBody);
+    const url = baseOf(p) + '/chat/completions';
+    let j;
+    try {
+      j = await jfetch(url, { method: 'POST', headers: headers(p), body: JSON.stringify(req), signal: reqBody.signal }, timeout);
+    } catch (e) {
+      const usedThink = THINK_KEYS.some(k => k in req);
+      if (usedThink && limits.isUnknownParamError(e)) {
+        const key = trimBase(p.base);
+        thinkCache.set(key, THINK_KEYS);
+        const req2 = { ...req }; for (const k of THINK_KEYS) delete req2[k];
+        j = await jfetch(url, { method: 'POST', headers: headers(p), body: JSON.stringify(req2), signal: reqBody.signal }, timeout);
+        const ch0 = j?.choices?.[0]; if (!ch0) throw new Error(t('ai.004'));
+        const msg0 = ch0.message || { role: 'assistant', content: ch0.text || '' };
+        return { message: msg0, finish: ch0.finish_reason, usage: j.usage || null, model: j.model || reqBody.model, thinkingIgnored: true, timings: j.timings || null };
+      }
+      throw withImageHint(e);
     }
-    throw e;
-  }
-  const ch = j?.choices?.[0]; if (!ch) throw new Error(t('ai.004'));
-  const msg = ch.message || { role: 'assistant', content: ch.text || '' };
-  if (ch.reasoning_content && msg.reasoning_content == null) msg.reasoning_content = ch.reasoning_content;
-  return { message: msg, finish: ch.finish_reason, usage: j.usage || null, model: j.model || body.model, reasoning: msg.reasoning_content || null, timings: j.timings || null };
+    const ch = j?.choices?.[0]; if (!ch) throw new Error(t('ai.004'));
+    const msg = ch.message || { role: 'assistant', content: ch.text || '' };
+    if (ch.reasoning_content && msg.reasoning_content == null) msg.reasoning_content = ch.reasoning_content;
+    return { message: msg, finish: ch.finish_reason, usage: j.usage || null, model: j.model || reqBody.model, reasoning: msg.reasoning_content || null, timings: j.timings || null };
+  };
+  return withLoadRetry(p, body, () => withGate(p, () => run(body)), { signal: body.signal, onStatus: body.onStatus });
 }
 function rootVariants(p) {
   const orig = trimBase(p.base);
@@ -257,6 +268,25 @@ async function contextInfo(p, opts = {}) {
   const warnings = [];
   let n_ctx = null, source = '', raw = null, root = '', router = false, model = opts.model || null;
   let modelList = opts.models || null;
+  // Short Hub probes must not call /props?model= or /slots?model=: a 4s abort can cancel a model that is still loading
+  // (llama-server then answers 500 «request cancelled while waiting for model»).
+  if (opts.probe) {
+    try {
+      if (!modelList) modelList = await models(p);
+      n_ctx = limits.parseNctx({ data: modelList }) || limits.parseNctx(modelList);
+      if (n_ctx) source = 'models';
+    } catch (e) { warnings.push({ code: 'models_fail', message: String(e.message || e) }); }
+    if (n_ctx == null) {
+      try {
+        const r = await props(p, { timeout: opts.timeout || 800 });
+        n_ctx = r.n_ctx; source = 'props'; raw = r.raw; root = r.root;
+      } catch (e) {
+        if (isNeedModel(e)) router = true;
+        warnings.push({ code: router ? 'props_need_model' : 'props_fail', message: String(e.message || e), status: e.status });
+      }
+    }
+    return { n_ctx, source, root, warnings, raw, router, model, models: modelList || undefined, probe: true };
+  }
   const tryProps = async (m) => {
     const r = await props(p, { model: m });
     n_ctx = r.n_ctx; source = m ? 'props_model' : 'props'; raw = r.raw; root = r.root; model = m || model;
@@ -318,6 +348,10 @@ async function prepare(p, opts = {}) {
   let nCtx = null, ctxSrc = '', promptTokens = null, tokSrc = 'none';
   const local = limits.isLocalLlama(p) || p?.kind === 'local';
   if (local) {
+    if (opts.model && opts.wait !== false) {
+      try { await waitForModel(p, opts.model, { signal: opts.signal, onStatus: opts.onStatus }); }
+      catch (e) { if (e && e.code === 'ABORTED') throw e; warnings.push({ code: 'wait_fail', message: String(e.message || e) }); }
+    }
     try {
       const c = await contextInfo(p, { model: opts.model });
       nCtx = c.n_ctx; ctxSrc = c.source; warnings.push(...(c.warnings || []));
@@ -421,4 +455,241 @@ function exeHelp(exe) {
     ch.on('close', () => { clearTimeout(tm); res({ ok: true, out: out.slice(0, 6000) }); });
   });
 }
-module.exports = { parseWait, waitOf, jfetch, models, ping, chat, prepare, props, parseRouterMax, routerInfo, slots, tokenize, contextInfo, embed, transcribe, tts, runCmd, fillTemplate, buildTtsCmd, cmdQuote, exeHelp, netCode, netMessage, baseVariants, hintFor, findLms, lmsServerStart, isForbidden, isNeedModel, modelQuery, _baseCache: baseCache, _thinkCache: thinkCache };
+
+// ---- v2.6.8: streaming, load-wait (no fixed cap), mmproj hint, request gate ----
+function errText(e) { return String((e && (e.detail || e.message || e.error || e)) || ''); }
+function isLoadCancel(e) {
+  const s = errText(e) + ' ' + String((e && e.code) || '');
+  const st = e && e.status;
+  return st === 500 || st === 503 || /request cancelled while waiting for model|cancelled while waiting for model|waiting for model|model is (?:being )?load|loading (?:the )?model/i.test(s);
+}
+function isImageInputError(e) { return /image input is not supported/i.test(errText(e)); }
+function mmprojHint() { return t('v268.mmproj_hint'); }
+function withImageHint(e) {
+  if (!isImageInputError(e)) return e;
+  const msg = errText(e).split(' — ')[0] + ' — ' + mmprojHint();
+  if (e instanceof Error) { e.message = msg; e.code = e.code || 'NOMMPROJ'; e.hint = mmprojHint(); return e; }
+  const n = new NetError('http', msg, { status: (e && e.status) || 400 }); n.code = 'NOMMPROJ'; n.hint = mmprojHint(); return n;
+}
+const gates = new Map();
+function hostKey(p) { try { return new URL(baseOf(p) || p.base).host; } catch (e) { return String((p && p.base) || ''); } }
+function withGate(p, fn) {
+  const k = hostKey(p) || '_';
+  const prev = gates.get(k) || Promise.resolve();
+  const next = prev.catch(() => {}).then(fn);
+  gates.set(k, next.catch(() => {}));
+  return next;
+}
+function sleep(ms, signal) {
+  return new Promise((res, rej) => {
+    const tm = setTimeout(res, ms);
+    if (!signal) return;
+    const onAb = () => { clearTimeout(tm); rej(abortedErr()); };
+    if (signal.aborted) { onAb(); return; }
+    signal.addEventListener('abort', onAb, { once: true });
+  });
+}
+function modelEntry(p, model, list) {
+  const id = String(model || '');
+  const arr = list || [];
+  return arr.find((x) => x && (x.id === id || String(x.id).split(/[\\/]/).pop() === id.split(/[\\/]/).pop())) || null;
+}
+function entryLoading(m) {
+  if (!m) return null;
+  const st = String(m.status || m.state || '');
+  if (m.loading === true || /load(ing)?/i.test(st)) return true;
+  if (m.loaded === true || m.ready === true || st === 'ok' || st === 'ready' || st === 'loaded') return false;
+  if (m.loaded === false) return true;
+  return null;
+}
+async function slotsLoaded(p, model) {
+  try {
+    const r = await fetchNative(p, '/slots', {}, 2000);
+    const arr = Array.isArray(r.json) ? r.json : (r.json && (r.json.slots || r.json.data)) || [];
+    const id = String(model || '');
+    const hit = arr.find((s) => s && s.model && (s.model === id || String(s.model).includes(id) || id.includes(String(s.model))));
+    if (hit) return true;
+  } catch (e) {}
+  return false;
+}
+async function waitForModel(p, model, { signal, onStatus, interval, force } = {}) {
+  const ms = Math.max(200, +interval || 800);
+  let announced = false;
+  const announce = () => { if (!announced && onStatus) { announced = true; onStatus('load', t('v268.loading_model')); } };
+  const check = async () => {
+    if (signal && signal.aborted) throw abortedErr();
+    try {
+      const list = await models(p);
+      const loading = entryLoading(modelEntry(p, model, list));
+      if (loading === false) return { ready: true, loading };
+      if (await slotsLoaded(p, model)) return { ready: true, loading, via: 'slots' };
+      return { ready: false, loading };
+    } catch (e) {
+      if (await slotsLoaded(p, model)) return { ready: true, loading: false, via: 'slots' };
+      return { ready: false, loading: null };
+    }
+  };
+  const first = await check();
+  if (first.ready) return { ok: true, ready: true, model, via: first.via };
+  // b12230 often lists models without a loaded flag. Do not block the first request in that case;
+  // after a 500 the caller passes force and we wait one interval (or keep going while loading is known).
+  if (first.loading !== true && !force) return { ok: true, ready: 'unknown', model };
+  announce();
+  while (true) {
+    await sleep(ms, signal);
+    const st = await check();
+    if (st.ready) return { ok: true, ready: true, model, via: st.via };
+    if (st.loading !== true) return { ok: true, ready: 'unknown', model };
+  }
+}
+async function withLoadRetry(p, body, run, { signal, onStatus } = {}) {
+  const local = limits.isLocalLlama(p) || p?.kind === 'local';
+  if (!local) return run();
+  let first = true;
+  while (true) {
+    if (signal && signal.aborted) throw abortedErr();
+    try {
+      if (!first && body && body.model) await waitForModel(p, body.model, { signal, onStatus, interval: 800, force: true });
+      return await run();
+    } catch (e) {
+      const err = withImageHint(e);
+      if (err && err.code === 'ABORTED') throw err;
+      if (isImageInputError(err)) throw err;
+      if (!isLoadCancel(err)) throw err;
+      first = false;
+      if (onStatus) onStatus('load', t('v268.loading_model'));
+      await sleep(800, signal);
+    }
+  }
+}
+
+function chatBody(p, body) {
+  const local = limits.isLocalLlama(p) || p?.kind === 'local';
+  const req = { model: body.model, messages: body.messages, temperature: body.temperature ?? 0.4, stream: !!body.stream };
+  if (body.max_tokens) req.max_tokens = body.max_tokens;
+  if (body.tools?.length) { req.tools = body.tools; req.tool_choice = body.tool_choice || 'auto'; }
+  if (body.response_format) req.response_format = body.response_format;
+  if (body.cache_prompt != null ? body.cache_prompt : local) req.cache_prompt = true;
+  applyThink(req, body);
+  return req;
+}
+function parseSSE(chunk, acc) {
+  acc = acc || { buf: '', events: [] };
+  acc.buf = (acc.buf || '') + chunk;
+  let idx;
+  while ((idx = acc.buf.indexOf('\n')) >= 0) {
+    let line = acc.buf.slice(0, idx); acc.buf = acc.buf.slice(idx + 1);
+    if (line.endsWith('\r')) line = line.slice(0, -1);
+    if (!line || line.startsWith(':')) continue;
+    if (line.startsWith('data:')) {
+      const data = line.slice(5).trim();
+      if (data === '[DONE]') { acc.done = true; continue; }
+      try { acc.events.push(JSON.parse(data)); } catch (e) {}
+    }
+  }
+  return acc;
+}
+function assembleDelta(events, state) {
+  state = state || { content: '', reasoning: '', finish: '', usage: null, timings: null, model: '', tool_calls: [] };
+  for (const ev of events || []) {
+    if (ev && ev.model) state.model = ev.model;
+    if (ev && ev.usage) state.usage = ev.usage;
+    if (ev && ev.timings) state.timings = ev.timings;
+    const ch = ev && ev.choices && ev.choices[0];
+    if (!ch) continue;
+    if (ch.finish_reason) state.finish = ch.finish_reason;
+    const d = ch.delta || {};
+    if (d.content) state.content += d.content;
+    if (d.reasoning_content) state.reasoning += d.reasoning_content;
+    if (ch.reason || ch.reasoning_content) state.reasoning += String(ch.reason || ch.reasoning_content);
+    if (Array.isArray(d.tool_calls)) {
+      for (const tc of d.tool_calls) {
+        const i = tc.index != null ? tc.index : state.tool_calls.length;
+        if (!state.tool_calls[i]) state.tool_calls[i] = { id: tc.id || '', type: tc.type || 'function', function: { name: '', arguments: '' } };
+        const slot = state.tool_calls[i];
+        if (tc.id) slot.id = tc.id;
+        if (tc.function && tc.function.name) slot.function.name += tc.function.name;
+        if (tc.function && tc.function.arguments) slot.function.arguments += tc.function.arguments;
+      }
+    }
+  }
+  return state;
+}
+
+async function readSSE(res, { signal, onEvent } = {}) {
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let acc = { buf: '', events: [] };
+  try {
+    while (true) {
+      if (signal && signal.aborted) { try { await reader.cancel(); } catch (e) {} throw abortedErr(); }
+      const { done, value } = await reader.read();
+      if (done) break;
+      acc.events = [];
+      parseSSE(dec.decode(value, { stream: true }), acc);
+      for (const ev of acc.events) if (onEvent) onEvent(ev);
+      if (acc.done) break;
+    }
+    if (acc.buf && acc.buf.trim()) {
+      parseSSE('\n', acc);
+      for (const ev of acc.events) if (onEvent) onEvent(ev);
+    }
+  } finally {
+    try { reader.releaseLock(); } catch (e) {}
+  }
+}
+
+async function chatStreamOnce(p, body, { signal, onDelta } = {}) {
+  const req = chatBody(p, { ...body, stream: true });
+  const url = baseOf(p) + '/chat/completions';
+  const local = limits.isLocalLlama(p) || p?.kind === 'local';
+  const timeout = body.timeout != null ? body.timeout : (local ? 0 : 240000);
+  const r = await jfetch(url, { method: 'POST', headers: { ...headers(p), Accept: 'text/event-stream' }, body: JSON.stringify(req), signal, _raw: true }, timeout);
+  const ctype = (r.headers && (r.headers.get && r.headers.get('content-type') || r.headers['content-type'])) || '';
+  if (!r.ok) {
+    const txt = await r.text().catch(() => '');
+    let j = null; try { j = JSON.parse(txt); } catch (e) {}
+    const det = (j && (j.error && (j.error.message || j.error) || j.message)) || txt.slice(0, 300);
+    throw withImageHint(new NetError('http', netMessage('http', url, r.status, typeof det === 'string' ? det : JSON.stringify(det)), { status: r.status, url, detail: typeof det === 'string' ? det : '' }));
+  }
+  // some servers ignore stream=true and return a JSON body
+  if (!/text\/event-stream|ndjson/i.test(String(ctype)) && !String(ctype).includes('event-stream')) {
+    const txt = await r.text();
+    let j = null; try { j = JSON.parse(txt); } catch (e) {}
+    if (j && j.choices) {
+      const ch = j.choices[0] || {};
+      const msg = ch.message || { role: 'assistant', content: ch.text || '' };
+      if (onDelta && msg.content) onDelta({ type: 'delta', text: msg.content, raw: msg.content, reasoning: msg.reasoning_content || '' });
+      return { message: msg, finish: ch.finish_reason, usage: j.usage || null, model: j.model || body.model, reasoning: msg.reasoning_content || null, timings: j.timings || null, streamed: false };
+    }
+  }
+  const state = { content: '', reasoning: '', finish: '', usage: null, timings: null, model: '', tool_calls: [] };
+  await readSSE(r, {
+    signal,
+    onEvent: (ev) => {
+      const before = state.content.length;
+      assembleDelta([ev], state);
+      if (onDelta && state.content.length !== before) onDelta({ type: 'delta', text: state.content.slice(before), raw: state.content, reasoning: state.reasoning });
+      else if (onDelta && ev && ev.timings) onDelta({ type: 'timings', timings: ev.timings });
+    },
+  });
+  const msg = { role: 'assistant', content: state.content };
+  if (state.reasoning) msg.reasoning_content = state.reasoning;
+  const calls = (state.tool_calls || []).filter(Boolean);
+  if (calls.length) msg.tool_calls = calls;
+  return { message: msg, finish: state.finish || 'stop', usage: state.usage, model: state.model || body.model, reasoning: state.reasoning || null, timings: state.timings, streamed: true };
+}
+
+async function chatStream(p, body, { signal, onDelta, onStatus } = {}) {
+  const hook = onStatus || ((kind, msg) => { if (onDelta) onDelta({ type: kind, text: msg || '', notice: msg }); });
+  return withLoadRetry(p, body, () => withGate(p, async () => {
+    // After a 500, waitForModel has already run. Before the first try, a silent ready-check avoids a cancelled first request.
+    const local = limits.isLocalLlama(p) || p?.kind === 'local';
+    if (local && body.model) {
+      try { await waitForModel(p, body.model, { signal, onStatus: hook }); } catch (e) { if (e && e.code === 'ABORTED') throw e; }
+    }
+    return chatStreamOnce(p, body, { signal, onDelta });
+  }), { signal, onStatus: hook });
+}
+
+module.exports = { parseWait, waitOf, jfetch, models, ping, chat, chatStream, chatBody, parseSSE, assembleDelta, isLoadCancel, isImageInputError, mmprojHint, withImageHint, waitForModel, modelEntry, entryLoading, withLoadRetry, withGate, prepare, props, parseRouterMax, routerInfo, slots, tokenize, contextInfo, embed, transcribe, tts, runCmd, fillTemplate, buildTtsCmd, cmdQuote, exeHelp, netCode, netMessage, baseVariants, hintFor, findLms, lmsServerStart, isForbidden, isNeedModel, modelQuery, _baseCache: baseCache, _thinkCache: thinkCache, NetError };

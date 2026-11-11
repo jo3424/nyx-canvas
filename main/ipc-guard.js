@@ -85,7 +85,7 @@ const SCHEMA = {
   'i18n:get': ['p'], 'i18n:set': ['p'],
   // v2
   'secret:set': ['key', 's?'], 'secret:has': ['key'],
-  'ai:models': ['o?'], 'ai:ping': ['o?'], 'ai:chat': ['o', 'o'], 'ai:embed': ['o?', 's?', 'any'], 'ai:imageData': ['media'],
+  'ai:models': ['o?'], 'ai:ping': ['o?'], 'ai:chat': ['o', 'o'], 'ai:chatStream': ['o', 'o'], 'ai:chatAbort': ['s?'], 'ai:embed': ['o?', 's?', 'any'], 'ai:imageData': ['media'],
   'ai:lmsFind': [], 'ai:lmsStart': [], 'ai:prepare': ['o', 'o?'], 'ai:props': ['o?', 'o?'], 'ai:routerInfo': ['o?', 'o?'], 'ai:tokenize': ['o?', 'text?'], 'ai:context': ['o?', 'o?'], 'ai:recommendCtx': ['path?', 'o?'],
   'stt:buffer': ['o?', 'buf', 's?', 'o?'], 'stt:media': ['o?', 'media', 'o?'],
   'tts:run': ['o?', 's'], 'tts:test': ['o?', 's?'], 'tts:help': ['s'], 'tts:voices': ['p'], 'tts:sapi': ['s', 'p', 'p', 'o?'], 'tts:sapiStop': [],

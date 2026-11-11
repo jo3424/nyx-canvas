@@ -399,3 +399,11 @@ details.hub-adv>summary::-webkit-details-marker,details.hub-more>summary::-webki
 .pk-sub>span{flex:0 0 100%;font-size:11px;opacity:.75}
 .pk-sub .chip{display:inline-flex;align-items:center;gap:4px}
 #toolopts .ob[data-pk].on, .pk-row .ob.on{outline:2px solid var(--accent)}
+
+/* v2.6.8 streaming + load wait + mmproj note */
+.as-msg.streaming .bubble { min-height: 1.35em; }
+.as-caret { display: inline-block; width: 2px; height: 1em; margin-left: 2px; background: currentColor; vertical-align: text-bottom; animation: asBlink 1s step-end infinite; }
+@keyframes asBlink { 50% { opacity: 0; } }
+.ib.send.stop { color: var(--danger, #f85149); }
+.as-notice.load { color: var(--accent, #7c5cbf); }
+.hub-mmproj-note { margin: .35em 0 .6em; }

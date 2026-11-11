@@ -1809,5 +1809,10 @@
  "v2671.n_parallel": "Parallel slots (-np)",
  "v2671.paper_hint": "10 paper kinds. Pick a type here before clicking the canvas, or change it from the style bar and with a right-click.",
  "v2671.loading": "loading…",
- "v2671.external_on": "external on :{v0}"
+ "v2671.external_on": "external on :{v0}",
+ "v268.loading_model": "loading the model…",
+ "v268.cancelled": "Cancelled",
+ "v268.stop": "Stop",
+ "v268.mmproj_hint": "The router needs the mmproj in the same subfolder as the model, e.g. models\\gemma-4-12B-it-Q4_0\\mmproj-*.gguf.",
+ "v268.mmproj_card": "The router needs the mmproj in the same subfolder as the model, e.g. models\\gemma-4-12B-it-Q4_0\\mmproj-*.gguf."
 }

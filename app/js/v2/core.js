@@ -220,8 +220,10 @@ const AI = {
     const r = await API.inv('ai:prepare', p, { messages, model: extra.model, thinking: extra.thinking ?? A.thinking, thinkingBudget: extra.thinkingBudget ?? A.thinkingBudget, maxTokensOverride: extra.maxTokensOverride ?? A.maxTokens, reserve: extra.reserve });
     this.lastPrep = r; return r;
   },
-  async chatTurn(p, body, onNotice) { return chatTurn(p, body, onNotice); },
-  async chat(task, messages, opts = {}) { const { p, m } = await this.pickModel(task); return await this.chatTurn(p, { model: m, messages, ...opts }, opts.onNotice); },
+  _streamId: null,
+  abort() { const id = this._streamId; if (id) API.inv('ai:chatAbort', id).catch(() => {}); },
+  async chatTurn(p, body, onNotice, onDelta) { return chatTurn(p, body, onNotice, onDelta); },
+  async chat(task, messages, opts = {}) { const { p, m } = await this.pickModel(task); return await this.chatTurn(p, { model: m, messages, ...opts }, opts.onNotice, opts.onDelta); },
   async text(task, prompt, system) { const r = await this.chat(task, [...(system ? [{ role: 'system', content: system }] : []), { role: 'user', content: prompt }], { temperature: 0.3 }); return stripThink(r.message.content || '', r.message?.reasoning_content || r.reasoning); },
   async vision(file, prompt) {
     const url = await API.inv('ai:imageData', file);
@@ -279,7 +281,25 @@ const NyxLimits = {
   },
 };
 function stripThink(s, r) { return NyxLimits.stripThink(s, r); }
-async function chatTurn(p, body, onNotice) {
+function newStreamId() { return 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+async function invokeChat(p, body, onNotice, onDelta) {
+  const useStream = body.stream !== false;
+  if (!useStream) return API.inv('ai:chat', p, body);
+  const id = body._streamId || newStreamId();
+  AI._streamId = id;
+  const unsub = (typeof API !== 'undefined' && API.onAiStream) ? API.onAiStream((ev) => {
+    if (!ev || ev.id !== id) return;
+    if (ev.type === 'load' || ev.notice) { if (onNotice) onNotice('load', ev.notice || ev.text || t('v268.loading_model')); }
+    if ((ev.type === 'delta' || ev.type === 'timings') && onDelta) onDelta(ev);
+  }) : null;
+  try {
+    return await API.inv('ai:chatStream', p, { ...body, _streamId: id });
+  } finally {
+    if (typeof unsub === 'function') unsub();
+    if (AI._streamId === id) AI._streamId = null;
+  }
+}
+async function chatTurn(p, body, onNotice, onDelta) {
   const A = Store.state.settings.ai.assistant || {};
   const maxC = A.maxContinue ?? 8;
   const origin = body.messages;
@@ -301,12 +321,12 @@ async function chatTurn(p, body, onNotice) {
     const msgs = i === 0 ? origin : NyxLimits.nextContinueMessages(origin, NyxLimits.mergePieces(pieces));
     let prep = {};
     try { prep = await AI.prepare(p, msgs, { model: body.model, thinking: body.thinking ?? A.thinking, thinkingBudget: body.thinkingBudget ?? A.thinkingBudget, maxTokensOverride: body.max_tokens || body.maxTokensOverride || A.maxTokens }); lastPrep = prep; }
-    catch (e) { if (onNotice) onNotice('err', t('v265.prep_fail', { v0: cleanErr(e) })); prep = {}; }
+    catch (e) { if (e && e.code === 'ABORTED') throw e; if (onNotice) onNotice('err', t('v265.prep_fail', { v0: cleanErr(e) })); prep = {}; }
     if (prep.reason === 'prompt_overflow') throw new Error(t('v265.prompt_overflow', { v0: prep.n_ctx, v1: prep.promptTokens }));
     if (prep.omitted && !shownNoCap && onNotice) { shownNoCap = true; onNotice('info', t('v265.no_cap', { v0: prep.reason })); }
     if (prep.warnings && onNotice) for (const w of prep.warnings) if (w.code === 'tokenize_fail' || w.code === 'props_fail') onNotice('info', t('v265.warn_' + (w.code === 'tokenize_fail' ? 'tokenize' : 'props')));
     let r;
-    try { r = await API.inv('ai:chat', p, { ...body, messages: msgs, ...(prep.body || {}) }); }
+    try { r = await invokeChat(p, { ...body, messages: msgs, ...(prep.body || {}) }, onNotice, onDelta); }
     catch (e) { AI.markBlocked(p, e, true); AI.noteRequest({ failed: true, error: cleanErr(e), model: body.model }); throw e; }
     if (r && !r.message && r.error && r.status === 403) { const e = new Error(r.error); e.status = 403; AI.markBlocked(p, e, true); throw e; }
     if (r.timings || r.usage) { AI.lastTimings = r.timings || null; r._timings = r.timings || null; }

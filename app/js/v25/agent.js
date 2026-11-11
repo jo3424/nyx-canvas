@@ -237,8 +237,8 @@ Agent.confirmAlways = async function (title, list, ok) { const A = Store.state.s
   const _parse = LocalIntent.parse.bind(LocalIntent);
   LocalIntent.parse = function (text) { return Agent.intent(text) || _parse(text); };
   // system prompt: memory + skills + attachments + method
-  const _sys = A.system.bind(A); A.system = function (json) { return _sys(json) + (Agent.ctx || ''); };
-  A.history = ((h0) => function () { const H = h0(); return H; })(A.history.bind(A));
+  const _sys = A.system.bind(A); A.system = function (json, opts) { return _sys(json, opts) + (Agent.ctx || ''); };
+  A.history = ((h0) => function (opts) { return h0(opts); })(A.history.bind(A));
   // user bubble chips + undo buttons on replies
   const _msg = A.msgEl.bind(A);
   A.msgEl = function (m) {
@@ -267,14 +267,14 @@ Agent.confirmAlways = async function (title, list, ok) { const A = Store.state.s
   A.push = function (m) { if (m.role === 'user' && Agent._pendingAtts) { m = { ...m, atts: Att.meta(Agent._pendingAtts) }; } return _push(m); };
   // run: memory/skills/attachments context, live steps, cancel, fallback chain, verify, learn
   const _run = A.run.bind(A);
-  A.run = async function (text) {
+  A.run = async function (text, onNotice, onDelta) {
     const L = Agent._pendingAtts; Agent._pendingAtts = null;
     const prompt = L ? text + Att.context(L) : text;
-    if (Private?.on) { const R = Agent.begin(); try { return await Promise.race([_run(prompt), R.aborted.then(() => ({ content: '⏹ ' + t('v25.ag_cancelled'), actions: [] }))]); } finally { Agent.end(R); } }
+    if (Private?.on) { const R = Agent.begin(); try { return await Promise.race([_run(prompt, onNotice, onDelta), R.aborted.then(() => ({ content: '⏹ ' + t('v25.ag_cancelled'), actions: [] }))]); } finally { Agent.end(R); } }
     const S = Agent.S(); const AS = Store.state.settings.ai.assistant; const mr = AS.maxRounds; AS.maxRounds = Math.max(mr || 6, S.maxRounds || 10);
     Agent.ctx = await Agent.prepare(text);
     const R = Agent.begin(); let res;
-    const attempt = () => Promise.race([_run(prompt), R.aborted.then(() => ({ content: '', actions: [], cancelled: true }))]);
+    const attempt = () => Promise.race([_run(prompt, onNotice, onDelta), R.aborted.then(() => ({ content: '', actions: [], cancelled: true }))]);
     try {
       res = await Agent.withFallback(attempt, R);
       if (R.cancelled || res.cancelled) res = { ...res, content: '⏹ ' + t('v25.ag_cancelled') + (res.content ? '\n\n' + res.content : '') };

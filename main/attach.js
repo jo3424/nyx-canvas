@@ -142,10 +142,29 @@ async function inspect(file, opts = {}) {
   return r;
 }
 
+function runWorker(workerData) {
+  return new Promise((res, rej) => {
+    let Worker;
+    try { ({ Worker } = require('worker_threads')); } catch (e) { return rej(e); }
+    const w = new Worker(path.join(__dirname, 'attach-worker.js'), { workerData });
+    w.once('message', (msg) => { w.terminate().catch(() => {}); if (msg && msg.error && msg.code === 'WORKER') return rej(Object.assign(new Error(msg.error), { code: msg.code })); res(msg); });
+    w.once('error', rej);
+    w.once('exit', (c) => { if (c) rej(new Error('worker exit ' + c)); });
+  });
+}
+async function inspectAsync(file, opts = {}) {
+  try { return await runWorker({ op: 'inspect', file: String(file), opts }); }
+  catch (e) { return inspect(file, opts); }
+}
+async function unzipAsync(src, dest, opts = {}) {
+  try { return await runWorker({ op: 'unzip', src: String(src), dest: String(dest), opts }); }
+  catch (e) { return unzipSafe(src, dest, opts); }
+}
+
 function wire(H, C) {
   const root = () => tmpRoot(C.DATA_ROOT && C.DATA_ROOT());
-  H('att:inspect', (p) => inspect(String(p)));
-  H('att:unzip', async (p) => { const dest = path.join(root(), crypto.randomBytes(6).toString('hex')); const r = await unzipSafe(String(p), dest); return { ...r, text: treeText(r.tree), all: flat(r.tree).map(n => ({ rel: n.rel, path: n.path, size: n.size, kind: n.kind, note: n.note })) }; });
+  H('att:inspect', (p) => inspectAsync(String(p)));
+  H('att:unzip', async (p) => { const dest = path.join(root(), crypto.randomBytes(6).toString('hex')); const r = await unzipAsync(String(p), dest); return { ...r, text: treeText(r.tree), all: flat(r.tree).map(n => ({ rel: n.rel, path: n.path, size: n.size, kind: n.kind, note: n.note })) }; });
   H('att:pick', async () => { const { dialog, BrowserWindow } = require('electron'); const r = await dialog.showOpenDialog(BrowserWindow.getFocusedWindow() || C.mainWin(), { properties: ['openFile', 'multiSelections'] }); return r.canceled ? [] : r.filePaths; });
   H('att:cleanup', () => cleanup(root(), 0));
   setTimeout(() => cleanup(root(), 3600e3).catch(() => {}), 15000);
@@ -155,4 +174,4 @@ async function cleanup(dir, olderThan) {
   return n;
 }
 
-module.exports = { wire, inspect, unzipSafe, safeRel, kindOf, decode, isBinary, docxText, xlsxText, pptxText, odtText, treeText, flat, cleanup, LIMITS };
+module.exports = { wire, inspect, inspectAsync, unzipSafe, unzipAsync, runWorker, safeRel, kindOf, decode, isBinary, docxText, xlsxText, pptxText, odtText, treeText, flat, cleanup, LIMITS };

@@ -46,6 +46,7 @@ contextBridge.exposeInMainWorld('nyxAPI', {
   startDrag: (files) => ipcRenderer.send('drag:start', files),
   opResult: (r) => ipcRenderer.send('plugin:opResult', r),
   dispatch: (ev, data) => ipcRenderer.send('plugin:dispatch', ev, data),
+  onAiStream: on('ai:stream'),
   onPluginOp: on('plugin:op'), onPluginEvent: on('plugin:event'), onToast: on('toast'), onProcStatus: on('proc:status'),
   onBrowserNewTab: on('browser:newTab'), onBrowserDrag: on('browser:drag'), onBrowserKey: on('browser:key'), onBrowserDownload: on('browser:download'), onAssistantOpen: on('assistant:open'),
   onUpdProgress: on('upd:progress'), onFacesProgress: on('faces:progress'), onSogniProgress: on('sogni:progress'), onPhotoProgress: on('photo:progress'), onScanProgress: on('sys:scanProgress'), onScanDone: on('sys:scanDone'),
