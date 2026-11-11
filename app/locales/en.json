@@ -1814,5 +1814,21 @@
  "v268.cancelled": "Cancelled",
  "v268.stop": "Stop",
  "v268.mmproj_hint": "The router needs the mmproj in the same subfolder as the model, e.g. models\\gemma-4-12B-it-Q4_0\\mmproj-*.gguf.",
- "v268.mmproj_card": "The router needs the mmproj in the same subfolder as the model, e.g. models\\gemma-4-12B-it-Q4_0\\mmproj-*.gguf."
+ "v268.mmproj_card": "The router needs the mmproj in the same subfolder as the model, e.g. models\\gemma-4-12B-it-Q4_0\\mmproj-*.gguf.",
+ "v2681.canvas_confirm": "Confirm before every canvas change",
+ "v2681.canvas_confirm_title": "Canvas change ({tool})",
+ "v2681.canvas_blocked": "I did not change the canvas, because you did not ask explicitly. Press “To the canvas” under the reply, or tell me to put it on the canvas.",
+ "v2681.to_canvas": "To the canvas",
+ "v2681.to_canvas_done": "Added to the canvas. Ctrl+Z to undo.",
+ "v2681.attach_reserve": "Attachment token reserve (for the reply)",
+ "v2681.attach_reserve_help": "Subtracted from the real n_ctx together with history. The remainder is the attachment budget — shown in the panel, editable here, and there is no fixed 12000/24000 cap.",
+ "v2681.att_fast": "Fast",
+ "v2681.att_heavy": "Heavy",
+ "v2681.att_cache": "From cache",
+ "v2681.att_stage": "{name}: {time}, {tokens} tok",
+ "v2681.att_sent": "sent {tokens} tok",
+ "v2681.att_budget": "budget {cap} tok (n_ctx {nctx}, source {src})",
+ "v2681.att_cancel": "Cancel",
+ "v2681.att_cancelled": "The heavy stage was cancelled.",
+ "v2681.att_pdf_ocr": "This PDF has no text layer — OCR will run in the background."
 }

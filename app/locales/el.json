@@ -1814,5 +1814,21 @@
  "v268.cancelled": "Ακυρώθηκε",
  "v268.stop": "Διακοπή",
  "v268.mmproj_hint": "Ο router θέλει το mmproj στον ίδιο υποφάκελο με το μοντέλο, π.χ. models\\gemma-4-12B-it-Q4_0\\mmproj-*.gguf.",
- "v268.mmproj_card": "Ο router θέλει το mmproj στον ίδιο υποφάκελο με το μοντέλο, π.χ. models\\gemma-4-12B-it-Q4_0\\mmproj-*.gguf."
+ "v268.mmproj_card": "Ο router θέλει το mmproj στον ίδιο υποφάκελο με το μοντέλο, π.χ. models\\gemma-4-12B-it-Q4_0\\mmproj-*.gguf.",
+ "v2681.canvas_confirm": "Επιβεβαίωση πριν από κάθε αλλαγή στον καμβά",
+ "v2681.canvas_confirm_title": "Αλλαγή στον καμβά ({tool})",
+ "v2681.canvas_blocked": "Δεν άλλαξα τον καμβά, γιατί δεν το ζήτησες ρητά. Πάτησε «Στον καμβά» κάτω από την απάντηση, ή πες μου να το βάλω στον καμβά.",
+ "v2681.to_canvas": "Στον καμβά",
+ "v2681.to_canvas_done": "Το έβαλα στον καμβά. Ctrl+Z για αναίρεση.",
+ "v2681.attach_reserve": "Κράτηση tokens συνημμένου (για την απάντηση)",
+ "v2681.attach_reserve_help": "Αφαιρείται από το πραγματικό n_ctx μαζί με το ιστορικό. Το υπόλοιπο είναι το όριο για το συνημμένο — φαίνεται στο panel, το αλλάζεις εδώ, και δεν υπάρχει σταθερό 12000/24000.",
+ "v2681.att_fast": "Γρήγορο",
+ "v2681.att_heavy": "Βαρύ",
+ "v2681.att_cache": "Από cache",
+ "v2681.att_stage": "{name}: {time}, {tokens} tok",
+ "v2681.att_sent": "στάλθηκαν {tokens} tok",
+ "v2681.att_budget": "όριο {cap} tok (n_ctx {nctx}, πηγή {src})",
+ "v2681.att_cancel": "Ακύρωση",
+ "v2681.att_cancelled": "Το βαρύ στάδιο ακυρώθηκε.",
+ "v2681.att_pdf_ocr": "Το PDF δεν έχει επίπεδο κειμένου — OCR στο παρασκήνιο."
 }

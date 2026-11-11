@@ -259,7 +259,7 @@ Agent.confirmAlways = async function (title, list, ok) { const A = Store.state.s
     const q = $('#as-q'); let v = (text ?? q?.value ?? '').trim();
     if (!v && !Att.list.length) return;
     let L = null;
-    if (Att.list.length) { if (Att.list.some(e => e.state === 'work' || e.state === 'wait')) toast(t('v25.at_waiting'), { ms: 2500 }); L = await Att.take(); if (!v) v = t('v25.at_default'); }
+    if (Att.list.length) { if (Att.list.some(e => !e.fastOk && (e.state === 'work' || e.state === 'wait'))) toast(t('v25.at_waiting'), { ms: 2500 }); L = await Att.take(); if (!v) v = t('v25.at_default'); }
     Agent._pendingAtts = L; if (q) q.value = '';
     return _send(v, voice);
   };

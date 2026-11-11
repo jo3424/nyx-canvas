@@ -225,7 +225,13 @@ function isNeedModel(e) { return !!(e && (e.status === 400 || /\b400\b/.test(Str
 
 async function props(p, opts = {}) {
   const q = modelQuery(opts.model);
-  const r = await fetchNative(p, '/props' + q, {}, opts.timeout || 4000);
+  // /props?model= waits for a load on llama-server b12230. A short abort (default 4s)
+  // is what the server logs as 500 "request cancelled while waiting for model".
+  // Only use a short timeout when the caller is a probe (no ?model=). With ?model=,
+  // wait until the model is ready unless the user cancels (timeout 0 = no timer).
+  const timeout = ('timeout' in opts) ? opts.timeout : (opts.model ? 0 : 4000);
+  const run = () => fetchNative(p, '/props' + q, { signal: opts.signal }, timeout);
+  const r = (opts.model && opts.gate !== false) ? await withGate(p, run) : await run();
   const n_ctx = limits.parseNctx(r.json);
   return { ok: true, n_ctx, raw: r.json, root: r.root, source: 'props', model: opts.model || null };
 }
@@ -288,7 +294,7 @@ async function contextInfo(p, opts = {}) {
     return { n_ctx, source, root, warnings, raw, router, model, models: modelList || undefined, probe: true };
   }
   const tryProps = async (m) => {
-    const r = await props(p, { model: m });
+    const r = await props(p, { model: m, timeout: ('timeout' in opts) ? opts.timeout : (m ? 0 : 4000), signal: opts.signal });
     n_ctx = r.n_ctx; source = m ? 'props_model' : 'props'; raw = r.raw; root = r.root; model = m || model;
   };
   const trySlots = async (m) => {
@@ -353,12 +359,12 @@ async function prepare(p, opts = {}) {
       catch (e) { if (e && e.code === 'ABORTED') throw e; warnings.push({ code: 'wait_fail', message: String(e.message || e) }); }
     }
     try {
-      const c = await contextInfo(p, { model: opts.model });
+      const c = await contextInfo(p, { model: opts.model, signal: opts.signal, timeout: 0 });
       nCtx = c.n_ctx; ctxSrc = c.source; warnings.push(...(c.warnings || []));
       if (c.router) warnings.push({ code: 'router_mode', message: 'llama-server router mode', model: c.model });
     } catch (e) { warnings.push({ code: 'context_fail', message: String(e.message || e) }); }
     try {
-      const tok = await tokenize(p, limits.messagesToText(messages));
+      const tok = await withGate(p, () => tokenize(p, limits.messagesToText(messages)));
       promptTokens = tok.count; tokSrc = 'tokenize';
     } catch (e) {
       promptTokens = limits.estimateTokens(messages); tokSrc = 'estimate';

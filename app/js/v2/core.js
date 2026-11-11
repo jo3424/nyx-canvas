@@ -21,10 +21,10 @@ function aiDefaults(info) {
   return {
     providers: structuredClone(PROVIDERS_DEFAULT),
     tasks: { chat: { p: '', m: '' }, commands: { p: '', m: '' }, greek: { p: '', m: '' }, vision: { p: '', m: '' }, summarize: { p: '', m: '' }, embed: { p: '', m: '' }, private: { p: '', m: '' } }, // v2.3: '' = first enabled; v2.6.6 private; v2.6.7 greek
-    servers: { llama: { exe: g(GVS_REL.llamaExe), model: g(GVS_REL.llamaModel), port: 8080, ngl: 99, ctx: 0, fa: true, kvType: 'f16', extra: '', autoStart: false, modelsDir: info?.gvs ? info.gvs.replace(/[\\/]$/, '') + '\\models' : '', modelsMax: 0, diskBudgetGB: 70 }, whisper: { exe: g(GVS_REL.whisperExe), model: g(GVS_REL.whisperModel), port: 8178, language: 'el', extra: '', autoStart: false } },
+    servers: { llama: { exe: home ? home + '\\llama-router\\llama-server.exe' : '', model: g(GVS_REL.llamaModel), port: 8080, ngl: 99, ctx: 0, fa: true, kvType: 'f16', extra: '', autoStart: false, modelsDir: info?.gvs ? info.gvs.replace(/[\\/]$/, '') + '\\models' : '', modelsMax: 2, diskBudgetGB: 70 }, whisper: { exe: g(GVS_REL.whisperExe), model: g(GVS_REL.whisperModel), port: 8178, language: 'el', extra: '', autoStart: false } },
     stt: { kind: 'whispercpp', base: 'http://127.0.0.1:8178', language: 'el', autoSend: true, groqModel: 'whisper-large-v3-turbo' },
     tts: { mode: 'system', rate: 0, pitch: 0, device: 'Vulkan0', port: 0, refAudio: '', endpoint: '', exe: g(GVS_REL.tts), model: home ? home + '\\OmniVoice-Vulkan\\models\\omnivoice-base-Q8_0.gguf' : '', tokenizer: home ? home + '\\OmniVoice-Vulkan\\models\\omnivoice-tokenizer-Q8_0.gguf' : '', voice: '', template: '{exe} --model {model} --codec {tokenizer} --text-file {text_file} --output {out}', speak: false },
-    assistant: { mode: 'auto', confirm: true, temperature: 0.3, extra: '', maxRounds: 6, thinking: false, thinkingBudget: 0, maxTokens: 0, maxContinue: 8, historyPct: 25 },
+    assistant: { mode: 'auto', confirm: true, canvasConfirm: true, temperature: 0.3, extra: '', maxRounds: 6, thinking: false, thinkingBudget: 0, maxTokens: 0, maxContinue: 8, historyPct: 25, attachReserve: 2048 },
     autoTag: false,
   };
 }
@@ -56,12 +56,19 @@ Store.load = async function () {
   // v2.6.6: auto no longer means "raise to the computed 262144"; 0/empty omits -c and the running server keeps its ctx.
   const L = S.ai.servers.llama; if (L && !L.ctxUserSet && (+L.ctx === 8192 || L.ctx === '' || L.ctx == null)) { L.ctx = 0; S.ai._migratedCtxAuto = true; }
   if (S.ai.assistant && (S.ai.assistant.historyPct == null || S.ai.assistant.historyPct === '')) S.ai.assistant.historyPct = 25;
+  if (S.ai.assistant && S.ai.assistant.canvasConfirm == null) S.ai.assistant.canvasConfirm = true;
+  if (S.ai.assistant && (S.ai.assistant.attachReserve == null || S.ai.assistant.attachReserve === '')) S.ai.assistant.attachReserve = 2048;
   if (S.ai.tasks && !S.ai.tasks.greek) S.ai.tasks.greek = { p: '', m: '' };
   const Llm = S.ai.servers && S.ai.servers.llama;
   if (Llm) {
     if (Llm.diskBudgetGB == null || Llm.diskBudgetGB === '') Llm.diskBudgetGB = 70;
-    if (Llm.modelsMax == null) Llm.modelsMax = 0;
+    if (Llm.modelsMax == null || Llm.modelsMax === '' || +Llm.modelsMax === 0) { Llm.modelsMax = 2; S.ai._migratedModelsMax2 = true; }
     if (Llm.modelsDir == null) Llm.modelsDir = '';
+    const gvsLlama = /GPU-Voice-Studio[\\/]third_party[\\/]llama[\\/]llama-server(?:\.exe)?$/i;
+    if (!Llm.exe || gvsLlama.test(String(Llm.exe))) {
+      const home = (V2.info && (V2.info.home || V2.info.userProfile)) || '';
+      if (home) { Llm.exe = String(home).replace(/[\\/]$/, '') + '\\llama-router\\llama-server.exe'; S.ai._migratedLlamaRouterExe = true; }
+    }
   }
   S.ai.rentedGpu ||= { enabled: false, capUsd: 10, endpoint: '', extra: '' };
   // v2.6.6: «Μοντέλο ανά εργασία» is the only place a model is set, including Ιδιωτικό.

@@ -155,8 +155,24 @@ function resolveCfgPaths(cfg, keys, opts = {}) {
   return out;
 }
 
+
+function isGvsLlamaExe(p) {
+  const s = String(p || '').replace(/\//g, '\\');
+  return /GPU-Voice-Studio\\third_party\\llama\\llama-server(?:\.exe)?$/i.test(s);
+}
+function defaultLlamaRouterExe(opts = {}) {
+  const home = userHome(opts);
+  const pth = opts.pathMod || path;
+  return pth.join(home, 'llama-router', 'llama-server.exe');
+}
+function llamaRouterExe(exe, opts = {}) {
+  if (exe && String(exe).trim() && !isGvsLlamaExe(exe)) return resolveForUse(exe, opts);
+  return defaultLlamaRouterExe(opts);
+}
+
 module.exports = {
   userHome, expandVars, looksAdminUserPath, rewriteAdminToHome,
   migrateAdminPath, resolveForUse, gvs, omni,
+  isGvsLlamaExe, defaultLlamaRouterExe, llamaRouterExe,
   flattenAiPaths, migrateAiPaths, applyMigratedAi, resolveCfgPaths, AI_PATH_FIELDS,
 };

@@ -15,9 +15,11 @@ function routerDir(c) {
 }
 function isRouterMode(c) { return !!routerDir(c); }
 function modelsMaxOf(c) {
-  if (c && c.modelsMax != null && c.modelsMax !== '' && Number.isFinite(+c.modelsMax) && +c.modelsMax >= 0) return Math.floor(+c.modelsMax);
+  // 0 is treated as unset (llama-server --models-max 0 means no limit). Default is 2.
+  if (c && c.modelsMax != null && c.modelsMax !== '' && Number.isFinite(+c.modelsMax) && +c.modelsMax > 0) return Math.floor(+c.modelsMax);
   const m = String((c && c.extra) || '').match(/--models-max(?:=|\s+)(\d+)/);
-  return m ? +m[1] : null;
+  if (m && +m[1] > 0) return +m[1];
+  return 2;
 }
 function argsFor(id, c) {
   const a = [];
@@ -62,7 +64,7 @@ function startupDir() {
 function vbsEscape(s) { return String(s).replace(/"/g, '""'); }
 function cmdToken(a) { a = String(a); return /[\s"]/.test(a) || a === '' ? '"' + a.replace(/"/g, '""') + '"' : a; }
 function startupVbs(c) {
-  c = resolveServerCfg(c || {});
+  c = resolveLlamaCfg(c || {});
   const port = +c.port || 8080;
   const args = argsFor('llama', c);
   const runCmd = [c.exe, ...args].map(cmdToken).join(' ');
@@ -99,7 +101,7 @@ function winAutostartSet(on, c) {
     if (fs.existsSync(file)) fs.unlinkSync(file);
     return { on: false, path: file, dir };
   }
-  c = resolveServerCfg(c || {});
+  c = resolveLlamaCfg(c || {});
   if (!c.exe || !fs.existsSync(c.exe)) throw new ProcError('exe', t('procs.001') + (c.exe || '—'), { field: 'exe' });
   if (isRouterMode(c)) {
     const d = routerDir(c);
@@ -136,8 +138,14 @@ function killProc(p, force) {
 function resolveServerCfg(c) {
   return nyxPath.resolveCfgPaths(c || {}, ['exe', 'model', 'modelDir', 'modelsDir', 'loraDir', 'upscaleDir']);
 }
+function resolveLlamaCfg(c) {
+  c = resolveServerCfg(c || {});
+  c.exe = nyxPath.llamaRouterExe(c.exe);
+  if (c.modelsMax == null || c.modelsMax === '' || !Number.isFinite(+c.modelsMax) || +c.modelsMax <= 0) c.modelsMax = 2;
+  return c;
+}
 function precheck(id, c) {
-  c = resolveServerCfg(c);
+  c = (id === 'llama') ? resolveLlamaCfg(c) : resolveServerCfg(c);
   if (!c.exe || !fs.existsSync(c.exe)) return new ProcError('exe', t('procs.001') + (c.exe || '—'), { field: 'exe' });
   if (fs.statSync(c.exe).isDirectory()) return new ProcError('exe', t('procs.010', { v0: c.exe }), { field: 'exe' });
   if (id === 'sd') { if (c.modelDir && !fs.existsSync(c.modelDir)) return new ProcError('model', t('v25.sd_nodir', { v0: c.modelDir }), { field: 'modelDir' }); return null; }
@@ -151,7 +159,7 @@ function precheck(id, c) {
   return null;
 }
 async function start(id, c, onEvent, { settleMs = 1500 } = {}) {
-  c = resolveServerCfg(c);
+  c = (id === 'llama') ? resolveLlamaCfg(c) : resolveServerCfg(c);
   if (alive(procs[id]?.child)) return status(id);
   const bad = precheck(id, c); if (bad) throw bad;
   const port = +c.port || ({ llama: 8080, sd: 7860 })[id] || 8178;
@@ -186,4 +194,4 @@ function stopAll() { for (const id of Object.keys(procs)) stop(id); }
 function stopWait(id, ms = 15000) { const p = procs[id]; if (!alive(p?.child)) return Promise.resolve(status(id)); return new Promise((res) => { const done = () => { clearTimeout(tm); res(status(id)); }; const tm = setTimeout(() => { killProc(p, true); setTimeout(done, 300); }, ms); p.child.once('exit', done); try { killProc(p); } catch (e) { done(); } }); }
 // v2.5: memory of the managed servers (Performance panel)
 function pids() { const o = {}; for (const [id, p] of Object.entries(procs)) if (alive(p.child)) o[id] = p.child.pid; return o; }
-module.exports = { start, stop, stopWait, stopAll, status, splitArgs, argsFor, precheck, portBusy, pids, batchLine, isBatch, isRouterMode, routerDir, modelsMaxOf, startupVbs, startupDir, winAutostartGet, winAutostartSet, STARTUP_NAME };
+module.exports = { start, stop, stopWait, stopAll, status, splitArgs, argsFor, precheck, portBusy, pids, batchLine, isBatch, isRouterMode, routerDir, modelsMaxOf, resolveLlamaCfg, startupVbs, startupDir, winAutostartGet, winAutostartSet, STARTUP_NAME };

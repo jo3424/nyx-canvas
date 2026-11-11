@@ -44,8 +44,8 @@ const Cmd = {
     return c;
   },
   html(text) { return /<\w/.test(text) ? sanitize(text) : md(text); },
-  async confirm(title, list, okLabel) {
-    if (!Store.state.settings.ai.assistant.confirm) return true;
+  async confirm(title, list, okLabel, force) {
+    if (!force && !Store.state.settings.ai.assistant.confirm) return true;
     return new Promise((res) => { let done = false; Panels.modal('⚠️ ' + esc(title), h('div', {}, h('p', {}, t('assistant.008')), h('ul', { class: 'confirm-list' }, ...list.slice(0, 12).map(x => h('li', {}, x)), list.length > 12 ? h('li', {}, t('assistant.009', { v0: list.length - 12 })) : null)), { okLabel: okLabel || t('assistant.010'), ok: () => { done = true; res(true); }, onClose: () => { if (!done) res(false); } }); });
   },
   layoutGrid(items, x0, y0, gap = 28, cols) {
@@ -124,10 +124,39 @@ const Cmd = {
       async run(a) { const r = await API.inv('plugins:action', a.plugin, a.action, a.args || {}); if (r && typeof r === 'object' && (r.show || r.toastKey)) { PluginStore.showResult(r); return { ok: true, shown_to_user: true }; } return r; } },
   },
   tools() { return Object.entries(this.T).map(([name, t]) => ({ type: 'function', function: { name, description: t.d, parameters: { type: 'object', properties: t.p, required: t.req || [] } } })); },
+  WRITE: new Set(['create_card', 'create_cards', 'update_card', 'delete_cards', 'move_cards', 'group_cards', 'tidy_board', 'create_board', 'place_attachments', 'summarize']),
+  wantsWrite(text) {
+    const n = norm(String(text || ''));
+    if (this._forceCanvas) return true;
+    if (!n) return false;
+    return /(στον\s+καμβα|στην\s+πινακιδα|στον\s+πινακα)/.test(n)
+      || /((φτιαξε|δημιουργησε|γραψε|βαλε|κανε|σημειωσε|προσθεσε|μαζεψε|τακτοποιησε|ομαδοποιησε|σβησε|διαγραψε|μετακινησε).{0,60}(καρτ|σημειω|χαρτακ|post.?it|sticky|λιστα|πλαισιο|υπενθυμ|καμβα|πινακ))/.test(n)
+      || /((create|add|put|make|write|place|move|delete|remove|group|tidy).{0,60}(card|note|sticky|canvas|board|frame|reminder))/.test(n)
+      || /^(φτιαξε|δημιουργησε|σημειωσε|γραψε|βαλε)\s+/.test(n);
+  },
   async exec(name, args) {
     const T = this.T[name]; if (!T) return { ok: false, error: t('assistant.060') + name };
     try { if (typeof args === 'string') args = JSON.parse(args || '{}'); } catch (e) { args = {}; }
-    try { return await T.run(args || {}); } catch (e) { console.error(e); return { ok: false, error: String(e.message || e) }; }
+    args = args || {};
+    const writes = this.WRITE.has(name) || (name === 'open_url' && args.where === 'canvas');
+    if (writes && !this._forceCanvas && !this.wantsWrite(this._lastUser || '')) {
+      return { ok: false, blocked: true, error: t('v2681.canvas_blocked') };
+    }
+    if (writes && !this._forceCanvas && Store.state.settings.ai.assistant && Store.state.settings.ai.assistant.canvasConfirm !== false) {
+      const title = t('v2681.canvas_confirm_title', { tool: name });
+      if (!(await this.confirm(title, [name + (args.title || args.text || args.name ? ': ' + String(args.title || args.text || args.name).slice(0, 80) : '')], t('assistant.010'), true))) {
+        return { ok: false, cancelled: true, note: t('assistant.021') };
+      }
+    }
+    try { return await T.run(args); } catch (e) { console.error(e); return { ok: false, error: String(e.message || e) }; }
+  },
+  async toCanvas(m, kind) {
+    this._forceCanvas = true;
+    try {
+      const r = await this.T.create_card.run({ kind: kind || 'text', text: m.content || '' });
+      toast(t('v2681.to_canvas_done'), { action: { label: t('undo'), fn: () => App.undo() } });
+      return r;
+    } finally { this._forceCanvas = false; }
   },
 };
 
@@ -193,7 +222,7 @@ const Assistant = {
       h('div', { class: 'as-msgs', id: 'as-msgs' }),
       h('div', { class: 'as-sugg', id: 'as-sugg' }, ...[t('assistant.065'), t('assistant.066'), t('assistant.067'), t('assistant.068'), t('assistant.069')].map(s => h('button', { class: 'chip', onclick: () => this.send(s) }, s))),
       h('div', { class: 'as-input' }, h('button', { class: 'ib mic', id: 'as-mic', title: t('assistant.070'), html: iconSvg('mic', 18), onclick: () => this.mic() }),
-        h('textarea', { id: 'as-q', rows: 1, placeholder: t('assistant.071'), onkeydown: (e) => { e.stopPropagation(); if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.send(); } if (e.key === 'Escape') this.hide(); }, oninput: (e) => { e.target.style.height = 'auto'; e.target.style.height = Math.min(140, e.target.scrollHeight) + 'px'; } }),
+        h('textarea', { id: 'as-q', rows: 1, placeholder: t('assistant.071'), onkeydown: (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.stopPropagation(); return App.undo(); } e.stopPropagation(); if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.send(); } if (e.key === 'Escape') this.hide(); }, oninput: (e) => { e.target.style.height = 'auto'; e.target.style.height = Math.min(140, e.target.scrollHeight) + 'px'; } }),
         h('button', { class: 'ib send', id: 'as-send', title: t('assistant.072'), html: iconSvg('send', 18), onclick: () => this.onSendClick() })));
     el.append(h('div', { class: 'as-rs', title: t('v24.as_resize') }));
     document.body.append(el); this.render(); this.syncThink();
@@ -304,7 +333,7 @@ const Assistant = {
       if (m.truncated) el.append(h('div', { class: 'as-notice warn' }, t('v265.still_cut')));
       if (m.error) el.append(h('div', { class: 'as-fix' }, h('button', { class: 'btn sm primary', onclick: () => Hub.open() }, iconSvg('brain', 14), t('v23.open_ai'))));
       if (m.actions?.length) el.append(h('div', { class: 'as-acts' }, ...m.actions.map(a => h('span', { class: 'chip ' + (a.ok === false ? 'bad' : 'ok'), title: JSON.stringify(a.args || {}) }, (a.ok === false ? '✗ ' : '✓ ') + this.actLabel(a)))));
-      if (m.content) el.append(h('div', { class: 'as-tools' }, h('button', { class: 'ib', title: t('assistant.076'), html: iconSvg('square-plus', 15), onclick: () => Cmd.T.create_card.run({ kind: 'text', text: m.content }) }), h('button', { class: 'ib', title: t('assistant.077'), html: iconSvg('sticky-note', 15), onclick: () => Cmd.T.create_card.run({ kind: 'note', text: m.content }) }), h('button', { class: 'ib', title: t('assistant.078'), html: iconSvg('volume-2', 15), onclick: () => Speech.speak(m.content) }), h('button', { class: 'ib', title: t('assistant.079'), html: iconSvg('copy', 15), onclick: () => { navigator.clipboard.writeText(m.content); toast('📋'); } }), m.model ? h('span', { class: 'muted small' }, m.model.split('/').pop()) : null));
+      if (m.content) el.append(h('div', { class: 'as-tools' }, h('button', { class: 'btn sm to-canvas', type: 'button', title: t('assistant.076'), onclick: () => Cmd.toCanvas(m, 'text') }, iconSvg('square-plus', 15), t('v2681.to_canvas')), h('button', { class: 'ib', title: t('assistant.077'), html: iconSvg('sticky-note', 15), onclick: () => Cmd.toCanvas(m, 'note') }), h('button', { class: 'ib', title: t('assistant.078'), html: iconSvg('volume-2', 15), onclick: () => Speech.speak(m.content) }), h('button', { class: 'ib', title: t('assistant.079'), html: iconSvg('copy', 15), onclick: () => { navigator.clipboard.writeText(m.content); toast('📋'); } }), m.model ? h('span', { class: 'muted small' }, m.model.split('/').pop()) : null));
     }
     return el;
   },
@@ -394,7 +423,7 @@ const Assistant = {
   async send(text, voice) {
     const q = $('#as-q'); text = (text ?? q.value).trim(); if (!text || this.busy) return; q.value = ''; q.style.height = 'auto';
     if (this.el.hidden) this.show();
-    this.push({ role: 'user', content: text, voice: !!voice }); this.busy = true; this._cancelled = false; this.el.classList.add('busy'); this.setSending(true);
+    Cmd._lastUser = text; this.push({ role: 'user', content: text, voice: !!voice }); this.busy = true; this._cancelled = false; this.el.classList.add('busy'); this.setSending(true);
     const live = h('div', { class: 'as-msg r-assistant thinking streaming', 'data-live': '1' }, h('div', { class: 'bubble' }, h('span', { class: 'dots' }, h('i'), h('i'), h('i')))); $('#as-msgs').append(live); $('#as-msgs').scrollTop = 1e9;
     const notices = [];
     const onNotice = (kind, msg) => {
@@ -423,7 +452,7 @@ const Assistant = {
     const offline = async (why) => { const acts = LocalIntent.parse(text); if (!acts) throw new Error(why + t('assistant.106')); await doActs(acts); return { content: t('assistant.107', { why }), actions, model: 'local' }; };
     let pm; try { pm = await AI.pickModel('commands'); model = pm.m; } catch (e) { if (e && e.code === 'NOMODEL') return { content: '⚠️ ' + cleanErr(e), error: true }; return offline(e.message); }
     let nCtx = AI.lastPrep && AI.lastPrep.n_ctx;
-    try { const c = await API.inv('ai:context', pm.p, { model: pm.m }); if (c && c.n_ctx) nCtx = c.n_ctx; } catch (e) {}
+    try { const c = await API.inv('ai:context', pm.p, { model: pm.m, probe: true, timeout: 800 }); if (c && c.n_ctx) nCtx = c.n_ctx; } catch (e) {}
     const hist = this.history({ nCtx });
     if (this._histTrim && this._histTrim.trimmed && onNotice) onNotice('info', t('v266.hist_trimmed', { v0: A.historyPct ?? 25, v1: this._histTrim.dropped || 0 }));
     // if current message is already in hist as last, drop it; system+hist+user added below

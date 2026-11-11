@@ -119,6 +119,7 @@ const Hub = {
     return h('div', { class: 'assistant-form' },
       selField(t('hub.027'), [['auto', t('hub.028')], ['tools', t('hub.029')], ['json', t('hub.030')]], As.mode, (v) => { As.mode = v; Store.save(); }),
       h('label', { class: 'chk' }, h('input', { type: 'checkbox', class: 'toggle', checked: As.confirm ? true : null, onchange: (e) => { As.confirm = e.target.checked; Store.save(); } }), h('span', {}, t('hub.031'))),
+      h('label', { class: 'chk' }, h('input', { type: 'checkbox', class: 'toggle', checked: As.canvasConfirm !== false ? true : null, onchange: (e) => { As.canvasConfirm = e.target.checked; Store.save(); } }), h('span', {}, t('v2681.canvas_confirm'))),
       h('label', { class: 'chk' }, h('input', { type: 'checkbox', class: 'toggle', checked: A.autoTag ? true : null, onchange: (e) => { A.autoTag = e.target.checked; Store.save(); } }), h('span', {}, t('hub.032'))),
       h('label', { class: 'sfield' }, h('span', {}, t('hub.033')), h('input', { type: 'range', min: 0, max: 1.2, step: .1, value: As.temperature, oninput: (e) => { As.temperature = +e.target.value; Store.save(); } })),
       h('label', { class: 'chk' }, h('input', { type: 'checkbox', class: 'toggle', id: 'hub-thinking', checked: As.thinking ? true : null, onchange: (e) => { As.thinking = e.target.checked; Store.save(); Assistant.syncThink?.(); } }), h('span', {}, t('v265.think'))),
@@ -128,6 +129,7 @@ const Hub = {
         this.field(t('v265.think_budget'), h('input', { class: 'inp', type: 'number', min: 0, placeholder: t('v265.auto'), value: As.thinkingBudget || '', onchange: (e) => { As.thinkingBudget = +e.target.value || 0; Store.save(); } }), t('v265.think_budget_help'))),
       h('p', { class: 'muted small', id: 'hub-limit-live' }, t('v265.limit_hub')),
       this.field(t('v266.history_pct'), h('input', { class: 'inp', type: 'number', min: 0, max: 100, value: As.historyPct ?? 25, onchange: (e) => { let n = +e.target.value; if (!Number.isFinite(n)) n = 25; As.historyPct = Math.max(0, Math.min(100, n)); e.target.value = As.historyPct; Store.save(); } }), t('v266.history_pct_help')),
+      this.field(t('v2681.attach_reserve'), h('input', { class: 'inp', type: 'number', min: 0, value: As.attachReserve ?? 2048, onchange: (e) => { let n = +e.target.value; if (!Number.isFinite(n) || n < 0) n = 2048; As.attachReserve = n; e.target.value = n; Store.save(); } }), t('v2681.attach_reserve_help')),
       h('label', { class: 'field' }, h('span', {}, t('hub.034')), h('textarea', { class: 'inp', rows: 3, onchange: (e) => { As.extra = e.target.value; Store.save(); } }, As.extra || '')));
   },
   dataLocBox() {
@@ -324,7 +326,7 @@ const Hub = {
       const base = p.base || ('http://127.0.0.1:' + (cfg.port || 8080) + '/v1');
       let ctxR = null, rec = null, ext = false;
       const mid = (A.tasks && (A.tasks.commands?.m || A.tasks.chat?.m)) || '';
-      try { ctxR = await API.inv('ai:context', { ...p, base }, { model: mid || undefined }); } catch (e) { ctxR = { warnings: [{ message: cleanErr(e) }] }; }
+      try { ctxR = await API.inv('ai:context', { ...p, base }, { model: mid || undefined, probe: true, timeout: 800 }); } catch (e) { ctxR = { warnings: [{ message: cleanErr(e) }] }; }
       try { rec = cfg.model ? await API.inv('ai:recommendCtx', cfg.model, { vramGiB: 24, kvType: cfg.kvType || 'f16', fa: cfg.fa !== false }) : null; } catch (e) { rec = { readError: cleanErr(e) }; }
       const mine = this.procState.llama?.running;
       try { const hl = await API.inv('proc:health', this.healthUrl('llama', cfg)).catch(() => ({ ok: false })); ext = !mine && !!(hl.ok || hl.status); } catch (e) {}
