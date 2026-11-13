@@ -230,7 +230,8 @@ const AI = {
   _streamId: null,
   abort() { const id = this._streamId; if (id) API.inv('ai:chatAbort', id).catch(() => {}); },
   async chatTurn(p, body, onNotice, onDelta) { return chatTurn(p, body, onNotice, onDelta); },
-  async chat(task, messages, opts = {}) { const { p, m } = await this.pickModel(task); return await this.chatTurn(p, { model: m, messages, ...opts }, opts.onNotice, opts.onDelta); },
+  // v2.6.9 fix (2.6.8.x bug): the callbacks were spread into the IPC body → «An object could not be cloned» on the JSON path
+  async chat(task, messages, opts = {}) { const { onNotice, onDelta, ...rest } = opts; const { p, m } = await this.pickModel(task); return await this.chatTurn(p, { model: m, messages, ...rest }, onNotice, onDelta); },
   async text(task, prompt, system) { const r = await this.chat(task, [...(system ? [{ role: 'system', content: system }] : []), { role: 'user', content: prompt }], { temperature: 0.3 }); return stripThink(r.message.content || '', r.message?.reasoning_content || r.reasoning); },
   async vision(file, prompt) {
     const url = await API.inv('ai:imageData', file);
@@ -268,6 +269,45 @@ const NyxLimits = {
       text = visible.join('\n');
     }
     return { text: text.trim(), reasoning: parts.filter(Boolean).join('\n\n') };
+  },
+  // v2.6.9: a model that cannot do tool calls (router 500 «peg-native format») — detected from the message text
+  isToolFormatError(msg) { return /peg-native|does not match the expected .{0,40}format|failed to parse tool|tool[_ ]?call[s]? (?:are |is )?not supported|tools? (?:are |is )?not supported|unable to (?:parse|generate) tool/i.test(String((msg && msg.message) || msg || '')); },
+  // known from the user's test 12–13/11 (llama-server b12230): Krikri answers tool calls with 500 peg-native
+  KNOWN_NO_TOOLS: [/krikri/i],
+  _toolCaps() { try { return JSON.parse(localStorage.getItem('nyx.toolCaps') || '{}') || {}; } catch (e) { return {}; } },
+  toolCap(model) {
+    const id = String(model || ''); if (!id) return { state: 'unknown' };
+    const k = id.split(/[\\/]/).pop().toLowerCase(); const rec = this._toolCaps()[k];
+    if (rec && rec.ok === false) return { state: 'no', at: rec.at, err: rec.err || '', seen: true };
+    if (rec && rec.ok === true) return { state: 'ok', at: rec.at, seen: true };
+    if (this.KNOWN_NO_TOOLS.some((re) => re.test(id))) return { state: 'no', known: true };
+    return { state: 'unknown' };
+  },
+  noteTools(model, ok, err) {
+    const id = String(model || ''); if (!id) return;
+    try { const all = this._toolCaps(); all[id.split(/[\\/]/).pop().toLowerCase()] = { ok: !!ok, at: Date.now(), err: ok ? '' : String(err || '').slice(0, 200) }; localStorage.setItem('nyx.toolCaps', JSON.stringify(all)); } catch (e) {}
+  },
+  // MTP / speculative decoding from the server's own timings (draft_n / draft_n_accepted); null = server said nothing
+  mtpOf(tm) {
+    if (!tm || typeof tm !== 'object') return { state: 'unknown' };
+    const n = tm.draft_n != null ? +tm.draft_n : null; const a = tm.draft_n_accepted != null ? +tm.draft_n_accepted : null;
+    if (n != null && n > 0) return { state: 'on', draft: n, accepted: a, rate: a != null ? a / n : null };
+    if (tm.predicted_n != null || tm.predicted_ms != null) return { state: 'off' };
+    return { state: 'unknown' };
+  },
+  speedOf(tm) { return tm && tm.predicted_n != null && tm.predicted_ms > 0 ? tm.predicted_n / (tm.predicted_ms / 1000) : null; },
+  // VRAM warning only from a real measurement (perf snapshot); Voice Studio found by process name or path
+  GVS_PROC: /voice.?studio|gpu-voice|vs-engine|omnivoice/i,
+  vramWarn(snap, opts) {
+    opts = opts || {};
+    const ad = snap && snap.gpu && snap.gpu.adapter;
+    if (!ad || !ad.total || ad.used == null) return { state: 'none' };
+    const pct = ad.used / ad.total;
+    const procs = (snap.gpu.procs || []).filter((x) => x && x.vram > 0);
+    const gvs = procs.filter((x) => this.GVS_PROC.test(String(x.name || '') + ' ' + String(x.path || '')));
+    const others = procs.filter((x) => !gvs.includes(x) && !x.owner && !/llama-server|llama-router/i.test(String(x.name || '')) && x.vram >= (opts.otherMin || 512 * 1048576));
+    const high = pct >= (opts.highPct || 0.9);
+    return { state: gvs.length ? 'gvs' : high ? 'high' : 'ok', pct, used: ad.used, total: ad.total, gvs, others, high };
   },
   emptiedByThink(raw, extracted) { return !!String(raw || '').trim() && !String((extracted && extracted.text) || '').trim(); },
   stripThink(s, r) { return this.extractThink(s, r).text; },
@@ -311,24 +351,33 @@ async function chatTurn(p, body, onNotice, onDelta) {
   const A = Store.state.settings.ai.assistant || {};
   const maxC = A.maxContinue ?? 8;
   const origin = body.messages;
-  const pieces = []; const reasons = []; const rawPieces = [];
+  let pieces = []; const reasons = []; let rawPieces = [];
   let lastPrep = null, shownNoCap = false;
   const hasTools = !!(body.tools && body.tools.length);
+  // v2.6.9: thinking cap from the user's setting (visible chip + Hub field); 0 = no separate cap. Never changed by code.
+  let thinkOn = !!(body.thinking ?? A.thinking);
+  const capOf = () => thinkOn ? Math.max(0, Math.floor(+(body.thinkingBudget ?? A.thinkingBudget) || 0)) : 0;
+  let retriedNoThink = false, thinkCapHit = false, reasonN = 0;
   const finishTurn = (r, i, extra = {}) => {
     const merged = NyxLimits.mergePieces(pieces);
     const rawMerged = NyxLimits.mergePieces(rawPieces);
     const emptied = NyxLimits.emptiedByThink(rawMerged, { text: merged });
     if (emptied && onNotice) onNotice('warn', t('v265.empty_after_clean'));
+    // v2.6.9: nothing silent — an empty answer always carries a visible notice
+    const emptyFinal = !String(merged || '').trim() && !(r.message && r.message.tool_calls && r.message.tool_calls.length);
+    if (emptyFinal && onNotice) onNotice('warn', t('v269.empty_final'));
     r.message = { ...(r.message || {}), content: merged, reasoning_content: reasons.join('\n\n') || undefined };
     r.reasoning = reasons.join('\n\n'); r._prep = lastPrep; r.continued = i; r._timings = r._timings || r.timings || AI.lastTimings;
     AI.noteRequest({ model: r.model, timings: r._timings, _prep: lastPrep, truncated: !!r.truncated || r.finish === 'length', finish: r.finish });
     if (emptied) { r.emptyAfterClean = true; r.rawContent = rawMerged; }
+    if (emptyFinal) { r.emptyFinal = true; r.emptyAfterClean = true; r.rawContent = rawMerged || r.reasoning || ''; }
+    r.thinkCapHit = thinkCapHit; r.retriedNoThink = retriedNoThink; r.reasoning_n = reasonN;
     return Object.assign(r, extra);
   };
   for (let i = 0; i <= maxC; i++) {
     const msgs = i === 0 ? origin : NyxLimits.nextContinueMessages(origin, NyxLimits.mergePieces(pieces));
     let prep = {};
-    const prepOpts = { model: body.model, tools: body.tools, thinking: body.thinking ?? A.thinking, thinkingBudget: body.thinkingBudget ?? A.thinkingBudget, maxTokensOverride: body.max_tokens || body.maxTokensOverride || A.maxTokens };
+    const prepOpts = { model: body.model, tools: body.tools, thinking: thinkOn, thinkingBudget: body.thinkingBudget ?? A.thinkingBudget, maxTokensOverride: body.max_tokens || body.maxTokensOverride || A.maxTokens };
     try { prep = await AI.prepare(p, msgs, prepOpts); lastPrep = prep; }
     catch (e) { if (e && e.code === 'ABORTED') throw e; if (onNotice) onNotice('err', t('v265.prep_fail', { v0: cleanErr(e) })); prep = {}; }
     // v2.6.8.2: pre-send check — system + history + attachments + reserve ≤ n_ctx. Trim attachments, never send over the limit.
@@ -340,15 +389,27 @@ async function chatTurn(p, body, onNotice, onDelta) {
     if (prep.omitted && !shownNoCap && onNotice) { shownNoCap = true; onNotice('info', t('v265.no_cap', { v0: prep.reason })); }
     if (prep.warnings && onNotice) for (const w of prep.warnings) if (w.code === 'tokenize_fail' || w.code === 'props_fail') onNotice('info', t('v265.warn_' + (w.code === 'tokenize_fail' ? 'tokenize' : 'props')));
     let r;
-    try { r = await invokeChat(p, { ...body, messages: msgs, ...(prep.body || {}) }, onNotice, onDelta); }
+    const cap = capOf();
+    try { r = await invokeChat(p, { ...body, messages: msgs, ...(prep.body || {}), ...(cap ? { think_cap: cap } : {}) }, onNotice, onDelta); }
     catch (e) { AI.markBlocked(p, e, true); AI.noteRequest({ failed: true, error: cleanErr(e), model: body.model }); throw e; }
     if (r && !r.message && r.error && r.status === 403) { const e = new Error(r.error); e.status = 403; AI.markBlocked(p, e, true); throw e; }
     if (r.timings || r.usage) { AI.lastTimings = r.timings || null; r._timings = r.timings || null; }
     if (r.thinkingIgnored && onNotice) onNotice('info', t('v265.think_ignored'));
+    if (r.reasoning_n) reasonN += r.reasoning_n;
     const calls = r.message?.tool_calls;
-    if (hasTools && calls && calls.length) { r._prep = prep; r.continued = i; return r; }
+    if (hasTools && calls && calls.length) { r._prep = prep; r.continued = i; r.thinkCapHit = thinkCapHit; r.retriedNoThink = retriedNoThink; NyxLimits.noteTools(body.model, true); return r; }
     const rawPiece = r.message?.content || '';
     const ex = NyxLimits.extractThink(rawPiece, r.message?.reasoning_content || r.reasoning);
+    // v2.6.9: thinking used up the budget (or the answer limit) and left no answer → ask again without thinking, visibly.
+    const noAnswerYet = !NyxLimits.mergePieces([...pieces, ex.text]).trim();
+    const lenStop = NyxLimits.shouldContinue(r.finish, 0, 1).length;
+    if (thinkOn && !retriedNoThink && noAnswerYet && (r.finish === 'think_cap' || lenStop || !!ex.reasoning)) {
+      if (ex.reasoning) reasons.push(ex.reasoning);
+      if (r.finish === 'think_cap') { thinkCapHit = true; if (onNotice) onNotice('warn', t('v269.think_hit_cap', { v0: cap })); }
+      else if (onNotice) onNotice('warn', t('v269.think_empty_retry', { v0: lenStop ? t('v269.think_len') : t('v269.think_nothing') }));
+      thinkOn = false; retriedNoThink = true; pieces = []; rawPieces = [];
+      i = -1; continue;
+    }
     if (ex.reasoning) reasons.push(ex.reasoning);
     pieces.push(ex.text);
     rawPieces.push(rawPiece);

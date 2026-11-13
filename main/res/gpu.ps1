@@ -1,4 +1,4 @@
-# Nyx v2.5 — GPU snapshot for the Performance panel (read-only, no admin, hidden window).
+# Nyx v2.5 (v2.6.9: + process path, so Voice Studio is found by its folder) — GPU snapshot for the Performance panel (read-only, no admin, hidden window).
 # VRAM: WMI GPU performance classes (names are not localized, unlike Get-Counter paths).
 # Temperature: LibreHardwareMonitor / OpenHardwareMonitor WMI (only when that app is running) — otherwise null.
 $ErrorActionPreference = 'SilentlyContinue'
@@ -20,7 +20,7 @@ try {
   $pm = Get-CimInstance Win32_PerfFormattedData_GPUPerformanceCounters_GPUProcessMemory
   $by = @{}
   foreach ($x in $pm) { if ($x.Name -match 'pid_(\d+)_') { $id = [int]$Matches[1]; if (-not $by[$id]) { $by[$id] = 0 }; $by[$id] += [double]$x.DedicatedUsage } }
-  foreach ($k in $by.Keys) { if ($by[$k] -gt 0) { $n = ''; try { $n = (Get-Process -Id $k).ProcessName } catch {}; $o.procs += @{ pid = $k; name = $n; vram = $by[$k] } } }
+  foreach ($k in $by.Keys) { if ($by[$k] -gt 0) { $n = ''; $pa = ''; try { $gp = Get-Process -Id $k; $n = $gp.ProcessName; $pa = [string]$gp.Path } catch {}; $o.procs += @{ pid = $k; name = $n; path = $pa; vram = $by[$k] } } }
 } catch {}
 try {
   $eng = Get-CimInstance Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine | Where-Object { $_.Name -match 'engtype_3D|engtype_Compute' }

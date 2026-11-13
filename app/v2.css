@@ -412,3 +412,9 @@ details.hub-adv>summary::-webkit-details-marker,details.hub-more>summary::-webki
 .log-copy{margin:4px 0 0}
 .log-copy.done{color:var(--ok,#30a46c)}
 pre[hidden]+.log-copy{display:none}
+/* v2.6.9: visible thinking cap, tool-call capability, MTP, measured VRAM warning */
+.as-think-cap{font-size:10.5px;height:24px;padding:0 8px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;white-space:nowrap}
+.as-think-cap.off{opacity:.55}
+.hub-pill.ok{color:#3fb950;border-color:color-mix(in srgb,#3fb950 50%,var(--border))}
+.task-row .task-tools{margin-left:6px}
+.hub-vram-warn{margin:8px 0;padding:8px 10px;border-radius:8px;border:1px solid color-mix(in srgb,#d29922 55%,var(--border));background:color-mix(in srgb,#d29922 12%,transparent);color:var(--text);font-size:12.5px;line-height:1.4}

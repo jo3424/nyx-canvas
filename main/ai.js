@@ -481,10 +481,22 @@ function exeHelp(exe) {
 
 // ---- v2.6.8: streaming, load-wait (no fixed cap), mmproj hint, request gate ----
 function errText(e) { return String((e && (e.detail || e.message || e.error || e)) || ''); }
+// v2.6.9: a model that cannot parse tool calls answers 500 too (Krikri on b12230: «does not match the expected
+// peg-native format»). That is not a model load: retrying forever showed «loading model» with no end. Thrown as NOTOOLS.
+function isToolFormatError(e) {
+  const s = errText(e);
+  return /peg-native|does not match the expected .{0,40}format|failed to parse tool|tool[_ ]?call[s]? (?:are |is )?not supported|tools? (?:are |is )?not supported|unable to (?:parse|generate) tool/i.test(s);
+}
 function isLoadCancel(e) {
+  if (isToolFormatError(e)) return false;
   const s = errText(e) + ' ' + String((e && e.code) || '');
   const st = e && e.status;
   return st === 500 || st === 503 || /request cancelled while waiting for model|cancelled while waiting for model|waiting for model|model is (?:being )?load|loading (?:the )?model/i.test(s);
+}
+function markToolFormat(e, body) {
+  if (!e || !(body && body.tools && body.tools.length) || !isToolFormatError(e)) return e;
+  try { e.code = 'NOTOOLS'; e.toolModel = body.model || ''; } catch (x) {}
+  return e;
 }
 function isImageInputError(e) { return /image input is not supported/i.test(errText(e)); }
 function mmprojHint() { return t('v268.mmproj_hint'); }
@@ -581,6 +593,7 @@ async function withLoadRetry(p, body, run, { signal, onStatus } = {}) {
       const err = withImageHint(e);
       if (err && err.code === 'ABORTED') throw err;
       if (isImageInputError(err)) throw err;
+      if (isToolFormatError(err)) throw markToolFormat(err, body);
       if (!isLoadCancel(err)) throw err;
       first = false;
       if (onStatus) onStatus('load', t('v268.loading_model'));
@@ -665,12 +678,24 @@ async function readSSE(res, { signal, onEvent } = {}) {
   }
 }
 
+// v2.6.9: thinking counted while it streams (one SSE event ≈ one token on llama-server). With a user cap (think_cap > 0)
+// the stream stops when the cap is reached before any visible answer and returns finish 'think_cap' — the renderer then
+// asks again without thinking and says so. No cap = nothing is cut here.
+function openThinkInContent(content) {
+  const c = String(content || '');
+  if (/^\s*<think>/i.test(c) && !/<\/think>/i.test(c)) return true;
+  if (/<\|channel\|?>\s*(thought|reasoning|analysis)\b/i.test(c) && !/<channel\|>|<\|channel\|?>\s*(final|response)\b/i.test(c.replace(/^[\s\S]*?(thought|reasoning|analysis)\b/i, ''))) return true;
+  return false;
+}
 async function chatStreamOnce(p, body, { signal, onDelta } = {}) {
   const req = chatBody(p, { ...body, stream: true });
   const url = baseOf(p) + '/chat/completions';
   const local = limits.isLocalLlama(p) || p?.kind === 'local';
   const timeout = body.timeout != null ? body.timeout : (local ? 0 : 240000);
-  const r = await jfetch(url, { method: 'POST', headers: { ...headers(p), Accept: 'text/event-stream' }, body: JSON.stringify(req), signal, _raw: true }, timeout);
+  const cap = Math.max(0, Math.floor(+body.think_cap || 0));
+  const inner = new AbortController();
+  if (signal) { if (signal.aborted) inner.abort(); else signal.addEventListener('abort', () => inner.abort(), { once: true }); }
+  const r = await jfetch(url, { method: 'POST', headers: { ...headers(p), Accept: 'text/event-stream' }, body: JSON.stringify(req), signal: inner.signal, _raw: true }, timeout);
   const ctype = (r.headers && (r.headers.get && r.headers.get('content-type') || r.headers['content-type'])) || '';
   if (!r.ok) {
     const txt = await r.text().catch(() => '');
@@ -690,20 +715,33 @@ async function chatStreamOnce(p, body, { signal, onDelta } = {}) {
     }
   }
   const state = { content: '', reasoning: '', finish: '', usage: null, timings: null, model: '', tool_calls: [] };
-  await readSSE(r, {
-    signal,
-    onEvent: (ev) => {
-      const before = state.content.length;
-      assembleDelta([ev], state);
-      if (onDelta && state.content.length !== before) onDelta({ type: 'delta', text: state.content.slice(before), raw: state.content, reasoning: state.reasoning });
-      else if (onDelta && ev && ev.timings) onDelta({ type: 'timings', timings: ev.timings });
-    },
-  });
+  let reasonN = 0, capHit = false;
+  try {
+    await readSSE(r, {
+      signal: inner.signal,
+      onEvent: (ev) => {
+        if (capHit) return;
+        const before = state.content.length, rBefore = state.reasoning.length;
+        assembleDelta([ev], state);
+        const grewR = state.reasoning.length !== rBefore;
+        const grewC = state.content.length !== before;
+        if (grewR || (grewC && openThinkInContent(state.content))) reasonN++;
+        if (onDelta && grewC) onDelta({ type: 'delta', text: state.content.slice(before), raw: state.content, reasoning: state.reasoning, reasoning_n: reasonN });
+        else if (onDelta && grewR) onDelta({ type: 'delta', text: '', raw: state.content, reasoning: state.reasoning, reasoning_n: reasonN });
+        else if (onDelta && ev && ev.timings) onDelta({ type: 'timings', timings: ev.timings });
+        if (cap > 0 && reasonN >= cap && !limits.extractThink(state.content, '').text && !(state.tool_calls || []).some(Boolean)) {
+          capHit = true; inner.abort();
+        }
+      },
+    });
+  } catch (e) {
+    if (!capHit || (signal && signal.aborted)) throw e;
+  }
   const msg = { role: 'assistant', content: state.content };
   if (state.reasoning) msg.reasoning_content = state.reasoning;
   const calls = (state.tool_calls || []).filter(Boolean);
   if (calls.length) msg.tool_calls = calls;
-  return { message: msg, finish: state.finish || 'stop', usage: state.usage, model: state.model || body.model, reasoning: state.reasoning || null, timings: state.timings, streamed: true };
+  return { message: msg, finish: capHit ? 'think_cap' : (state.finish || 'stop'), usage: state.usage, model: state.model || body.model, reasoning: state.reasoning || null, timings: state.timings, streamed: true, reasoning_n: reasonN, think_cap: cap || null };
 }
 
 async function chatStream(p, body, { signal, onDelta, onStatus } = {}) {
@@ -720,4 +758,4 @@ async function chatStream(p, body, { signal, onDelta, onStatus } = {}) {
   }), { signal, onStatus: hook });
 }
 
-module.exports = { parseWait, waitOf, jfetch, models, ping, chat, chatStream, chatBody, parseSSE, assembleDelta, isLoadCancel, isImageInputError, mmprojHint, withImageHint, waitForModel, modelEntry, entryLoading, withLoadRetry, withGate, prepare, props, parseRouterMax, routerInfo, slots, tokenize, modelLoaded, PROPS_MODEL_MS, contextInfo, embed, transcribe, tts, runCmd, fillTemplate, buildTtsCmd, cmdQuote, exeHelp, netCode, netMessage, baseVariants, hintFor, findLms, lmsServerStart, isForbidden, isNeedModel, modelQuery, _baseCache: baseCache, _thinkCache: thinkCache, NetError };
+module.exports = { isToolFormatError, markToolFormat, openThinkInContent, parseWait, waitOf, jfetch, models, ping, chat, chatStream, chatBody, parseSSE, assembleDelta, isLoadCancel, isImageInputError, mmprojHint, withImageHint, waitForModel, modelEntry, entryLoading, withLoadRetry, withGate, prepare, props, parseRouterMax, routerInfo, slots, tokenize, modelLoaded, PROPS_MODEL_MS, contextInfo, embed, transcribe, tts, runCmd, fillTemplate, buildTtsCmd, cmdQuote, exeHelp, netCode, netMessage, baseVariants, hintFor, findLms, lmsServerStart, isForbidden, isNeedModel, modelQuery, _baseCache: baseCache, _thinkCache: thinkCache, NetError };

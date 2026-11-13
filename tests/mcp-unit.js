@@ -529,7 +529,7 @@ function loadBoard() {
 
   await ok('Electron stays 45.2.3 and version is 2.6.7.x', () => {
     const pkg = require(path.join(ROOT, 'package.json'));
-    assert.ok(pkg.version === '2.6.8' || pkg.version.startsWith('2.6.8') || pkg.version === '2.6.7' || pkg.version.startsWith('2.6.7.'), pkg.version);
+    assert.ok(pkg.version === '2.6.9' || pkg.version === '2.6.8' || pkg.version.startsWith('2.6.8') || pkg.version === '2.6.7' || pkg.version.startsWith('2.6.7.'), pkg.version);
     assert.strictEqual(pkg.devDependencies.electron, '45.2.3');
   });
 

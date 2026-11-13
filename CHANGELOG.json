@@ -1,4 +1,16 @@
 {
+ "2.6.9": {
+  "el": [
+   "Ημερομηνίες και ποσά τα υπολογίζει ο κώδικας του Nyx, όχι το μοντέλο: νέα εργαλεία date_calc και money_calc. Το μοντέλο δίνει τη φράση («σε 45 μέρες», «Τρίτη 17/11», «μοίρασε 1640€ σε 3») και το Nyx κάνει την πράξη — ημερολόγιο Europe/Athens, ακρίβεια λεπτού, η μοιρασιά αθροίζει πάντα ακριβώς. Λάθος μέρα για την ημερομηνία ή υπόθεση έτους φαίνονται ως σημείωση· φράση που δεν καταλαβαίνει → ορατό σφάλμα, ποτέ δική του ημερομηνία. Υπενθυμίσεις/countdown δέχονται τη φράση απευθείας.",
+   "Όριο σκέψης ορατό και επεξεργάσιμο: chip «Σκέψη ≤ N tokens» δίπλα στο κουμπί Σκέψη (κλικ για αλλαγή, και στο Hub). Όταν η σκέψη φτάσει το όριο ή το μοντέλο δώσει μόνο σκέψη, το Nyx ξαναρωτά χωρίς σκέψη με ορατή ειδοποίηση· αν πάλι δεν υπάρχει απάντηση, το λέει και δείχνει το raw — ποτέ σιωπηλό κενό.",
+   "Μοντέλο ανά εργασία: η απλή συζήτηση πάει στο μοντέλο «Συζήτηση» (π.χ. Krikri) όταν το έχεις ορίσει διαφορετικό από τις «Εντολές» (π.χ. Qwen). Προειδοποίηση στο Hub όταν το μοντέλο των εντολών δεν κάνει tool calls (Krikri: 500 «peg-native format»)· το 500 αυτό δεν κολλάει πια σε ατελείωτο «φορτώνει» — ο βοηθός περνά σε JSON και το λέει. Ένδειξη MTP ενεργό/ανενεργό και t/s από τα timings του server. Προειδοποίηση VRAM από πραγματική μέτρηση (μετρητές GPU των Windows ανά διεργασία) όταν τρέχει και το Voice Studio."
+  ],
+  "en": [
+   "Dates and amounts are computed by Nyx code, not by the model: new date_calc and money_calc tools. The model passes the phrase (“in 45 days”, “Tuesday 17/11”, “split €1640 in 3”) and Nyx does the arithmetic — Europe/Athens calendar, exact cents, a split always adds up exactly. A wrong weekday for a date or an assumed year is shown as a note; an unknown phrase → a visible error, never a made-up date. Reminders/countdowns accept the phrase directly.",
+   "Visible, editable thinking cap: a “Thinking ≤ N tokens” chip next to the Thinking button (click to change; also in the Hub). When thinking reaches the cap or the model returns only thinking, Nyx asks again without thinking with a visible notice; if there is still no answer it says so and shows the raw output — never a silent empty reply.",
+   "Model per task: plain conversation goes to the “Chat” model (e.g. Krikri) when you set it different from “Commands” (e.g. Qwen). Hub warning when the commands model cannot do tool calls (Krikri: 500 “peg-native format”); that 500 no longer hangs in endless “loading” — the assistant switches to JSON and says so. MTP on/off and t/s from the server timings. VRAM warning from a real measurement (Windows GPU counters per process) when Voice Studio is also running."
+  ]
+ },
  "2.6.8.2": {
   "el": [
    "Πραγματική μέτρηση tokens στα συνημμένα: με φορτωμένο μοντέλο ένα /tokenize ανά συνημμένο (cache ανά hash, δεν ξεκινά φόρτωση)· χωρίς μοντέλο συντηρητική εκτίμηση (ελληνικά/κώδικας ≈ χαρακτήρες/2, αγγλικά ≈ χαρακτήρες/3,5) αντί για χαρακτήρες/4 που μετρούσε 12,8k αντί ~30k. Πριν από κάθε αποστολή: σύστημα + ιστορικό + συνημμένα + κράτηση ≤ n_ctx — αν ξεπερνά, τα συνημμένα κόβονται αυτόματα με ειδοποίηση, ποτέ αποστολή πάνω από το όριο. Το chip δεν δείχνει πράσινο ✓ όταν δεν χωράει: πορτοκαλί «θα σταλούν X από Y tokens» με ένδειξη «μετρημένο» ή «εκτίμηση».",

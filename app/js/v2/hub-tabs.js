@@ -70,11 +70,18 @@ Hub.paintHubTabs = function (panes, show) {
     const ctxB = h('b', { 'data-st': 'ctx' }, cached.ctxB || (meta.ctx ? (meta.ctx >= 1024 ? Math.round(meta.ctx / 1024) + 'K' : String(meta.ctx)) : '…'));
     const ctxS = h('span', {}, t('v267.stat_ctx'));
     const speed = last && last.predicted_n != null && last.predicted_ms > 0 ? (last.predicted_n / (last.predicted_ms / 1000)) : null;
+    // v2.6.9: MTP / speculative state from the server's own timings of the last request (draft_n), never guessed
+    const mtp = NyxLimits.mtpOf(AI.lastTimings);
+    const mtpB = h('b', { 'data-st': 'mtp', 'data-mtp': mtp.state }, mtp.state === 'on' ? t('v269.mtp_on') : mtp.state === 'off' ? t('v269.mtp_off') : t('v269.mtp_unknown'));
+    const lastModel = last && last.model ? String(last.model).split(/[\\/]/).pop() : '';
+    const mtpTip = mtp.state === 'on' ? t('v269.mtp_on_tip', { v0: mtp.accepted != null ? mtp.accepted : '—', v1: mtp.draft, v2: mtp.rate != null ? Math.round(mtp.rate * 100) + '%' : '—' }) : mtp.state === 'off' ? t('v269.mtp_off_tip', { v0: lastModel || '—' }) : t('v269.mtp_unknown_tip');
     const stats = h('div', { class: 'hub-stats' },
       h('div', { class: 'hub-stat' }, loadB, loadS),
       h('div', { class: 'hub-stat' }, vramB, vramS),
       h('div', { class: 'hub-stat' }, ctxB, ctxS),
-      h('div', { class: 'hub-stat' }, h('b', {}, speed != null ? Math.round(speed) + ' t/s' : '—'), h('span', {}, speed != null ? t('v267.stat_speed') : t('v267.stat_speed_none'))));
+      h('div', { class: 'hub-stat', 'data-st': 'speed' }, h('b', {}, speed != null ? Math.round(speed) + ' t/s' : '—'), h('span', {}, speed != null ? (lastModel ? t('v269.speed_model', { v0: lastModel }) : t('v267.stat_speed')) : t('v267.stat_speed_none'))),
+      h('div', { class: 'hub-stat', title: mtpTip }, mtpB, h('span', {}, t('v269.stat_mtp'))));
+    const vramWarn = h('div', { class: 'hub-vram-warn', 'data-st': 'vram-warn', hidden: true });
 
     const llamaDot = dot(cached.llamaKind || 'x'); llamaDot.setAttribute('data-st', 'llama-dot');
     const llamaMsg = h('span', { class: 'grow', 'data-st': 'llama-msg' }, t('v267.llm_router') + ' · :' + port);
@@ -109,7 +116,7 @@ Hub.paintHubTabs = function (panes, show) {
     lastBox.append(h('p', { class: 'muted small' }, t('v267.status_note')));
     const tools = h('div', { class: 'hub-tools-slot' });
     el.innerHTML = '';
-    el.append(stats, running, lastBox, h('div', { class: 'hub-h4' }, t('v267.tools_row')), tools);
+    el.append(stats, vramWarn, running, lastBox, h('div', { class: 'hub-h4' }, t('v267.tools_row')), tools);
     refill25(el);
     el._painted = true;
 
@@ -150,6 +157,7 @@ Hub.paintHubTabs = function (panes, show) {
       if (vramKnown) vramB.setAttribute('data-gvs-vram', String(ad.used || 0));
       vramS.textContent = vramKnown ? t('v267.stat_vram', { v0: fmtGB(ad.total) }) : t('v267.stat_vram_unknown') + (perf?.gpu?.error ? ' · ' + perf.gpu.error : '');
       ctxB.textContent = ctxShown ? (ctxShown >= 1024 ? Math.round(ctxShown / 1024) + 'K' : String(ctxShown)) : '—';
+      Hub.paintVramWarn(vramWarn, perf0);
       if (ctxShown) ctxB.setAttribute('data-gvs-ctx', String(ctxShown));
 
       const llamaOn = !!(this.procState.llama?.running || hl.ok || hl.status);

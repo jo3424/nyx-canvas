@@ -126,7 +126,7 @@ const Hub = {
       h('div', { class: 'row gap wrap' },
         this.field(t('v265.max_tokens'), h('input', { class: 'inp', type: 'number', min: 0, placeholder: t('v265.auto'), value: As.maxTokens || '', onchange: (e) => { As.maxTokens = +e.target.value || 0; Store.save(); } }), t('v265.max_tokens_help')),
         this.field(t('v265.max_continue'), h('input', { class: 'inp', type: 'number', min: 0, value: As.maxContinue ?? 8, onchange: (e) => { As.maxContinue = Math.max(0, +e.target.value || 0); Store.save(); } }), t('v265.max_continue_help')),
-        this.field(t('v265.think_budget'), h('input', { class: 'inp', type: 'number', min: 0, placeholder: t('v265.auto'), value: As.thinkingBudget || '', onchange: (e) => { As.thinkingBudget = +e.target.value || 0; Store.save(); } }), t('v265.think_budget_help'))),
+        this.field(t('v265.think_budget'), h('input', { class: 'inp', id: 'hub-think-budget', type: 'number', min: 0, placeholder: t('v265.auto'), value: As.thinkingBudget || '', onchange: (e) => { As.thinkingBudget = Math.max(0, Math.floor(+e.target.value || 0)); Store.save(); Assistant.syncThink?.(); } }), t('v265.think_budget_help'))),
       h('p', { class: 'muted small', id: 'hub-limit-live' }, t('v265.limit_hub')),
       this.field(t('v266.history_pct'), h('input', { class: 'inp', type: 'number', min: 0, max: 100, value: As.historyPct ?? 25, onchange: (e) => { let n = +e.target.value; if (!Number.isFinite(n)) n = 25; As.historyPct = Math.max(0, Math.min(100, n)); e.target.value = As.historyPct; Store.save(); } }), t('v266.history_pct_help')),
       this.field(t('v2681.attach_reserve'), h('input', { class: 'inp', type: 'number', min: 0, value: As.attachReserve ?? 2048, onchange: (e) => { let n = +e.target.value; if (!Number.isFinite(n) || n < 0) n = 2048; As.attachReserve = n; e.target.value = n; Store.save(); } }), t('v2681.attach_reserve_help')),
@@ -224,7 +224,9 @@ const Hub = {
     psel.value = c.p || '';
     const msel = h('select', { class: 'inp task-model' }, h('option', { value: '' }, t('v266.pick_model')));
     const res = h('small', { class: 'muted task-res' });
-    const row = h('div', { class: 'task-row', 'data-task': k }, h('span', { class: 'ti', html: iconSvg(ic, 16) }), h('span', { class: 'tl' }, label), psel, msel, res);
+    // v2.6.9: tool-call capability of the model picked for «Commands» (seen on this PC, or known from the 12–13/11 test)
+    const capEl = h('span', { class: 'hub-pill task-tools', 'data-tools': '', hidden: true });
+    const row = h('div', { class: 'task-row', 'data-task': k }, h('span', { class: 'ti', html: iconSvg(ic, 16) }), h('span', { class: 'tl' }, label), psel, msel, res, capEl);
     row._refresh = async () => {
       psel.value = c.p || ''; const r = AI.task(k);
       msel.innerHTML = ''; msel.append(h('option', { value: '' }, t('v266.pick_model')));
@@ -252,10 +254,39 @@ const Hub = {
         res.textContent = r.p ? '→ ' + r.p.name + (shown ? ' · ' + String(shown).split(/[\\/]/).pop().slice(0, 40) : ' · ' + t('v266.pick_model')) : '⚠️ ' + t('v23.no_enabled');
         res.classList.toggle('bad', !r.p || AI.isBlocked(r.p && r.p.id));
       }
+      this.paintToolCap(capEl, k, shown);
     };
     psel.onchange = () => { c.p = psel.value; c.m = ''; if (c.p === 'lmstudio') { const lm = A.providers.find(x => x.id === 'lmstudio'); if (lm) { lm.enabled = true; lm.userOn = true; } } Store.save(); row._refresh(); Assistant.updModel?.(); };
     msel.onchange = () => { c.m = msel.value; if (c.m && !c.p) c.p = AI.task(k).p?.id || ''; Store.save(); if (k === 'embed') Search.index = {}; row._refresh(); Assistant.updModel?.(); };
     row._refresh(); return row;
+  },
+  // v2.6.9: VRAM warning from the measured snapshot only (Windows GPU counters per process); no data → no warning
+  vramText(w) {
+    const gb = (b) => ((b || 0) / 1073741824).toFixed(1).replace('.', LANG === 'en' ? '.' : ',') + ' GB';
+    if (!w || (w.state !== 'gvs' && w.state !== 'high')) return '';
+    let why = '';
+    if (w.state === 'gvs') why = t('v269.vram_gvs', { v0: w.gvs.map(x => x.name || x.pid).join(', '), v1: gb(w.gvs.reduce((a, x) => a + (x.vram || 0), 0)) });
+    else if (w.others.length) why = t('v269.vram_other', { v0: w.others.map(x => (x.name || x.pid) + ' ' + gb(x.vram)).join(', ') });
+    return t('v269.vram_warn', { v0: gb(w.used), v1: gb(w.total), v2: Math.round(w.pct * 100), v3: why }).trim();
+  },
+  paintVramWarn(el, snap) {
+    if (!el) return null;
+    const w = NyxLimits.vramWarn(snap);
+    const txt = this.vramText(w);
+    el.hidden = !txt; el.textContent = txt ? '⚠️ ' + txt : ''; el.title = txt ? t('v269.vram_tip') : '';
+    el.setAttribute('data-vram', w.state);
+    return w;
+  },
+  paintToolCap(capEl, k, model) {
+    if (!capEl) return;
+    if (k !== 'commands' || !model) { capEl.hidden = true; capEl.setAttribute('data-tools', ''); return; }
+    const name = String(model).split(/[\\/]/).pop();
+    const tc = NyxLimits.toolCap(model);
+    capEl.hidden = false; capEl.setAttribute('data-tools', tc.state);
+    capEl.className = 'hub-pill task-tools ' + (tc.state === 'no' ? 'bad' : tc.state === 'ok' ? 'ok' : '');
+    if (tc.state === 'no') { capEl.textContent = '⚠️ ' + t('v269.tools_warn'); capEl.title = t('v269.tools_warn_tip', { v0: name, v1: tc.known ? t('v269.tools_warn_known') : (tc.err || '500') }); }
+    else if (tc.state === 'ok') { capEl.textContent = t('v269.tools_ok'); capEl.title = t('v269.tools_ok_tip', { v0: name, v1: new Date(tc.at).toLocaleString(LANG === 'en' ? 'en-GB' : 'el-GR') }); }
+    else { capEl.textContent = t('v269.tools_unknown'); capEl.title = t('v269.tools_unknown_tip'); }
   },
   refreshTasks() { $$('.task-row').forEach(x => x._refresh?.()); try { Assistant.updModel?.(); } catch (e) {} },
   useForAll(p) {

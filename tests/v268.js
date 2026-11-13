@@ -98,7 +98,7 @@ async function setup(win, port) {
   const router = await startRouter();
   const { app, win } = await launch();
   const ver = await win.evaluate(() => Store.info && Store.info.version);
-  ok(String(ver || '') === '2.6.8' || String(ver || '').includes('2.6.8'), 'app version 2.6.8', ver);
+  ok(String(ver || '') === '2.6.9' || String(ver || '') === '2.6.8' || String(ver || '').includes('2.6.8'), 'app version 2.6.8', ver);
   await setup(win, router.port);
 
   // 1) streaming mid-answer
