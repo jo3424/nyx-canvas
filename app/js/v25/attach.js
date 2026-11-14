@@ -46,8 +46,11 @@ const Att = {
     const histPct = As.historyPct == null ? 25 : (Number.isFinite(+As.historyPct) ? +As.historyPct : 25);
     const base = this.baseTokens(nCtx, histPct);
     const histTok = base.sys + base.hist;
-    const cap = Math.max(0, nCtx - histTok - reserve - 64);
-    return { nCtx, reserve, histTok, sysTok: base.sys, cap, source: this.nCtxSource() };
+    // 64 = the answer margin of computeMaxTokens (main/limits.js DEFAULT_RESERVE): room for the chat-template tokens that
+    // wrap the messages. v2.6.9.1: shown in the chip line («περιθώριο προτύπου 64»), it was hidden (32768−6491−2048 = 24229, chip 24165).
+    const margin = 64;
+    const cap = Math.max(0, nCtx - histTok - reserve - margin);
+    return { nCtx, reserve, histTok, sysTok: base.sys, cap, margin, source: this.nCtxSource() };
   },
   async refreshNctx() {
     try {
@@ -95,14 +98,16 @@ const Att = {
     e.tk = { n: this.tok(text, e.kind), src: 'estimate', len: text.length };
     try {
       const { p, mid } = this.localModel();
-      if (!mid || !p || p.enabled === false) return e.tk;
+      if (!mid || !p || p.enabled === false) { e.tk.why = t('v2691.est_no_model'); return e.tk; }
       const r = await API.inv('ai:tokenize', p, text, { model: mid, onlyIfLoaded: true, timeout: 8000 });
+      // v2.6.9.1: why it stayed an estimate is visible (chip tooltip) — e.g. the router lists the model as «unloaded»
+      if (r && r.skipped) e.tk.why = t('v2691.est_not_loaded', { v0: mid, v1: r.state || t('v2691.state_unknown_short') });
       if (r && Number.isFinite(+r.count) && +r.count > 0) {
         e.tk = { n: +r.count, src: 'measured', len: text.length }; this.tokCache.set(key, e.tk);
         for (const st of e.stages || []) if (st.id === 'fast' || st.id === 'cache' || st.id === 'heavy') st.tokens = e.tk.n;
         this.chips();
       }
-    } catch (er) {}
+    } catch (er) { e.tk.why = t('v2691.est_failed', { v0: cleanErr(er) }); }
     return e.tk;
   },
   srcLabel(src) { return src === 'measured' ? t('v2682.measured') : t('v2682.estimated'); },
@@ -209,7 +214,7 @@ const Att = {
         busy ? h('span', { class: 'pg' }, h('i', { style: `width:${Math.round(e.pct || 0)}%` })) : h('span', { class: 'st' }, e.state === 'bad' ? '⚠️' : over ? '◐' : e.note ? '⚠' : '✓')));
     if (total > 0 && e.state !== 'bad') {
       const label = over ? t(live ? 'v2682.will_send' : 'v2682.were_sent', { x: send, y: total }) : t('v2682.all_fit', { y: total });
-      c.append(h('div', { class: 'at-tok' + (over ? ' over' : '') }, label + ' · ', h('span', { class: 'at-src ' + src }, this.srcLabel(src))));
+      c.append(h('div', { class: 'at-tok' + (over ? ' over' : '') }, label + ' · ', h('span', { class: 'at-src ' + src, title: src !== 'measured' && e.tk && e.tk.why ? e.tk.why : null, 'data-why': src !== 'measured' && e.tk && e.tk.why ? e.tk.why : null }, this.srcLabel(src))));
     }
     if (e.kind === 'zip' && (e.children || e.files)) c.append(this.fileList(e, live ? send : null));
     const meta = this.stageLine(e, live);
@@ -235,7 +240,7 @@ const Att = {
   },
   stageLine(e, live) {
     const parts = (e.stages || []).map(s => t('v2681.att_stage', { name: s.label || s.id, time: this.sec(s.ms || 0), tokens: s.tokens != null ? String(s.tokens) : '—' }));
-    if (live) { const b = this.budget(); if (b.nCtx && (e.state === 'ok' || e.state === 'heavy' || e.stages?.length)) parts.push(t('v2682.budget', { cap: b.cap, nctx: b.nCtx, base: b.histTok, reserve: b.reserve, src: b.source })); }
+    if (live) { const b = this.budget(); if (b.nCtx && (e.state === 'ok' || e.state === 'heavy' || e.stages?.length)) parts.push(t('v2682.budget', { cap: b.cap, nctx: b.nCtx, base: b.histTok, reserve: b.reserve, margin: b.margin, src: b.source })); }
     return parts.join(' · ');
   },
   prog(e, pct, step) { e.pct = pct; if (step) e.step = step; this.chips(); },
@@ -460,6 +465,9 @@ const Att = {
     const L = this.list.slice(); if (!L.length) return null;
     const grace = graceMs == null ? 400 : graceMs;
     await Promise.race([Promise.all(L.map(e => e.fastReady || Promise.resolve())), new Promise(r => setTimeout(r, grace))]);
+    // v2.6.9.1: an attachment counted while the model was not loaded yet is measured again at send time (once; never starts a load)
+    const est = L.filter(e => e.text && !e._child && e.tk && e.tk.src !== 'measured');
+    if (est.length) await Promise.race([Promise.all(est.map(e => this.measure(e).catch(() => null))), new Promise(r => setTimeout(r, 1500))]);
     this.list = []; this.chips(); this.last = L; return L;
   },
   meta(L) { const M = L.map(e => ({ name: e.name, kind: e.kind, ok: e.state !== 'bad', note: e.error || e.note || '', size: e.size || 0, media: e.media || '', tokensSent: e.tokensSent || 0, tokensTotal: e.tokensTotal || 0, tokSrc: e.tokSrc || '', files: e.files || undefined, stages: e.stages || [] })); this._metaRefs = { L, M }; return M; },
@@ -472,7 +480,7 @@ const Att = {
     const b = this.budget();
     const pl = this.plan(L, b);
     this._blocks = [];
-    let s = '\n\n' + t('v25.at_ctx_head') + '\n' + t('v2682.budget', { cap: b.cap, nctx: b.nCtx, base: b.histTok, reserve: b.reserve, src: b.source }) + '\n';
+    let s = '\n\n' + t('v25.at_ctx_head') + '\n' + t('v2682.budget', { cap: b.cap, nctx: b.nCtx, base: b.histTok, reserve: b.reserve, margin: b.margin, src: b.source }) + '\n';
     for (const e of L) {
       const p = pl[e.id];
       let body = '', sent = 0, total = 0, src = 'estimate';

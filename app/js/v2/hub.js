@@ -126,6 +126,7 @@ const Hub = {
       h('div', { class: 'row gap wrap' },
         this.field(t('v265.max_tokens'), h('input', { class: 'inp', type: 'number', min: 0, placeholder: t('v265.auto'), value: As.maxTokens || '', onchange: (e) => { As.maxTokens = +e.target.value || 0; Store.save(); } }), t('v265.max_tokens_help')),
         this.field(t('v265.max_continue'), h('input', { class: 'inp', type: 'number', min: 0, value: As.maxContinue ?? 8, onchange: (e) => { As.maxContinue = Math.max(0, +e.target.value || 0); Store.save(); } }), t('v265.max_continue_help')),
+        this.field(t('v2691.load_retries'), h('input', { class: 'inp', id: 'hub-load-retries', type: 'number', min: 0, value: As.loadRetries ?? 10, onchange: (e) => { let n = Math.floor(+e.target.value); if (!Number.isFinite(n) || n < 0) n = 10; As.loadRetries = n; e.target.value = n; Store.save(); } }), t('v2691.load_retries_help')),
         this.field(t('v265.think_budget'), h('input', { class: 'inp', id: 'hub-think-budget', type: 'number', min: 0, placeholder: t('v265.auto'), value: As.thinkingBudget || '', onchange: (e) => { As.thinkingBudget = Math.max(0, Math.floor(+e.target.value || 0)); Store.save(); Assistant.syncThink?.(); } }), t('v265.think_budget_help'))),
       h('p', { class: 'muted small', id: 'hub-limit-live' }, t('v265.limit_hub')),
       this.field(t('v266.history_pct'), h('input', { class: 'inp', type: 'number', min: 0, max: 100, value: As.historyPct ?? 25, onchange: (e) => { let n = +e.target.value; if (!Number.isFinite(n)) n = 25; As.historyPct = Math.max(0, Math.min(100, n)); e.target.value = As.historyPct; Store.save(); } }), t('v266.history_pct_help')),
@@ -358,7 +359,11 @@ const Hub = {
       let ctxR = null, rec = null, ext = false;
       const mid = (A.tasks && (A.tasks.commands?.m || A.tasks.chat?.m)) || '';
       try { ctxR = await API.inv('ai:context', { ...p, base }, { model: mid || undefined, probe: true, timeout: 800 }); } catch (e) { ctxR = { warnings: [{ message: cleanErr(e) }] }; }
-      try { rec = cfg.model ? await API.inv('ai:recommendCtx', cfg.model, { vramGiB: 24, kvType: cfg.kvType || 'f16', fa: cfg.fa !== false }) : null; } catch (e) { rec = { readError: cleanErr(e) }; }
+      // v2.6.9.1: router mode → the «μέγιστο που χωράει» of ONE model file does not apply; show what was asked / answered instead.
+      const routerMode = !!(ctxR?.router || cfg.modelsDir || /--models-dir/.test(String(cfg.extra || '')));
+      let tokR = null;
+      if (mid) { try { tokR = await API.inv('ai:tokenize', { ...p, base }, 'Nyx', { model: mid, onlyIfLoaded: true, timeout: 4000 }); } catch (e) { tokR = { error: cleanErr(e) }; } }
+      try { rec = cfg.model && !routerMode ? await API.inv('ai:recommendCtx', cfg.model, { vramGiB: 24, kvType: cfg.kvType || 'f16', fa: cfg.fa !== false }) : null; } catch (e) { rec = { readError: cleanErr(e) }; }
       const mine = this.procState.llama?.running;
       try { const hl = await API.inv('proc:health', this.healthUrl('llama', cfg)).catch(() => ({ ok: false })); ext = !mine && !!(hl.ok || hl.status); } catch (e) {}
       const n = ctxR?.n_ctx;
@@ -367,10 +372,22 @@ const Hub = {
         const label = ext ? t('v266.live_ctx_ext', { v0: n, v1: ctxR.model || mid || '—' }) : t('v266.live_ctx', { v0: n, v1: ctxR.model || mid || '—' });
         live.append(h('p', { class: 'small', 'data-gvs-ctx': String(n) }, label));
         if (ctxR.router) live.append(h('p', { class: 'muted small' }, t('v266.router_mode')));
+      } else if (ctxR?.router) {
+        const none = (ctxR.warnings || []).some((w) => w.code === 'router_none_loaded');
+        live.append(h('p', { class: 'muted small', 'data-gvs-ctx': '', 'data-router-ctx': none ? 'none_loaded' : 'fail' }, none ? t('v2691.ctx_router_none', { v0: ctxR.configured || cfg.ctx || '—' }) : t('v265.ctx_unknown', { v0: (ctxR?.warnings || []).slice().sort((a, b) => (b.code === 'router_state_unknown') - (a.code === 'router_state_unknown')).map(w => w.message).filter(Boolean).slice(0, 1).join(' ') || '—' })));
       } else {
         live.append(h('p', { class: 'muted small', 'data-gvs-ctx': '' }, t('v265.ctx_unknown', { v0: (ctxR?.warnings || []).map(w => w.message).filter(Boolean).slice(0, 1).join(' ') || '—' })));
       }
+      const trace = [...(ctxR?.trace || []), ...((tokR && tokR.trace) || [])];
+      if (tokR && tokR.error) trace.push({ req: 'POST /tokenize', status: 0, ans: tokR.error, error: true });
+      if (trace.length) {
+        const tokLine = tokR ? (tokR.count != null ? t('v2691.tok_ok', { v0: tokR.count, v1: mid }) : tokR.skipped ? t('v2691.est_not_loaded', { v0: mid, v1: tokR.state || '—' }) : t('v2691.tok_fail')) : '';
+        live.append(h('details', { class: 'hub-trace', 'data-trace': String(trace.length) }, h('summary', {}, t('v2691.trace_title')),
+          ...trace.map((x) => h('div', { class: 'small' + (x.error ? ' err' : '') }, h('code', {}, x.req), ' → ', h('b', {}, String(x.status || '✗')), ' ', h('span', { class: 'muted' }, x.ans || ''))),
+          tokLine ? h('p', { class: 'small', 'data-tok': tokR && tokR.count != null ? String(tokR.count) : '' }, tokLine) : null));
+      }
       recBox.innerHTML = '';
+      if (routerMode) recBox.append(h('p', { class: 'muted small', 'data-na': 'router-fit' }, t('v2691.na_router_fit')));
       // Neutral computed figure only — not a recommendation to raise the user's ctx.
       if (rec && rec.ctx) recBox.append(h('p', { class: 'muted small' }, t('v266.computed_fit', { v0: rec.ctx, v1: rec.maxCtx || '—', v2: rec.note === 'computed_not_measured' ? t('v265.computed') : (rec.note || '') })));
       else if (rec?.readError) recBox.append(h('p', { class: 'muted small' }, t('v265.rec_fail', { v0: rec.readError })));

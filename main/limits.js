@@ -369,7 +369,34 @@ function llamaExtraFlags(cfg) {
   return args;
 }
 
+// v2.6.9.1: last guard before the wire. Strict chat templates (Qwen3.x, b12230) answer 500 «Jinja Exception: System message
+// must be at the beginning» for a system message after the first position. Leading system messages merge into one; any later
+// system message moves into a <context> block at the end of the last user message (same format as prompt.js). No-op otherwise.
+function oneSystem(messages) {
+  const list = Array.isArray(messages) ? messages.filter(Boolean) : messages;
+  if (!Array.isArray(list)) return messages;
+  let i = 0; const head = [];
+  while (i < list.length && list[i].role === 'system') { head.push(String(list[i].content == null ? '' : list[i].content)); i++; }
+  const late = list.slice(i).some((m) => m.role === 'system');
+  if (head.length <= 1 && !late) return messages;
+  const rest = []; const moved = [];
+  for (; i < list.length; i++) { const m = list[i]; if (m.role === 'system') moved.push(String(m.content == null ? '' : m.content).trim()); else rest.push({ ...m }); }
+  const out = [];
+  const sys = head.map((x) => x.trim()).filter(Boolean).join('\n\n');
+  if (sys) out.push({ role: 'system', content: sys });
+  const block = moved.filter(Boolean).length ? '<context>\n' + moved.filter(Boolean).join('\n\n') + '\n</context>' : '';
+  if (block) {
+    let k = -1; for (let j = rest.length - 1; j >= 0; j--) if (rest[j].role === 'user') { k = j; break; }
+    if (k >= 0) {
+      const c = rest[k].content;
+      rest[k].content = Array.isArray(c) ? [...c, { type: 'text', text: '\n\n' + block }] : ((c ? String(c) + '\n\n' : '') + block);
+    } else rest.push({ role: 'user', content: block });
+  }
+  return out.concat(rest);
+}
+
 module.exports = {
+  oneSystem,
   DEFAULT_RESERVE, DEFAULT_MAX_CONTINUE, GVS_SMALL_CTX, LMS_DEFAULT_BASE, GEMMA4_12B, CLOUD_MAX_OUT, KV_BYTES,
   isLocalLlama, nativeBase, parseNctx, estimateTokens, messagesToText, requestToText,
   computeMaxTokens, cloudMaxOutput, thinkingParams, dropUnsupported, isUnknownParamError,

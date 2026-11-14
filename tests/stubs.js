@@ -30,7 +30,7 @@ async function startLLM() {
       const reply = (message) => json(res, { model: j.model, choices: [{ index: 0, message: { role: 'assistant', ...message }, finish_reason: message.tool_calls ? 'tool_calls' : 'stop' }] });
       if (Array.isArray(last.content) && last.content.some(c => c.type === 'image_url')) return reply({ content: '<think>βλέπω</think>```json\n{"caption":"Μια μπλε τετράγωνη εικόνα δοκιμής","tags":["δοκιμή","μπλε","τετράγωνο"],"text":"NYX"}\n```' });
       if (last.role === 'tool') return reply({ content: 'Έγινε ✓ (' + msgs.filter(m => m.role === 'tool').map(m => m.name).join(', ') + ')' });
-      const user = String(last.content || '');
+      const user = String(last.content || '').replace(/\n*<context>[\s\S]*$/, ''); // 2.6.9.1: board/date ride at the end of the last user message
       if (/Αποτελέσματα εργαλείων/.test(user)) return reply({ content: '{"say":"Βρήκα τα αποτελέσματα.","actions":[]}' });
       if (/Μεταγραφή βίντεο με χρόνους/.test(user)) return reply({ content: '[{"t0":0.5,"t1":1.5,"label":"Αρχή"}]' });
       if (/περίληψη|Σύνοψη|συνόψισε/i.test(user) && !j.tools) return reply({ content: 'Περίληψη (stub): ' + user.slice(0, 60) });

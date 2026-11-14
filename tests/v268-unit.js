@@ -15,7 +15,7 @@ let fails = 0, passes = 0;
 const ok = (c, m, x) => { console.log((c ? '  ✓ ' : '  ✗ ') + m + (!c && x !== undefined ? '  → ' + JSON.stringify(x).slice(0, 500) : '')); c ? passes++ : fails++; };
 
 console.log('version + changelog');
-ok((pkg.version === '2.6.9' || pkg.version === '2.6.8' || pkg.version === '2.6.8.1' || pkg.version.startsWith('2.6.8')) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.8+, Electron 45.2.3', pkg.version);
+ok(((pkg.version === '2.6.9' || pkg.version === '2.6.9.1') || pkg.version === '2.6.8' || pkg.version === '2.6.8.1' || pkg.version.startsWith('2.6.8')) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.8+, Electron 45.2.3', pkg.version);
 const log = require(R + '/CHANGELOG.json')['2.6.8'];
 ok(log && log.el.length === log.en.length && log.el.length === 3, 'CHANGELOG 2.6.8 has 3 el+en deliverable groups', log && log.el.length);
 ok(/streaming/i.test(log.el[0] + log.en[0]), 'group 1 is streaming');
@@ -50,8 +50,9 @@ const preA = P.prefixBeforeBoard(a);
 const preB = P.prefixBeforeBoard(b);
 ok(preA === preB && preA.includes('INST') && preA.includes('search_cards') && preA.includes('γεια') && preA.includes('Γεια σου!'), 'prefix bytes identical when only the board changes', { preA: preA.slice(0, 200), eq: preA === preB });
 ok(!preA.includes('Cards: 2') && !preA.includes('Cards: 99') && !preA.includes('Now:'), 'prefix excludes board and date');
-const roles = a.map((m) => (m._board ? 'board' : m._date ? 'date' : m.role));
-ok(roles[0] === 'system' && roles.includes('board') && roles.indexOf('board') > roles.lastIndexOf('assistant') && roles.indexOf('date') > roles.indexOf('board') && roles[roles.length - 1] === 'user', 'order: system prefix, history, board, date, current user', roles);
+// v2.6.9.1: ONE system message first; board + date are in the <context> block at the end of the current user message
+const roles = a.map((m) => m.role); const lastU = String(a[a.length - 1].content || '');
+ok(roles[0] === 'system' && roles.filter((r) => r === 'system').length === 1 && roles[roles.length - 1] === 'user' && lastU.indexOf('<context>') > 0 && lastU.indexOf('Cards: 2') > lastU.indexOf('<context>') && lastU.indexOf('Now:') > lastU.indexOf('Cards: 2'), 'order (2.6.9.1): one system, history, current user + <context>(board, date)', roles);
 ok(P.wireMessages(a).every((m) => !('_board' in m) && !('_date' in m)), 'wireMessages strips _board/_date before send');
 
 console.log('extractThink mid-stream (Gemma 4 channel)');

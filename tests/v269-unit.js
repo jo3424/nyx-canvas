@@ -16,9 +16,9 @@ const ok = (c, m, x) => { console.log((c ? '  ✓ ' : '  ✗ ') + m + (!c && x !
 const NOW = new Date('2026-11-13T15:00:00Z'); // Παρασκευή 13/11/2026, 17:00 Europe/Athens
 
 (async () => {
-  ok(pkg.version === '2.6.9', 'package.json version 2.6.9', pkg.version);
+  ok(pkg.version === '2.6.9' || pkg.version === '2.6.9.1', 'package.json version 2.6.9(+)', pkg.version);
   ok(pkg.devDependencies && /45\.2\.3/.test(pkg.devDependencies.electron || ''), 'Electron stays 45.2.3', pkg.devDependencies && pkg.devDependencies.electron);
-  const CH = require('../CHANGELOG.json'); ok(Object.keys(CH)[0] === '2.6.9' && CH['2.6.9'].el.length === 3 && CH['2.6.9'].en.length === 3, 'CHANGELOG 2.6.9 first, 3 deliverables (el/en)');
+  const CH = require('../CHANGELOG.json'); ok(['2.6.9', '2.6.9.1'].includes(Object.keys(CH)[0]) && CH['2.6.9'].el.length === 3 && CH['2.6.9'].en.length === 3, 'CHANGELOG 2.6.9 first, 3 deliverables (el/en)');
 
   // ---- 1) dates: the evidence phrases ----
   const d45 = C.resolveDate('σε 45 μέρες', { now: NOW });

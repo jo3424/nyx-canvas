@@ -10,7 +10,7 @@ const ok = (c, m, x) => { console.log((c ? '  ✓ ' : '  ✗ ') + m + (!c && x !
 
 console.log('version + electron');
 const pkg = require(R + '/package.json');
-ok((pkg.version === '2.6.7.1' || pkg.version === '2.6.8' || pkg.version.startsWith('2.6.8')) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.7.1/2.6.8, Electron 45.2.3', pkg.version);
+ok((pkg.version.startsWith('2.6.9') || pkg.version === '2.6.7.1' || pkg.version === '2.6.8' || pkg.version.startsWith('2.6.8')) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.7.1/2.6.8, Electron 45.2.3', pkg.version);
 const log = require(R + '/CHANGELOG.json')['2.6.7.1'];
 ok(log && log.el.length === log.en.length && log.el.length >= 5, 'CHANGELOG 2.6.7.1 el+en');
 ok(/2\.6\.8/.test(log.el.join(' ')) && /streaming/.test(log.en.join(' ').toLowerCase()), '2.6.8 mentioned only as upcoming');

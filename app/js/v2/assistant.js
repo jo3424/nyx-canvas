@@ -491,7 +491,8 @@ const Assistant = {
     const hist = this.history({ nCtx });
     if (this._histTrim && this._histTrim.trimmed && onNotice) onNotice('info', t('v266.hist_trimmed', { v0: A.historyPct ?? 25, v1: this._histTrim.dropped || 0 }));
     // if current message is already in hist as last, drop it; system+hist+user added below
-    const prior = hist.filter((m, i) => !(i === hist.length - 1 && m.role === 'user' && m.content === text));
+    // v2.6.9.1: with an attachment `text` is «question + attachment context», so the stored question was sent twice (user, user)
+    const prior = hist.filter((m, i) => !(i === hist.length - 1 && m.role === 'user' && (m.content === text || (m.content && String(text).startsWith(m.content)))));
     // v2.6.9: model per task — a plain conversation goes to the «Chat» model when the user picked a different one there
     if (A.mode !== 'json' && this.chatRoute(text)) {
       let cm = null; try { cm = await AI.pickModel('chat'); } catch (e) { cm = null; }
@@ -526,6 +527,8 @@ const Assistant = {
         const em = String(e.message || e); if (netDown(em)) return offline(t('assistant.110'));
         // v2.6.9: the model cannot do tool calls (router 500 «peg-native format») → remember it for the Hub warning, say so, use JSON
         if (NyxLimits.isToolFormatError(em)) { NyxLimits.noteTools(pm.m, false, em); if (onNotice) onNotice('warn', t('v269.tools_unsupported', { v0: String(pm.m).split(/[\\/]/).pop(), v1: em.slice(0, 160) })); try { Hub.refreshTasks?.(); } catch (x) {} return await tryJson(); }
+        // v2.6.9.1: a template error (router 500 «Jinja Exception …») is not fixed by resending as JSON — stop and show it (red)
+        if (/jinja|chat template|template (?:error|exception)|system message must be/i.test(em)) throw e; // i18n-ignore
         if (A.mode === 'auto' && round === 0) return await tryJson(); throw e;
       } // i18n-ignore
       model = r.model || model; const m = r.message || {};

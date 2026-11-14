@@ -1,6 +1,6 @@
 'use strict';
 // Nyx v2.6.6 — system prompt + history trim. Works in the renderer (script tag) and in Node tests (module.exports).
-// v2.6.8 order: stable prefix (instructions → tools), then history, then board, then date, then the current user message.
+// v2.6.9.1 order: ONE system message (instructions → tools), then history, then the last user message with a <context> block (digest, board, date) at its end.
 const NyxPrompt = {
   TZ: 'Europe/Athens',
   DEFAULT_HISTORY_PCT: 25,
@@ -125,15 +125,54 @@ const NyxPrompt = {
       return o;
     });
   },
-  // Order: stable system+tools prefix, then history, then board, then date, then the current user message.
+  // v2.6.9.1: exactly ONE system message, first. Strict chat templates (Qwen3.x on llama.cpp b12230) answer 500
+  // «Jinja Exception: System message must be at the beginning» for any later system message, and the old order put
+  // board/date (and the history digest) as system messages after the history. The variable parts now go at the END of
+  // the LAST user message, inside one <context> block, so everything before them (system + tools + history) stays a
+  // byte-stable cache prefix.
+  CTX_OPEN: '<context>',
+  CTX_CLOSE: '</context>',
+  contextBlock(parts) {
+    const list = (parts || []).map((x) => String(x == null ? '' : x).trim()).filter(Boolean);
+    return list.length ? this.CTX_OPEN + '\n' + list.join('\n\n') + '\n' + this.CTX_CLOSE : '';
+  },
+  appendToContent(content, extra) {
+    if (!extra) return content;
+    if (Array.isArray(content)) return [...content, { type: 'text', text: '\n\n' + extra }];
+    const c = content == null ? '' : String(content);
+    return c ? c + '\n\n' + extra : extra;
+  },
+  // Generic guard for any message list: the leading system messages merge into one; every later system message
+  // (digest, board, date, anything) moves into the <context> block at the end of the last user message.
+  oneSystem(messages) {
+    const list = (messages || []).filter(Boolean);
+    const head = [];
+    let i = 0;
+    while (i < list.length && list[i].role === 'system') { head.push(String(list[i].content == null ? '' : list[i].content)); i++; }
+    const rest = []; const moved = [];
+    for (; i < list.length; i++) { const m = list[i]; if (m.role === 'system') moved.push(m.content); else rest.push({ ...m }); }
+    const out = [];
+    const sys = head.map((x) => x.trim()).filter(Boolean).join('\n\n');
+    if (sys) out.push({ role: 'system', content: sys });
+    if (moved.length) {
+      const block = this.contextBlock(moved);
+      let k = -1; for (let j = rest.length - 1; j >= 0; j--) if (rest[j].role === 'user') { k = j; break; }
+      if (k >= 0) rest[k] = { ...rest[k], content: this.appendToContent(rest[k].content, block), _ctx: true };
+      else rest.push({ role: 'user', content: block, _ctx: true });
+    }
+    return out.concat(rest);
+  },
+  // Order: ONE system (instructions → extra → tools), then history, then the current user message with
+  // <context> (digest, board, date) at its end.
   assembleMessages({ instructions, extra, toolsText, history, user, boardHeader, boardBody, includeBoard, now, labels }) {
     const msgs = [];
     const prefix = this.buildPrefix({ instructions, extra, toolsText });
     if (prefix) msgs.push({ role: 'system', content: prefix });
+    const tail = [];
     for (const m of history || []) {
       if (!m) continue;
+      if (m.role === 'system') { if (m.content) tail.push(String(m.content)); continue; } // digest → context block
       const o = { role: m.role, content: m.content };
-      if (m.digest) o.digest = true;
       if (m.tool_calls) o.tool_calls = m.tool_calls;
       if (m.tool_call_id) o.tool_call_id = m.tool_call_id;
       if (m.name) o.name = m.name;
@@ -141,23 +180,33 @@ const NyxPrompt = {
     }
     if (includeBoard) {
       const board = String(boardBody || boardHeader || '').trim();
-      if (board) msgs.push({ role: 'system', content: board, _board: true });
+      if (board) tail.push(board);
     }
     const date = now || this.dateLine(new Date(), this.TZ, 'el-GR', labels);
-    if (date) msgs.push({ role: 'system', content: String(date), _date: true });
+    if (date) tail.push(String(date));
     if (user != null && user !== '') {
       msgs.push(typeof user === 'string' ? { role: 'user', content: user } : { role: user.role || 'user', content: user.content, ...(user.tool_calls ? { tool_calls: user.tool_calls } : {}) });
     }
+    const block = this.contextBlock(tail);
+    if (block) {
+      let k = -1; for (let j = msgs.length - 1; j >= 0; j--) if (msgs[j].role === 'user') { k = j; break; }
+      if (k >= 0) msgs[k] = { ...msgs[k], content: this.appendToContent(msgs[k].content, block), _ctx: true };
+      else msgs.push({ role: 'user', content: block, _ctx: true });
+    }
     return msgs;
   },
-  // Byte-stable prefix: everything before the board (and before the date / current user that follow it).
+  // Byte-stable prefix: every message before the one that carries the <context> block.
   prefixBeforeBoard(messages) {
     const parts = [];
     for (const m of messages || []) {
-      if (m && (m._board || m._date)) break;
+      if (m && (m._ctx || m._board || m._date || (typeof m.content === 'string' && m.content.includes(this.CTX_OPEN)))) break;
       parts.push(String((m && m.role) || '') + '\n' + String((m && m.content) || ''));
     }
     return parts.join('\n\n');
+  },
+  stripContext(text) {
+    const s = String(text == null ? '' : text); const i = s.lastIndexOf('\n\n' + this.CTX_OPEN);
+    return i >= 0 && s.trimEnd().endsWith(this.CTX_CLOSE) ? s.slice(0, i) : s;
   },
 
   estimateTokens(messages, tools) {

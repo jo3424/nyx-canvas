@@ -90,7 +90,7 @@ const histChat = (tokens) => { const out = []; let n = 0; const r = rng(3); whil
 
 (async () => {
   console.log('version + changelog + electron');
-  ok((pkg.version === '2.6.8.2' || pkg.version === '2.6.9') && pkg.devDependencies.electron === '45.2.3', 'version 2.6.8.2, Electron 45.2.3', pkg.version);
+  ok((pkg.version === '2.6.8.2' || pkg.version.startsWith('2.6.9')) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.8.2, Electron 45.2.3', pkg.version);
   const log = require(R + '/CHANGELOG.json')['2.6.8.2'];
   ok(log && log.el.length === 3 && log.en.length === 3, 'CHANGELOG 2.6.8.2 has exactly 3 el+en groups');
   ok(/tokenize/.test(log.el[0]) && /θα σταλούν/.test(log.el[0]), 'group 1 = token counting / orange chip');
@@ -252,7 +252,7 @@ const histChat = (tokens) => { const out = []; let n = 0; const r = rng(3); whil
     ok(r1.skipped === 'not_loaded' && st.tok.length === 0, 'not loaded → no /tokenize (never starts a load)', r1);
     st.loaded = true;
     const r2 = await ai.tokenize(p, 'κείμενο', { model: 'gemma', onlyIfLoaded: true });
-    ok(r2.count === 5 && st.tok.length === 1 && st.tok[0].body.model === 'gemma' && /\?model=gemma/.test(st.tok[0].url), 'loaded → one /tokenize with the model id (router mode)', st.tok);
+    ok(r2.count === 5 && st.tok.length === 1 && st.tok[0].body.model === 'gemma' && /\?autoload=false/.test(st.tok[0].url), 'loaded → one /tokenize with the model id in the body + ?autoload=false (router b12230 reads the body)', st.tok);
     ok(ai.entryLoading({ id: 'x', status: { value: 'loaded' } }) === false && ai.entryLoading({ id: 'x', status: { value: 'loading' } }) === true, 'router status objects {value:…} are understood');
     const ctrl = new AbortController(); ctrl.abort();
     let err = null; try { await ai.chatStream(p, { model: 'gemma', messages: [{ role: 'user', content: 'x' }] }, { signal: ctrl.signal }); } catch (e) { err = e; }

@@ -1,4 +1,16 @@
 {
+ "2.6.9.1": {
+  "el": [
+   "Κρίσιμη διόρθωση: ο Qwen3.8-27B δεν κολλάει πια με 500 «Jinja Exception: System message must be at the beginning». Ένα μόνο system μήνυμα, στην αρχή· πίνακας, ημερομηνία και περίληψη ιστορικού μπαίνουν σε ένα μπλοκ <context> στο τέλος του τελευταίου μηνύματος χρήστη (σταθερό cache prefix). Επανάληψη μόνο όταν ο server λέει ότι φορτώνει ή το /v1/models δείχνει «loading», με ορατό όριο (προεπιλογή 10, ρυθμίζεται στο Hub)· κάθε άλλο 500 σταματά αμέσως με κόκκινο μήνυμα. Το ⏹ κόβει και τις επαναλήψεις.",
+   "ctx και tokens από τον router b12230: το GET /props χωρίς ?model= δίνει role=router και εικονικό n_ctx 0, οπότε το n_ctx διαβάζεται από /props?model=<φορτωμένο>&autoload=false. Το /tokenize στέλνει το model στο body με ?autoload=false (δεν ξεκινά φόρτωση). Το /v1/models κρατά πλέον το status κάθε μοντέλου. Στο Hub φαίνεται τι ζητήθηκε και τι απάντησε ο router· το chip δείχνει γιατί έμεινε «εκτίμηση» και το περιθώριο προτύπου 64 tokens.",
+   "Hub: η κάρτα «Κείμενο → φωνή» δείχνει OmniVoice με ✓/✗ στα αρχεία (και προειδοποίηση αν ο τρόπος είναι ακόμα «Φωνή συστήματος»)· «φορτωμένα / μέγιστο» αντί για «3 / 2 διαθέσιμα»· VRAM χωρίς κόψιμο στα 1,2 s· Qwen3.8-27B → Apache-2.0 (HF, 14/11)· το mmproj μία φορά· δίσκος σε δεκαδικά GB για GVS\\models + OmniVoice\\models· σε router mode το «Μοντέλο» και το «μέγιστο που χωράει» γράφουν ότι δεν ισχύουν· το -np δείχνει την τιμή 1."
+  ],
+  "en": [
+   "Critical fix: Qwen3.8-27B no longer hangs on 500 “Jinja Exception: System message must be at the beginning”. Exactly one system message, first; board, date and history digest go into one <context> block at the end of the last user message (stable cache prefix). Retries only when the server says it is loading or /v1/models shows “loading”, with a visible limit (default 10, set in the Hub); any other 500 stops at once with a red message. ⏹ also stops the retries.",
+   "ctx and tokens from router b12230: GET /props without ?model= returns role=router and a dummy n_ctx 0, so n_ctx is read from /props?model=<loaded>&autoload=false. /tokenize sends the model in the body with ?autoload=false (never starts a load). /v1/models keeps each model's status. The Hub shows what was asked and what the router answered; the chip says why it stayed an “estimate” and shows the 64-token template margin.",
+   "Hub: the “Text → speech” card shows OmniVoice with ✓/✗ per file (and a warning if the mode is still “System voice”); “loaded / max” instead of “3 / 2 available”; VRAM no longer cut at 1.2 s; Qwen3.8-27B → Apache-2.0 (HF, 14/11); mmproj hint once; disk in decimal GB for GVS\\models + OmniVoice\\models; in router mode “Model” and “max that fits” say they do not apply; -np shows the value 1."
+  ]
+ },
  "2.6.9": {
   "el": [
    "Ημερομηνίες και ποσά τα υπολογίζει ο κώδικας του Nyx, όχι το μοντέλο: νέα εργαλεία date_calc και money_calc. Το μοντέλο δίνει τη φράση («σε 45 μέρες», «Τρίτη 17/11», «μοίρασε 1640€ σε 3») και το Nyx κάνει την πράξη — ημερολόγιο Europe/Athens, ακρίβεια λεπτού, η μοιρασιά αθροίζει πάντα ακριβώς. Λάθος μέρα για την ημερομηνία ή υπόθεση έτους φαίνονται ως σημείωση· φράση που δεν καταλαβαίνει → ορατό σφάλμα, ποτέ δική του ημερομηνία. Υπενθυμίσεις/countdown δέχονται τη φράση απευθείας.",

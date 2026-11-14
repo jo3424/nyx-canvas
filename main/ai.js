@@ -97,6 +97,30 @@ function baseVariants(base) {
 }
 const isLocal = (b) => { try { return /^(localhost|127\.\d+\.\d+\.\d+|\[::1\]|0\.0\.0\.0)$/.test(new URL(b).hostname); } catch (e) { return false; } };
 function baseOf(p) { const b = trimBase(p.base); return baseCache.get(b) || b; }
+// v2.6.9.1: keep the router's per-model status (b12230 /v1/models: status { value: loaded|loading|unloaded|sleeping|…, args })
+// — it was dropped here, so «loaded» was never known: the Hub showed «3 / 2 διαθέσιμα» and the load-wait could not tell
+// «loading» from «not loading» (endless resend). state = status.value; ctxArg = -c / --ctx-size from the launch args.
+function argCtx(args) {
+  const a = Array.isArray(args) ? args.map(String) : [];
+  for (let i = 0; i < a.length; i++) {
+    const m = a[i].match(/^(?:-c|--ctx-size)(?:=(\d+))?$/);
+    if (m) { const v = m[1] != null ? +m[1] : +a[i + 1]; if (Number.isFinite(v) && v > 0) return Math.floor(v); }
+  }
+  return null;
+}
+function routerEntry(m) {
+  const o = { id: m.id || m.name || m.model, owned: m.owned_by || '', type: m.type || '' };
+  const st = m.status;
+  const val = (st && typeof st === 'object') ? (st.value || st.status || '') : (typeof st === 'string' ? st : (m.state || ''));
+  if (val) o.state = String(val);
+  if (typeof m.loaded === 'boolean') o.loaded = m.loaded;
+  else if (o.state) o.loaded = /^(loaded|ready|ok)$/i.test(o.state);
+  if (st && typeof st === 'object') { const c = argCtx(st.args); if (c) o.ctxArg = c; if (st.failed) o.failed = true; }
+  if (m.context_length) o.ctxTrain = +m.context_length;
+  if (m.meta && +m.meta.n_ctx > 0) o.nCtx = +m.meta.n_ctx; // single llama-server: runtime n_ctx (router entries carry only the train length)
+  if (m.size || m.bytes) o.size = m.size || m.bytes;
+  return o;
+}
 async function models(p) {
   const orig = trimBase(p.base);
   if (!/^https?:\/\//i.test(orig)) throw new NetError('config', t('ai.020'));
@@ -110,7 +134,7 @@ async function models(p) {
         const arr = Array.isArray(j?.data) ? j.data : Array.isArray(j?.models) ? j.models : [];
         if (!Array.isArray(j?.data) && !Array.isArray(j?.models)) throw new NetError('http', t('ai.021', { v0: base }), { status: 200 });
         baseCache.set(orig, base);
-        const out = arr.map(m => ({ id: m.id || m.name || m.model, owned: m.owned_by || '', type: m.type || '' })).filter(m => m.id);
+        const out = arr.map(m => routerEntry(m)).filter(m => m.id);
         out.base = base; return out;
       } catch (e) {
         if (!first || (first.code !== 'http' && e.code === 'http' && e.status !== 404)) first = e;
@@ -169,7 +193,7 @@ async function chat(p, body) {
   const local = limits.isLocalLlama(p) || p?.kind === 'local';
   const timeout = body.timeout != null ? body.timeout : (local ? 0 : 240000);
   const run = async (reqBody) => {
-    const req = { model: reqBody.model, messages: reqBody.messages, temperature: reqBody.temperature ?? 0.4, stream: false };
+    const req = { model: reqBody.model, messages: limits.oneSystem(reqBody.messages), temperature: reqBody.temperature ?? 0.4, stream: false };
     if (reqBody.max_tokens) req.max_tokens = reqBody.max_tokens;
     if (reqBody.tools?.length) { req.tools = reqBody.tools; req.tool_choice = reqBody.tool_choice || 'auto'; }
     if (reqBody.response_format) req.response_format = reqBody.response_format;
@@ -225,7 +249,7 @@ function modelQuery(model) { return model ? ('?model=' + encodeURIComponent(Stri
 function isNeedModel(e) { return !!(e && (e.status === 400 || /\b400\b/.test(String(e.message || e)))); }
 
 async function props(p, opts = {}) {
-  const q = modelQuery(opts.model);
+  const q = modelQuery(opts.model) + (opts.model && opts.autoload === false ? '&autoload=false' : '');
   // /props?model= waits for a load on llama-server b12230. A short abort (default 4s)
   // is what the server logs as 500 "request cancelled while waiting for model".
   // Only use a short timeout when the caller is a probe (no ?model=). With ?model=,
@@ -260,32 +284,61 @@ async function slots(p, opts = {}) {
   const n_ctx = limits.parseNctx(r.json);
   return { ok: true, n_ctx, raw: r.json, root: r.root, source: 'slots', model: opts.model || null };
 }
+// v2.6.9.1: a short, human-readable record of each router call (what Nyx asked, what came back) — shown in the Hub.
+function traceAnswer(j) {
+  if (j == null) return '';
+  if (Array.isArray(j?.tokens)) return 'tokens: ' + j.tokens.length;
+  if (j && j.role === 'router') return 'role=router, n_ctx=' + (j.default_generation_settings ? j.default_generation_settings.n_ctx : '—') + ' (' + t('v2691.router_dummy') + ')';
+  const n = limits.parseNctx(j); if (n) return 'n_ctx=' + n;
+  if (Array.isArray(j) && j.length && j[0] && j[0].id) return j.map((m) => m.id + (m.state ? ' [' + m.state + ']' : '')).join(', ').slice(0, 300);
+  if (Array.isArray(j?.data)) return j.data.map((m) => routerEntry(m)).map((m) => m.id + (m.state ? ' [' + m.state + ']' : '')).join(', ').slice(0, 300);
+  return JSON.stringify(j).slice(0, 200);
+}
+async function traced(trace, label, fn) {
+  const t0 = Date.now();
+  try { const r = await fn(); if (trace) trace.push({ req: label, status: 200, ans: traceAnswer(r && r.json !== undefined ? r.json : r), ms: Date.now() - t0 }); return r; }
+  catch (e) { if (trace) trace.push({ req: label, status: e.status || 0, ans: errText(e).slice(0, 240), ms: Date.now() - t0, error: true }); throw e; }
+}
+// state of one model: router /v1/models status.value (b12230), else /slots for a single-model server.
+async function modelState(p, model, trace) {
+  let state = null;
+  try {
+    const r = await traced(trace, 'GET /v1/models', () => fetchNative(p, '/v1/models', {}, 2000));
+    const j = r.json || {};
+    const arr = Array.isArray(j.data) ? j.data : Array.isArray(j.models) ? j.models : [];
+    const e = modelEntry(p, model, arr.map((m) => routerEntry(m)));
+    if (e && e.state) { state = e.state; return { loaded: /^(loaded|ready|ok)$/i.test(state), state, router: true }; }
+    if (e && e.loaded === true) return { loaded: true, state: 'loaded' };
+    if (!e && arr.length) return { loaded: false, state: 'not_listed' };
+  } catch (e) {}
+  return { loaded: await slotsLoaded(p, model), state };
+}
 async function tokenize(p, content, opts = {}) {
-  // v2.6.8.2: router mode needs the model id (body + ?model=). Callers outside a chat pass onlyIfLoaded so a count never starts a load.
+  // v2.6.8.2: router mode needs the model id. v2.6.9.1 (b12230 source, server-models.cpp proxy_post): the router reads the
+  // model ONLY from the JSON body («model name is missing from the request» otherwise) and loads it unless ?autoload=false.
+  // Callers outside a chat pass onlyIfLoaded → ?autoload=false, so a count never starts a load.
   const model = opts.model || '';
-  if (opts.onlyIfLoaded && model && !(await modelLoaded(p, model))) return { count: null, skipped: 'not_loaded' };
+  const trace = opts.trace || [];
+  let state = null;
+  if (opts.onlyIfLoaded && model) {
+    const st = await modelState(p, model, trace); state = st.state;
+    if (!st.loaded) return { count: null, skipped: 'not_loaded', state, model, trace };
+  }
   const body = JSON.stringify(model ? { content: String(content || ''), model } : { content: String(content || '') });
+  const q = opts.onlyIfLoaded && model ? '?autoload=false' : '';
   let r, last;
   for (const path of ['/tokenize', '/v1/tokenize']) {
-    try { r = await fetchNative(p, path + modelQuery(model), { method: 'POST', body }, opts.timeout || 15000); break; } catch (e) { last = e; }
+    try { r = await traced(trace, 'POST ' + path + q + ' {model: ' + (model || '—') + ', content: ' + String(content || '').length + ' chars}', () => fetchNative(p, path + q, { method: 'POST', body }, opts.timeout || 15000)); break; } catch (e) { last = e; if (e && e.status && e.status !== 404) break; }
   }
-  if (!r) throw last || new Error('tokenize');
+  if (!r) { if (opts.trace || opts.withTrace) { const e = last || new Error('tokenize'); e.trace = trace; throw e; } throw last || new Error('tokenize'); }
   const j = r.json;
   const tokens = Array.isArray(j?.tokens) ? j.tokens : Array.isArray(j) ? j : (j?.ids || []);
   if (!Array.isArray(tokens)) throw new Error('tokenize: unexpected response');
-  return { count: tokens.length, root: r.root };
+  return { count: tokens.length, root: r.root, model, state, trace };
 }
 // Loaded = /v1/models says loaded, or /slots shows the model. Unknown counts as not loaded.
 async function modelLoaded(p, model) {
-  // models() keeps only ids, so read the raw list here (status / loaded flags), then /slots.
-  try {
-    const r = await fetchNative(p, '/v1/models', {}, 2000);
-    const j = r.json || {};
-    const arr = Array.isArray(j.data) ? j.data : Array.isArray(j.models) ? j.models : [];
-    const list = arr.map(m => ({ ...m, id: m.id || m.name || m.model }));
-    if (entryLoading(modelEntry(p, model, list)) === false) return true;
-  } catch (e) {}
-  return slotsLoaded(p, model);
+  return (await modelState(p, model)).loaded;
 }
 async function contextInfo(p, opts = {}) {
   const warnings = [];
@@ -293,25 +346,51 @@ async function contextInfo(p, opts = {}) {
   let modelList = opts.models || null;
   // Short Hub probes must not call /props?model= or /slots?model=: a 4s abort can cancel a model that is still loading
   // (llama-server then answers 500 «request cancelled while waiting for model»).
+  const trace = [];
   if (opts.probe) {
+    // v2.6.9.1 (b12230 source, server-models.cpp get_router_props): GET /props WITHOUT ?model= on a router answers 200 with
+    // role=router and a dummy n_ctx 0 — that is why «Ανανέωση ctx» said «δεν διαβάστηκε ακόμα (—)». The real n_ctx comes from
+    // /props?model=<a LOADED model>&autoload=false (never starts a load). Every call is recorded in `trace` for the Hub.
+    let configured = null;
     try {
-      if (!modelList) modelList = await models(p);
-      n_ctx = limits.parseNctx({ data: modelList }) || limits.parseNctx(modelList);
-      if (n_ctx) source = 'models';
+      if (!modelList) modelList = (await traced(trace, 'GET /v1/models', () => models(p)));
+      const hit = modelList.find((m) => m.nCtx);
+      if (hit) { n_ctx = hit.nCtx; source = 'models'; model = hit.id; }
     } catch (e) { warnings.push({ code: 'models_fail', message: String(e.message || e) }); }
     if (n_ctx == null) {
       try {
-        const r = await props(p, { timeout: opts.timeout || 800 });
-        n_ctx = r.n_ctx; source = 'props'; raw = r.raw; root = r.root;
+        const r = await traced(trace, 'GET /props', () => props(p, { timeout: opts.timeout || 800 }).then((x) => ({ ...x, json: x.raw })));
+        raw = r.raw; root = r.root;
+        if (r.raw && r.raw.role === 'router') router = true;
+        else if (r.n_ctx) { n_ctx = r.n_ctx; source = 'props'; }
       } catch (e) {
         if (isNeedModel(e)) router = true;
         warnings.push({ code: router ? 'props_need_model' : 'props_fail', message: String(e.message || e), status: e.status });
       }
     }
-    return { n_ctx, source, root, warnings, raw, router, model, models: modelList || undefined, probe: true };
+    if (n_ctx == null && router) {
+      const list = modelList || [];
+      const loaded = list.filter((m) => /^(loaded|ready|ok)$/i.test(m.state || ''));
+      const want = opts.model ? modelEntry(p, opts.model, loaded) : null;
+      const pick = want || loaded[0] || null;
+      const ent = (opts.model && modelEntry(p, opts.model, list)) || list[0] || null;
+      if (ent && ent.ctxArg) configured = ent.ctxArg;
+      if (pick) {
+        try {
+          const r = await traced(trace, 'GET /props?model=' + pick.id + '&autoload=false', () => props(p, { model: pick.id, autoload: false, gate: false, timeout: Math.max(2000, +opts.timeout || 0) }).then((x) => ({ ...x, json: x.raw })));
+          if (r.n_ctx) { n_ctx = r.n_ctx; source = 'props_model'; model = pick.id; raw = r.raw; root = r.root; }
+        } catch (e) { warnings.push({ code: 'props_model_fail', message: String(e.message || e), status: e.status }); }
+      } else if (list.some((m) => m.state)) {
+        warnings.push({ code: 'router_none_loaded', message: t('v2691.none_loaded') });
+      } else {
+        // no status in /v1/models (not the b12230 router format): do not claim «none loaded», say it is unknown
+        warnings.push({ code: 'router_state_unknown', message: t('v2691.state_unknown') });
+      }
+    }
+    return { n_ctx, source, root, warnings, raw, router, model, models: modelList || undefined, probe: true, trace, configured };
   }
-  const tryProps = async (m) => {
-    const r = await props(p, { model: m, timeout: ('timeout' in opts) ? opts.timeout : (m ? PROPS_MODEL_MS : 4000), signal: opts.signal });
+  const tryProps = async (m, autoload) => {
+    const r = await props(p, { model: m, autoload, timeout: ('timeout' in opts) ? opts.timeout : (m ? PROPS_MODEL_MS : 4000), signal: opts.signal });
     n_ctx = r.n_ctx; source = m ? 'props_model' : 'props'; raw = r.raw; root = r.root; model = m || model;
   };
   const trySlots = async (m) => {
@@ -329,7 +408,7 @@ async function contextInfo(p, opts = {}) {
   }
   // 2) /props without a model (single-model llama-server).
   if (n_ctx == null) {
-    try { await tryProps(undefined); }
+    try { await tryProps(undefined); if (raw && raw.role === 'router') { router = true; n_ctx = null; } }
     catch (e) {
       if (isNeedModel(e)) router = true;
       warnings.push({ code: router ? 'props_need_model' : 'props_fail', message: String(e.message || e), status: e.status });
@@ -354,10 +433,13 @@ async function contextInfo(p, opts = {}) {
   }
   if (n_ctx == null && modelList && modelList.length) {
     router = router || modelList.length > 1;
-    const id = model || modelList[0].id;
-    try { await tryProps(id); }
+    // v2.6.9.1: without a known model, only a LOADED one is asked (a random first id would start a load on the router)
+    const loadedOne = modelList.find((m) => /^(loaded|ready|ok)$/i.test(m.state || ''));
+    const known = modelList.some((m) => m.state);
+    const id = model || (loadedOne ? loadedOne.id : (known ? null : modelList[0].id));
+    if (id) try { await tryProps(id, model ? undefined : false); }
     catch (e) { warnings.push({ code: 'props_model_fail', message: String(e.message || e) }); }
-    if (n_ctx == null) {
+    if (n_ctx == null && id) {
       try { await trySlots(id); }
       catch (e) { warnings.push({ code: 'slots_model_fail', message: String(e.message || e) }); }
     }
@@ -487,11 +569,23 @@ function isToolFormatError(e) {
   const s = errText(e);
   return /peg-native|does not match the expected .{0,40}format|failed to parse tool|tool[_ ]?call[s]? (?:are |is )?not supported|tools? (?:are |is )?not supported|unable to (?:parse|generate) tool/i.test(s);
 }
+// v2.6.9.1: a 500 is NOT a model load by itself. b12230 answers 500 for template errors too («Jinja Exception: System message
+// must be at the beginning»), and treating every 500 as «loading» resent the request every ~1,6 s forever. Only the text
+// of a load (or the router's /v1/models saying «loading») counts; everything else stops at once with the server's message.
+const LOAD_TEXT_RE = /request cancelled while waiting for (?:the )?model|waiting for (?:the )?model|model is (?:being |still )?loading|loading (?:the )?model|model (?:is )?(?:still )?loading|\bLoading model\b/i;
+const TEMPLATE_RE = /jinja|chat template|template (?:error|exception)|system message must be|raise_exception/i;
+function isTemplateError(e) { return TEMPLATE_RE.test(errText(e)); }
 function isLoadCancel(e) {
-  if (isToolFormatError(e)) return false;
+  if (isToolFormatError(e) || isTemplateError(e)) return false;
   const s = errText(e) + ' ' + String((e && e.code) || '');
-  const st = e && e.status;
-  return st === 500 || st === 503 || /request cancelled while waiting for model|cancelled while waiting for model|waiting for model|model is (?:being )?load|loading (?:the )?model/i.test(s);
+  if (/model is not loaded|cancelled by a stop/i.test(s)) return false; // router with autoload off / a user stop: not a wait
+  return LOAD_TEXT_RE.test(s);
+}
+const LOAD_RETRY_DEFAULT = 10;
+function loadRetryMax(body) {
+  const v = body && body.loadRetries;
+  if (v == null || v === '' || !Number.isFinite(+v)) return LOAD_RETRY_DEFAULT;
+  return Math.max(0, Math.floor(+v));
 }
 function markToolFormat(e, body) {
   if (!e || !(body && body.tools && body.tools.length) || !isToolFormatError(e)) return e;
@@ -534,11 +628,12 @@ function entryLoading(m) {
   const raw = m.status || m.state || '';
   const st = String((raw && typeof raw === 'object') ? (raw.value || raw.status || '') : raw);
   // v2.6.8.2: «loaded» / «unloaded» used to match /load(ing)?/ and count as loading. Router b12230 sends status { value }.
-  if (m.loaded === true || m.ready === true || /^(ok|ready|loaded)$/i.test(st)) return false;
-  if (/^unloaded$/i.test(st)) return m.loaded === false ? true : null;
-  if (m.loading === true || /load(ing)?/i.test(st)) return true;
-  if (m.loaded === false) return true;
-  return null;
+  // v2.6.9.1: unloaded / sleeping / failed = not loading (null), so a wait never spins on them.
+  if (/^(ok|ready|loaded)$/i.test(st)) return false;
+  if (/^(loading|downloading)$/i.test(st) || m.loading === true) return true;
+  if (st) return null;
+  if (m.loaded === true || m.ready === true) return false;
+  return null; // loaded:false = idle, not «loading» (a wait on it would never end)
 }
 async function slotsLoaded(p, model) {
   try {
@@ -580,23 +675,40 @@ async function waitForModel(p, model, { signal, onStatus, interval, force } = {}
     if (st.loading !== true) return { ok: true, ready: 'unknown', model };
   }
 }
+// v2.6.9.1: resend only while the model is really loading — the error text says so, or the router's /v1/models lists the
+// model as «loading». Any other 500 (Jinja, template, …) is thrown at once. Resends are limited (settings → «Επαναλήψεις
+// όσο φορτώνει το μοντέλο», default 10, shown in the notice as k/N); Stop aborts the signal and ends the loop.
+async function routerSaysLoading(p, model) {
+  try {
+    const list = await models(p);
+    return entryLoading(modelEntry(p, model, list)) === true;
+  } catch (e) { return false; }
+}
 async function withLoadRetry(p, body, run, { signal, onStatus } = {}) {
   const local = limits.isLocalLlama(p) || p?.kind === 'local';
   if (!local) return run();
-  let first = true;
+  const max = loadRetryMax(body);
+  let tries = 0;
   while (true) {
     if (signal && signal.aborted) throw abortedErr();
     try {
-      if (!first && body && body.model) await waitForModel(p, body.model, { signal, onStatus, interval: 800, force: true });
+      if (tries > 0 && body && body.model) await waitForModel(p, body.model, { signal, onStatus, interval: 800, force: true });
       return await run();
     } catch (e) {
       const err = withImageHint(e);
       if (err && err.code === 'ABORTED') throw err;
+      if (signal && signal.aborted) throw abortedErr();
       if (isImageInputError(err)) throw err;
       if (isToolFormatError(err)) throw markToolFormat(err, body);
-      if (!isLoadCancel(err)) throw err;
-      first = false;
-      if (onStatus) onStatus('load', t('v268.loading_model'));
+      let loading = isLoadCancel(err);
+      if (!loading && !isTemplateError(err) && (err.status === 500 || err.status === 503) && body && body.model) loading = await routerSaysLoading(p, body.model);
+      if (!loading) { try { if (isTemplateError(err)) err.code = err.code && err.code !== 'http' ? err.code : 'TEMPLATE'; } catch (x) {} throw err; }
+      tries++;
+      if (tries > max) {
+        const ex = new NetError('http', t('v2691.retry_exhausted', { v0: max, v1: errText(err).slice(0, 300) }), { status: err.status || 0 });
+        ex.code = 'LOADRETRY'; ex.tries = tries - 1; throw ex;
+      }
+      if (onStatus) onStatus('load', t('v2691.loading_try', { v0: tries, v1: max }));
       await sleep(800, signal);
     }
   }
@@ -604,7 +716,7 @@ async function withLoadRetry(p, body, run, { signal, onStatus } = {}) {
 
 function chatBody(p, body) {
   const local = limits.isLocalLlama(p) || p?.kind === 'local';
-  const req = { model: body.model, messages: body.messages, temperature: body.temperature ?? 0.4, stream: !!body.stream };
+  const req = { model: body.model, messages: limits.oneSystem(body.messages), temperature: body.temperature ?? 0.4, stream: !!body.stream };
   if (body.max_tokens) req.max_tokens = body.max_tokens;
   if (body.tools?.length) { req.tools = body.tools; req.tool_choice = body.tool_choice || 'auto'; }
   if (body.response_format) req.response_format = body.response_format;
@@ -758,4 +870,4 @@ async function chatStream(p, body, { signal, onDelta, onStatus } = {}) {
   }), { signal, onStatus: hook });
 }
 
-module.exports = { isToolFormatError, markToolFormat, openThinkInContent, parseWait, waitOf, jfetch, models, ping, chat, chatStream, chatBody, parseSSE, assembleDelta, isLoadCancel, isImageInputError, mmprojHint, withImageHint, waitForModel, modelEntry, entryLoading, withLoadRetry, withGate, prepare, props, parseRouterMax, routerInfo, slots, tokenize, modelLoaded, PROPS_MODEL_MS, contextInfo, embed, transcribe, tts, runCmd, fillTemplate, buildTtsCmd, cmdQuote, exeHelp, netCode, netMessage, baseVariants, hintFor, findLms, lmsServerStart, isForbidden, isNeedModel, modelQuery, _baseCache: baseCache, _thinkCache: thinkCache, NetError };
+module.exports = { traced, traceAnswer, modelState, isTemplateError, loadRetryMax, LOAD_RETRY_DEFAULT, routerEntry, argCtx, routerSaysLoading, isToolFormatError, markToolFormat, openThinkInContent, parseWait, waitOf, jfetch, models, ping, chat, chatStream, chatBody, parseSSE, assembleDelta, isLoadCancel, isImageInputError, mmprojHint, withImageHint, waitForModel, modelEntry, entryLoading, withLoadRetry, withGate, prepare, props, parseRouterMax, routerInfo, slots, tokenize, modelLoaded, PROPS_MODEL_MS, contextInfo, embed, transcribe, tts, runCmd, fillTemplate, buildTtsCmd, cmdQuote, exeHelp, netCode, netMessage, baseVariants, hintFor, findLms, lmsServerStart, isForbidden, isNeedModel, modelQuery, _baseCache: baseCache, _thinkCache: thinkCache, NetError };

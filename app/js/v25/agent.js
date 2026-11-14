@@ -13,7 +13,7 @@ const Agent = {
   defaults() { const S = this.S(); for (const [k, v] of Object.entries(AGENT_DEF)) if (S[k] === undefined) S[k] = v; },
   // ---------- run lifecycle ----------
   check() { if (this.cur?.cancelled) { const e = new Error(t('v25.ag_cancelled')); e.cancelled = true; throw e; } },
-  cancel() { const R = this.cur; if (!R || R.cancelled) return; R.cancelled = true; R.abort?.(); this.liveNote('⏹ ' + t('v25.ag_cancelled')); },
+  cancel() { const R = this.cur; if (!R || R.cancelled) return; R.cancelled = true; R.abort?.(); try { AI.abort(); } catch (e) {} /* v2.6.9.1: Stop also aborts the request in main (its load-retry loop kept resending) */ this.liveNote('⏹ ' + t('v25.ag_cancelled')); },
   begin() {
     const R = { id: 'r' + Date.now().toString(36) + (++this.seq), steps: [], snaps: [], say: [], n: 0, cancelled: false, start: this.snapAll(), t0: Date.now() };
     R.aborted = new Promise(res => { R.abort = () => res({ cancelled: true }); });

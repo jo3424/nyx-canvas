@@ -24,7 +24,7 @@ function aiDefaults(info) {
     servers: { llama: { exe: home ? home + '\\llama-router\\llama-server.exe' : '', model: g(GVS_REL.llamaModel), port: 8080, ngl: 99, ctx: 0, fa: true, kvType: 'f16', extra: '', autoStart: false, modelsDir: info?.gvs ? info.gvs.replace(/[\\/]$/, '') + '\\models' : '', modelsMax: 2, diskBudgetGB: 70 }, whisper: { exe: g(GVS_REL.whisperExe), model: g(GVS_REL.whisperModel), port: 8178, language: 'el', extra: '', autoStart: false } },
     stt: { kind: 'whispercpp', base: 'http://127.0.0.1:8178', language: 'el', autoSend: true, groqModel: 'whisper-large-v3-turbo' },
     tts: { mode: 'system', rate: 0, pitch: 0, device: 'Vulkan0', port: 0, refAudio: '', endpoint: '', exe: g(GVS_REL.tts), model: home ? home + '\\OmniVoice-Vulkan\\models\\omnivoice-base-Q8_0.gguf' : '', tokenizer: home ? home + '\\OmniVoice-Vulkan\\models\\omnivoice-tokenizer-Q8_0.gguf' : '', voice: '', template: '{exe} --model {model} --codec {tokenizer} --text-file {text_file} --output {out}', speak: false },
-    assistant: { mode: 'auto', confirm: true, canvasConfirm: true, temperature: 0.3, extra: '', maxRounds: 6, thinking: false, thinkingBudget: 0, maxTokens: 0, maxContinue: 8, historyPct: 25, attachReserve: 2048 },
+    assistant: { mode: 'auto', confirm: true, canvasConfirm: true, temperature: 0.3, extra: '', maxRounds: 6, thinking: false, thinkingBudget: 0, maxTokens: 0, maxContinue: 8, historyPct: 25, attachReserve: 2048, loadRetries: 10 },
     autoTag: false,
   };
 }
@@ -390,7 +390,7 @@ async function chatTurn(p, body, onNotice, onDelta) {
     if (prep.warnings && onNotice) for (const w of prep.warnings) if (w.code === 'tokenize_fail' || w.code === 'props_fail') onNotice('info', t('v265.warn_' + (w.code === 'tokenize_fail' ? 'tokenize' : 'props')));
     let r;
     const cap = capOf();
-    try { r = await invokeChat(p, { ...body, messages: msgs, ...(prep.body || {}), ...(cap ? { think_cap: cap } : {}) }, onNotice, onDelta); }
+    try { r = await invokeChat(p, { ...body, messages: msgs, ...(prep.body || {}), ...(cap ? { think_cap: cap } : {}), loadRetries: body.loadRetries ?? A.loadRetries ?? 10 }, onNotice, onDelta); }
     catch (e) { AI.markBlocked(p, e, true); AI.noteRequest({ failed: true, error: cleanErr(e), model: body.model }); throw e; }
     if (r && !r.message && r.error && r.status === 403) { const e = new Error(r.error); e.status = 403; AI.markBlocked(p, e, true); throw e; }
     if (r.timings || r.usage) { AI.lastTimings = r.timings || null; r._timings = r.timings || null; }

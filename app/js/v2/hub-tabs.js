@@ -35,6 +35,8 @@ Hub.paintHubTabs = function (panes, show) {
     if (hit) return { license: hit.license, note: hit.licenseNote, url: hit.licenseUrl };
     const s = String(id || '').toLowerCase();
     if (/gemma/.test(s)) return { license: 'Apache-2.0', note: '', url: '' };
+    // v2.6.9.1: checked on Hugging Face 14/11/2026 — unsloth/Qwen3.8-27B-GGUF and its base Qwen/Qwen3.8-27B both say license: apache-2.0
+    if (/qwen3\.8-27b/.test(s)) return { license: 'Apache-2.0', note: t('v2691.lic_qwen38'), url: 'https://huggingface.co/unsloth/Qwen3.8-27B-GGUF' };
     if (/krikri|llama-3\.1|llama3\.1/.test(s)) return { license: 'Llama 3.1 Community License', note: '', url: '' };
     return { license: t('v267.license_unknown'), note: '', url: '' };
   };
@@ -125,7 +127,21 @@ Hub.paintHubTabs = function (panes, show) {
     (async () => {
       const modelsP = llama.enabled ? raceMs(AI.models(llama.id, true), 1200, []) : Promise.resolve([]);
       const ctxP = raceMs(API.inv('ai:context', { ...llama, base: llama.base }, { model: mid || undefined, probe: true, timeout: 800 }), 1200, null);
-      const perfP = raceMs(API.inv('perf:snapshot'), 1200, null);
+      // v2.6.9.1: the Windows GPU snapshot (PowerShell + WMI) takes 2–6 s; racing it at 1,2 s showed «VRAM μη διαθέσιμη».
+      // It is painted separately when it arrives (up to 20 s), with «μέτρηση…» meanwhile and the real error if it fails.
+      const perfP = Promise.resolve(null);
+      vramS.textContent = t('v2691.vram_measuring');
+      raceMs(API.inv('perf:snapshot'), 20000, { _timeout: true }).then((pf) => {
+        if (el._fillTok !== tok || !document.contains(el)) return;
+        const ad2 = pf && pf.gpu && pf.gpu.adapter;
+        const known = ad2 && (ad2.used != null || ad2.total);
+        vramB.textContent = known ? fmtGB(ad2.used) : '—';
+        if (known) vramB.setAttribute('data-gvs-vram', String(ad2.used || 0));
+        vramS.textContent = known ? t('v267.stat_vram', { v0: fmtGB(ad2.total) }) : (pf && pf._timeout ? t('v2691.vram_timeout') : t('v267.stat_vram_unknown') + (pf?.gpu?.error ? ' · ' + pf.gpu.error : ''));
+        vramS.setAttribute('data-st-done', '1');
+        Hub.paintVramWarn(vramWarn, pf && !pf._timeout ? pf : null);
+        if (el._live) { el._live.vramB = vramB.textContent; el._live.vramS = vramS.textContent; }
+      });
       const infoP = raceMs(API.inv('ai:routerInfo', llama, { timeout: 800 }), 900, null);
       const hlP = raceMs(API.inv('proc:health', this.healthUrl('llama', A.servers.llama), 800), 900, { ok: false });
       const hwP = raceMs(API.inv('proc:health', this.healthUrl('whisper', A.servers.whisper), 800), 900, { ok: false });
@@ -144,20 +160,19 @@ Hub.paintHubTabs = function (panes, show) {
       const loadedKnown = models.some((m) => m && (m.loaded === true || m.loaded === false || m.state));
       const loadCount = loadedKnown ? loaded.length : null;
       const loadMax = liveMax;
-      const loadLabel = loadCount != null
-        ? (loadMax != null ? loadCount + ' / ' + loadMax : String(loadCount))
-        : (models.length ? models.length + (loadMax != null ? ' / ' + loadMax : '') : '—');
-      const loadSub = loadCount != null ? t('v267.stat_loaded') : (models.length ? t('v267.available') : t('v267.loaded_unknown'));
+      // v2.6.9.1: «3 / 2 διαθέσιμα» mixed the number of models in the folder with --models-max. Now: loaded / max when the
+      // router says which are loaded (status.value), otherwise «— φορτωμένα» plus «N στον φάκελο» — never one over the other.
+      const loadLabel = loadCount != null ? (loadMax != null ? loadCount + ' / ' + loadMax : String(loadCount)) : '—';
+      const loadSub = loadCount != null
+        ? (loadMax != null ? t('v2691.stat_loaded_of', { v0: loadMax }) : t('v267.stat_loaded')) + (models.length ? ' · ' + t('v2691.in_folder', { v0: models.length }) : '')
+        : (models.length ? t('v2691.loaded_unknown_n', { v0: models.length }) : t('v267.loaded_unknown'));
       const ad = perf && perf.gpu && perf.gpu.adapter;
       const vramKnown = ad && (ad.used != null || ad.total);
       const ctxShown = meta.ctx || nCtx;
       loadB.textContent = loadLabel;
       loadS.textContent = loadSub;
-      vramB.textContent = vramKnown ? fmtGB(ad.used) : '—';
-      if (vramKnown) vramB.setAttribute('data-gvs-vram', String(ad.used || 0));
-      vramS.textContent = vramKnown ? t('v267.stat_vram', { v0: fmtGB(ad.total) }) : t('v267.stat_vram_unknown') + (perf?.gpu?.error ? ' · ' + perf.gpu.error : '');
+      if (vramKnown) { vramB.textContent = fmtGB(ad.used); vramB.setAttribute('data-gvs-vram', String(ad.used || 0)); vramS.textContent = t('v267.stat_vram', { v0: fmtGB(ad.total) }); }
       ctxB.textContent = ctxShown ? (ctxShown >= 1024 ? Math.round(ctxShown / 1024) + 'K' : String(ctxShown)) : '—';
-      Hub.paintVramWarn(vramWarn, perf0);
       if (ctxShown) ctxB.setAttribute('data-gvs-ctx', String(ctxShown));
 
       const llamaOn = !!(this.procState.llama?.running || hl.ok || hl.status);
@@ -220,12 +235,16 @@ Hub.paintHubTabs = function (panes, show) {
     else if (!list.length) inst.append(h('p', { class: 'muted small' }, t('v266.zone_keep_empty')));
     const cfg = A.servers.llama;
     const dir = modelsDirOf(cfg);
-    let disk = null;
-    if (dir) {
+    // v2.6.9.1: disk = model files (.gguf/.bin/.safetensors) in the router's models folder AND the OmniVoice models folder,
+    // in decimal GB (10^9, like Explorer «size» in GB on the PC measure 37,9 GB). It was GVS\models only, in GiB (34,4).
+    let disk = null; const diskParts = [];
+    const ttsDir = String(A.tts.model || '').replace(/[\\/][^\\/]*$/, '');
+    const dirs = [...new Set([dir, ttsDir].filter(Boolean))].filter((d, i, arr) => !arr.some((o, j) => j !== i && d.toLowerCase().startsWith(o.toLowerCase() + '\\')));
+    for (const d of dirs) {
       try {
-        const r = await API.inv('models:listDir', dir, ['gguf', 'bin']);
-        if (r && r.files) disk = r.files.reduce((a, f) => a + (f.size || 0), 0);
-      } catch (e) { disk = null; }
+        const r = await API.inv('models:listDir', d, ['gguf', 'bin', 'safetensors']);
+        if (r && r.files) { const b = r.files.reduce((a, f) => a + (f.size || 0), 0); diskParts.push({ dir: d, bytes: b }); disk = (disk || 0) + b; }
+      } catch (e) {}
     }
     for (const m of list) {
       const id = String(m.id || '');
@@ -235,10 +254,10 @@ Hub.paintHubTabs = function (panes, show) {
       const card = row(dot(m.loaded === false ? 'x' : 'g'), h('span', { class: 'grow', 'data-model': id }, name + (size ? ' · ' + size : '')), pill(lic.license), pill(t('v267.zone_keep_pill')));
       inst.append(card);
     }
-    inst.append(h('p', { class: 'muted small hub-mmproj-note', 'data-mmproj': '1' }, t('v268.mmproj_card')));
+    // v2.6.9.1: the mmproj hint is shown once (under the tasks); it was repeated here.
     const budget = +cfg.diskBudgetGB || 70;
     inst.append(disk != null
-      ? h('p', { class: 'muted small', 'data-disk': String(disk) }, t('v267.disk', { v0: fmtNum(disk / 1073741824, 1), v1: budget }))
+      ? h('p', { class: 'muted small', 'data-disk': String(disk), 'data-disk-gb': fmtNum(disk / 1e9, 1) }, t('v2691.disk', { v0: fmtNum(disk / 1e9, 1), v1: budget, v2: diskParts.map((x) => x.dir.split(/[\\/]/).slice(-2).join('\\') + ' ' + fmtNum(x.bytes / 1e9, 1)).join(' + ') }))
       : h('p', { class: 'muted small' }, t('v267.disk_unknown')));
     el.append(inst);
     const zones = this.zonesBox();
@@ -344,16 +363,30 @@ Hub.paintHubTabs = function (panes, show) {
       llamaBox._setSummary?.(t('v267.llm_summary', { v0: build, v1: dirShow, v2: maxLabel(live), v3: ctxShow, v4: 'Vulkan' }));
     });
 
+    // v2.6.9.1: the «Κείμενο → φωνή» card is about OmniVoice (the Windows voice was ruled out). It shows the OmniVoice
+    // files with ✓/✗; if the speaking mode is still «Φωνή συστήματος», that is said in a warning with a one-click switch
+    // (only on the user's click — nothing changes by itself).
     const ttsMode = A.tts.mode;
-    const ttsBox = h('div', { class: 'srv', 'data-srv': 'tts' });
-    if (ttsMode === 'system') {
-      ttsBox.append(row(dot('x'), h('span', { class: 'grow' }, h('b', {}, t('v267.tts_row')), h('br'), h('span', { class: 'muted small' }, t('v267.tts_system')))));
-    } else {
-      ttsBox.append(compact('tts', t('v267.tts_row'), t('v267.tts_summary', { v0: (A.tts.model || '').split(/[\\/]/).pop() || 'base Q8_0' }), 'tts').children[0], compact('tts', '', '', 'tts').querySelector('.srv-log') || '');
-      // simpler: just a start button row
-      ttsBox.innerHTML = '';
-      ttsBox.append(row(dot('x'), h('span', { class: 'grow' }, h('b', {}, t('v267.tts_row')), h('br'), h('span', { class: 'muted small' }, t('v267.tts_summary', { v0: (A.tts.model || '').split(/[\\/]/).pop() || 'base Q8_0' }))), h('button', { class: 'btn sm primary', onclick: () => toast(t('v267.not_configured')) }, t('hub.064').trim())));
-    }
+    const ttsBox = h('div', { class: 'srv', 'data-srv': 'tts', 'data-tts-engine': 'omnivoice' });
+    const ttsSum = h('span', { class: 'muted small', 'data-st': 'tts-summary' }, t('v267.tts_summary', { v0: (A.tts.model || '').split(/[\\/]/).pop() || 'base Q8_0' }));
+    const ttsChecks = h('span', { class: 'muted small', 'data-st': 'tts-paths' }, '');
+    const ttsWarn = h('p', { class: 'warn small', 'data-st': 'tts-mode-warn', hidden: true });
+    const ttsDot = dot('x');
+    ttsBox.append(row(ttsDot, h('span', { class: 'grow' }, h('b', {}, t('v267.tts_row') + ' · OmniVoice'), h('br'), ttsSum, h('br'), ttsChecks), h('button', { class: 'btn sm primary', onclick: () => toast(t('v267.not_configured')) }, t('hub.064').trim())), ttsWarn);
+    (async () => {
+      const keys = [['exe', 'exe'], ['model', t('v2691.tts_model')], ['tokenizer', 'tokenizer']];
+      const paths = keys.map(([k]) => A.tts[k] || '');
+      const r = await API.inv('sys:exists', paths.filter(Boolean)).catch(() => null);
+      let j = 0; const okAll = []; const parts = keys.map(([k, lab], i) => { if (!paths[i]) { okAll.push(false); return lab + ' —'; } const e = r && r[j++]; const ok = !!(e && e.exists && !e.dir); okAll.push(ok); return lab + ' ' + (ok ? '✓' : '✗'); });
+      ttsChecks.textContent = parts.join(' · ');
+      const ready = okAll.every(Boolean);
+      ttsDot.className = 'hub-dot ' + (ready ? 'g' : 'x');
+      ttsBox.setAttribute('data-tts-ready', ready ? '1' : '0');
+      if (ttsMode === 'system') {
+        ttsWarn.hidden = false; ttsWarn.innerHTML = '';
+        ttsWarn.append(t(ready ? 'v2691.tts_mode_system' : 'v2691.tts_mode_system_missing'), ' ', ready ? h('button', { class: 'btn sm', 'data-act': 'use-omnivoice', onclick: () => { A.tts.mode = 'command'; Store.save(); ttsWarn.hidden = true; toast(t('v2691.tts_switched')); } }, t('v2691.tts_use')) : '');
+      }
+    })();
     el.append(ttsBox);
     const imgSlot = h('div', { class: 'hub-image-slot srv', 'data-srv': 'sd' });
     imgSlot.append(row(dot('x'), h('span', { class: 'grow' }, h('b', {}, t('v267.image_row')), h('br'), h('span', { class: 'muted small' }, t('v267.image_summary'))), h('button', { class: 'btn sm', onclick: () => { const adv = el.querySelector('details.hub-adv'); if (adv) adv.open = true; } }, t('v267.configure'))));
@@ -363,6 +396,9 @@ Hub.paintHubTabs = function (panes, show) {
     const llamaAdv = h('div', { 'data-srv': 'llama' });
     const llamaExe = this.pathRow(L, 'exe', t('hub.067'), 'file', { kind: 'exe', names: ['llama-server.exe', 'llama-server'] });
     const llamaModel = this.pathRow(L, 'model', t('hub.068'), 'file', { kind: 'llama' });
+    // v2.6.9.1: in router mode (--models-dir) the single «Μοντέλο» file is not used; it stays editable but says so.
+    const routerMode = !!(meta.dir || /--models-dir/.test(String(L.extra || '')));
+    if (routerMode) { llamaModel.classList.add('hub-na'); llamaModel.setAttribute('data-na', 'router'); llamaModel.append(h('small', { class: 'muted hub-na-note' }, t('v2691.na_router_model'))); }
     const llamaDir = this.pathRow(L, 'modelsDir', t('v267.models_dir'), 'dir');
     llamaAdv.append(
       llamaExe, llamaModel, llamaDir,
@@ -371,7 +407,14 @@ Hub.paintHubTabs = function (panes, show) {
         this.field('GPU layers (-ngl)', this.inp(L, 'ngl', '99', 'number')),
         this.ctxField(L),
         this.field(t('v267.models_max'), this.inp(L, 'modelsMax', '2', 'number')),
-        this.field(t('v2671.n_parallel'), this.inp(L, 'np', '1', 'number')),
+        (() => {
+          // v2.6.9.1: show the value the launch really uses (procs.js: -np from settings, else from «Επιπλέον», else 1), not a placeholder
+          const exM = String(L.extra || '').match(/(?:^|\s)(?:-np|--parallel)(?:=|\s+)(\d+)/);
+          const eff = (L.np != null && L.np !== '' && +L.np > 0) ? +L.np : exM ? +exM[1] : 1;
+          const i = this.inp(L, 'np', '1', 'number'); if (i.value === '') i.value = String(eff);
+          i.setAttribute('data-np', String(eff));
+          return this.field(t('v2671.n_parallel'), i, t('v2691.np_help', { v0: eff, v1: (L.np != null && L.np !== '' && +L.np > 0) ? t('v2691.np_src_set') : exM ? t('v2691.np_src_extra') : t('v2691.np_src_default') }));
+        })(),
         this.field(t('v267.disk_budget'), this.inp(L, 'diskBudgetGB', '70', 'number'), t('v267.disk_budget_help'))),
       this.llamaCtxExtras(L),
       this.field(t('hub.069'), this.inp(L, 'extra', t('v22.ph_llama')), t('v22.extra_help')),

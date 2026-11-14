@@ -96,7 +96,8 @@ const Private = {
     const hist = NyxPrompt.trimHistory(this.chat.filter(x => x.content).map(x => ({ role: x.role, content: String(x.content) })), { nCtx, percent: (Store.state.settings.ai.assistant || {}).historyPct ?? 25, labels: Assistant.boardLabels && Assistant.boardLabels() });
     const prior = hist.messages.filter((m, i) => !(i === hist.messages.length - 1 && m.role === 'user' && m.content === text));
     const date = NyxPrompt.dateLine(new Date(), NyxPrompt.TZ, LANG === 'en' ? 'en-GB' : 'el-GR', { now: t('v266.now') });
-    const msgs = [{ role: 'system', content: t('v25.pv_system') + '\n\n' + date }, ...prior, { role: 'user', content: text }];
+    // v2.6.9.1: one system message first; digest + date go in the <context> block at the end of the user message (strict templates).
+    const msgs = NyxPrompt.wireMessages(NyxPrompt.assembleMessages({ instructions: t('v25.pv_system'), history: prior, user: text, now: date }));
     const notices = [];
     if (hist.trimmed) notices.push({ kind: 'info', text: t('v266.hist_trimmed', { v0: (Store.state.settings.ai.assistant || {}).historyPct ?? 25, v1: hist.dropped || 0 }) });
     const notify = (kind, msg) => { notices.push({ kind, text: msg }); if (onNotice) onNotice(kind, msg); };

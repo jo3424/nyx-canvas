@@ -32,7 +32,7 @@ function startRouter() {
         let body = {}; try { body = JSON.parse(b); } catch (e) {}
         const msgs = body.messages || []; const last = msgs[msgs.length - 1] || {}; const user = [...msgs].reverse().find((m) => m.role === 'user') || {};
         const think = !!(body.chat_template_kwargs && body.chat_template_kwargs.enable_thinking);
-        st.chats.push({ model: body.model, tools: !!(body.tools && body.tools.length), think, user: String(user.content || '').slice(-80), lastRole: last.role });
+        st.chats.push({ model: body.model, tools: !!(body.tools && body.tools.length), think, user: String(user.content || '').replace(/\n*<context>[\s\S]*$/, '').slice(-80), lastRole: last.role });
         const timings = { prompt_n: 900, prompt_ms: 120, predicted_n: 69, predicted_ms: 1000, draft_n: 48, draft_n_accepted: 36 };
         const sse = (events) => { resp.writeHead(200, { 'content-type': 'text/event-stream' }); for (const e of events) resp.write('data: ' + JSON.stringify(e) + '\n\n'); resp.end('data: [DONE]\n\n'); };
         // Krikri cannot parse tool calls on b12230
