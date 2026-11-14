@@ -10,7 +10,8 @@ const ROOT = path.join(__dirname, '..');
 const C = require('../app/js/v26/calc.js');
 const DATA = fs.mkdtempSync(path.join(os.tmpdir(), 'nyx-v269-'));
 const SHOTS = path.join(ROOT, 'shots');
-const SCREEN = path.join(ROOT, 'dist', 'deliver-v2.6.9', 'screens');
+// v2.6.9.1: never overwrite a delivered folder from a test run — delivery screenshots only with NYX_DELIVER_SHOTS=1
+const SCREEN = process.env.NYX_DELIVER_SHOTS === '1' ? path.join(ROOT, 'dist', 'deliver-v2.6.9', 'screens') : path.join(ROOT, 'shots', 'deliver-v2.6.9');
 fs.mkdirSync(SHOTS, { recursive: true }); fs.mkdirSync(SCREEN, { recursive: true });
 let fails = 0, passes = 0;
 const ok = (c, m, x) => { console.log((c ? '  ✓ ' : '  ✗ ') + m + (!c && x !== undefined ? '  → ' + JSON.stringify(x).slice(0, 900) : '')); c ? passes++ : fails++; };
