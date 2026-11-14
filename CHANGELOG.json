@@ -1,4 +1,16 @@
 {
+ "2.6.10": {
+  "el": [
+   "Ctrl+Z / Ctrl+Y παντού: αναιρούν και επαναφέρουν προσθήκη, μετακίνηση, επεξεργασία και διαγραφή κάρτας όπου κι αν είναι η εστίαση (εκτός όταν γράφεις σε πεδίο κειμένου) — και με ελληνικό πληκτρολόγιο. Νέος Κάδος (κουμπί 🗑 κάτω δεξιά με μετρητή): οι διαγραμμένες κάρτες και συνδρομές με όνομα, πίνακα και ώρα· επαναφορά μίας ή πολλών με checkbox στη θέση και τον πίνακα τους (αν ο πίνακας δεν υπάρχει, ρωτά). Κρατούνται τουλάχιστον 30 ημέρες· τίποτα δεν σβήνεται οριστικά χωρίς ρητό OK. Η επιβεβαίωση συνδρομών και το «Αναίρεση» παραμένουν.",
+   "Σύνδεσμοι μέσα σε κάρτες (π.χ. «Πηγές» ή URL σε σημείωση): κλικ → νέα καρτέλα στον browser του Nyx· Ctrl+κλικ ή δεξί κλικ → «Άνοιγμα στον κανονικό browser». Μόνο http(s), με την ίδια ασφάλεια· το κλικ σε σύνδεσμο δεν σέρνει και δεν ανοίγει επεξεργασία της κάρτας.",
+   "MCP (Hermes): το create_card/update_card δέχονται μέγεθος (w/h), γραμματοσειρά, μέγεθος γραμμάτων, χρώματα, σχήμα και στυλ — με όρια και λίστες επιτρεπτών τιμών (λάθος τιμή = σαφές σφάλμα, όχι σιωπηλή αλλαγή). Rollback χωρίς απάντηση = kept_timeout: δεν αλλάζει τίποτα και η απάντηση το λέει. Κάρτες δεν σβήνονται ποτέ χωρίς ρητό OK."
+  ],
+  "en": [
+   "Ctrl+Z / Ctrl+Y everywhere: undo and redo card add, move, edit and delete wherever the focus is (except while typing in a text field) — also with a Greek keyboard layout. New Bin (🗑 button bottom right with a counter): deleted cards and subscriptions with name, board and time; restore one or several via checkboxes to their position and board (asks if the board is gone). Kept at least 30 days; nothing is permanently deleted without an explicit OK. The subscription confirmation and the “Undo” toast stay.",
+   "Links inside cards (e.g. “Sources” or a URL in a note): click → new tab in the Nyx browser; Ctrl+click or right-click → “Open in the system browser”. http(s) only, same security; clicking a link does not drag or start editing the card.",
+   "MCP (Hermes): create_card/update_card accept size (w/h), font, font size, colours, shape and style — with ranges and allow-lists (a wrong value is a clear error, never a silent change). A rollback with no answer = kept_timeout: nothing changes and the response says so. Cards are never deleted without an explicit OK."
+  ]
+ },
  "2.6.9.3": {
   "el": [
    "Αναίρεση χωρίς απώλειες: το Ctrl+Z και κάθε αναίρεση αγγίζουν μόνο ό,τι άλλαξε εκείνη η ενέργεια (κάρτες, πίνακες, συνδρομές ανά id) — ποτέ ολόκληρη τη λίστα συνδρομών. Το Ctrl+Z στο πεδίο του βοηθού δεν αγγίζει πια τον καμβά. Πριν από αναίρεση που αφαιρεί/αλλάζει συνδρομές, «αναίρεση όλων» του βοηθού, επαναφορά snapshot και rollback MCP: επιβεβαίωση με πόσες συνδρομές και κάρτες αλλάζουν. Οι συνδρομές του βοηθού έχουν αναίρεση. Αποθήκευση που αφαιρεί 2+ συνδρομές: προειδοποίηση και snapshot «pre-subs-drop».",

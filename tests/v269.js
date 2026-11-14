@@ -84,7 +84,7 @@ async function say(win, text) {
   const router = await startRouter();
   const { app, win } = await launch();
   const ver = await win.evaluate(() => (Store.info && Store.info.version) || '');
-  ok(String(ver).includes('2.6.9'), 'app version 2.6.9', ver);
+  ok(String(ver).includes('2.6.9') || String(ver) === '2.6.10', 'app version 2.6.9', ver);
   await win.evaluate((a) => {
     Store.state.settings.theme = 'midnight'; Theme.apply(Store.state.settings);
     const A = Store.state.settings.ai; const L = A.providers.find((p) => p.id === 'llama');

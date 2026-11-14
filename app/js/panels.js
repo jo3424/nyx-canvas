@@ -55,7 +55,7 @@ const Panels = {
     build(body);
   },
   closeDrawer() { const d = $('#drawer'); d.classList.remove('in'); this.drawerKind = null; document.body.classList.remove('drawer-open'); $$('.tb-btn.on').forEach(b => b.classList.remove('on')); setTimeout(() => { if (!this.drawerKind) d.hidden = true; }, 220); },
-  refreshDrawer() { const k = this.drawerKind; if (!k) return; this.drawerKind = null; ({ subs: () => this.subs(), reminders: () => this.reminders(), themes: () => this.themes(), settings: () => this.settings(), library: () => this.library(this.libTab) })[k]?.(); },
+  refreshDrawer() { const k = this.drawerKind; if (!k) return; this.drawerKind = null; ({ subs: () => this.subs(), reminders: () => this.reminders(), themes: () => this.themes(), settings: () => this.settings(), library: () => this.library(this.libTab), bin: () => Bin.open() })[k]?.(); },
 
   // ---------- library (emoji / stickers / reactions / icons / memes) ----------
   libTab: 'emoji', libQ: '', libGroup: 'all', iconPack: 'lucide', iconColor: '#ffffff',

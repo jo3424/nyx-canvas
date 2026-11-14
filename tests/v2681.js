@@ -68,7 +68,7 @@ async function shot(win, name) {
   const router = await startRouter();
   const { app, win } = await launch();
   const ver = await win.evaluate(() => (Store.info && Store.info.version) || (typeof NYX_VERSION !== 'undefined' ? NYX_VERSION : ''));
-  ok(String(ver || '').includes('2.6.9') || String(ver || '').includes('2.6.8.1') || String(ver || '').includes('2.6.8'), 'app version 2.6.8.1', ver);
+  ok(String(ver || '').includes('2.6.9') || String(ver || '') === '2.6.10' || String(ver || '').includes('2.6.8.1') || String(ver || '').includes('2.6.8'), 'app version 2.6.8.1', ver);
 
   await win.evaluate((port) => {
     Store.state.settings.theme = 'midnight'; Theme.apply(Store.state.settings);

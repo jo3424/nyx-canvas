@@ -15,7 +15,7 @@ let fails = 0, passes = 0;
 const ok = (c, m, x) => { console.log((c ? '  ✓ ' : '  ✗ ') + m + (!c && x !== undefined ? '  → ' + JSON.stringify(x).slice(0, 800) : '')); c ? passes++ : fails++; };
 
 console.log('version + changelog + electron');
-ok((pkg.version === '2.6.8.1' || pkg.version.startsWith('2.6.8.') || pkg.version.startsWith('2.6.9')) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.8.1+, Electron 45.2.3', pkg.version);
+ok((pkg.version === '2.6.8.1' || pkg.version.startsWith('2.6.8.') || (pkg.version.startsWith('2.6.9') || pkg.version === '2.6.10')) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.8.1+, Electron 45.2.3', pkg.version);
 const log = require(R + '/CHANGELOG.json')['2.6.8.1'];
 ok(log && log.el.length === log.en.length && log.el.length === 3, 'CHANGELOG 2.6.8.1 has 3 el+en groups', log && log.el.length);
 ok(/χωρίς LLM|without an LLM/i.test(log.el[0] + log.en[0]) && /12000|24000/.test(log.el[0] + log.en[0]), 'group 1 is attachments without LLM on upload');

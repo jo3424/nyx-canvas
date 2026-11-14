@@ -90,6 +90,48 @@
     if (k) it[k] = colorOf(color, it[k]);
     else it.color = colorOf(color, it.color);
   }
+  // v2.6.10 — card look for create_card / update_card: size, font, colours, shape and style. Every value is checked
+  // against a range or an allow-list; a bad value is an error that names the allowed values (never silently changed).
+  const STYLE_LIMITS = { w: [40, 3000], h: [30, 3000], font_size: [8, 160] };
+  const FONT_LIST = () => (typeof FONTS !== 'undefined' ? FONTS.map(f => f[0]) : ['Inter', 'Playpen Sans', 'Mansalva', 'Mynerve', 'Comic Relief', 'Caveat', 'Permanent Marker', 'Comfortaa', 'Arima', 'Noto Serif', 'Roboto Slab', 'Ubuntu', 'JetBrains Mono', 'Tektur', 'Handjet', 'Press Start 2P', 'Dela Gothic One', 'Orbitron']);
+  const SHAPE_LIST = ['rect', 'ellipse', 'diamond', 'triangle', 'star', 'heart'];
+  const STYLE_LIST = ['classic', 'lined', 'grid', 'dotted', 'kraft', 'index', 'torn', 'polaroid', 'pin', 'glass'];
+  const ALIGN_LIST = ['left', 'center', 'right'];
+  const HEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+  const STYLE_KEYS = ['w', 'h', 'font', 'font_size', 'text_color', 'fill', 'shape', 'style', 'align'];
+  function colorStrict(c, field) {
+    const s = String(c).trim();
+    if (HEX.test(s)) return s.toLowerCase();
+    const k = nrm(s); if (colorMap[k]) return colorMap[k];
+    throw new Error(tr('v2610.mcp_bad_color', '{f}: «{v}» is not a colour. Use #rgb / #rrggbb or one of: {list}.', { f: field, v: s, list: Object.keys(colorMap).join(', ') }));
+  }
+  function styleOf(a) {
+    const out = {}; const errs = [];
+    const num = (k) => { if (a[k] == null) return; const v = Number(a[k]); const [lo, hi] = STYLE_LIMITS[k]; if (!Number.isFinite(v) || v < lo || v > hi) errs.push(tr('v2610.mcp_range', '{f} must be a number from {lo} to {hi} (got {v}).', { f: k, lo, hi, v: a[k] })); else out[k] = Math.round(v); };
+    num('w'); num('h'); num('font_size');
+    const pick = (k, list, map) => { if (a[k] == null) return; const v = String(a[k]).trim(); const hit = list.find(x => x.toLowerCase() === v.toLowerCase()); if (!hit) errs.push(tr('v2610.mcp_enum', '{f} must be one of: {list} (got «{v}»).', { f: k, list: list.join(', '), v })); else out[k] = map ? map(hit) : hit; };
+    pick('font', FONT_LIST()); pick('shape', SHAPE_LIST); pick('style', STYLE_LIST, (v) => (v === 'classic' ? '' : v)); pick('align', ALIGN_LIST);
+    for (const k of ['color', 'text_color', 'fill']) { if (a[k] == null || a[k] === '') continue; if (k === 'fill' && /^(none|transparent)$/i.test(String(a[k]).trim())) { out.fill = 'transparent'; continue; } try { out[k] = colorStrict(a[k], k); } catch (e) { errs.push(e.message); } }
+    if (errs.length) throw new Error(errs.join(' '));
+    return out;
+  }
+  // which fields a card type can take (anything else is reported back as «ignored», never applied silently)
+  function applyStyle(it, st) {
+    const ignored = [];
+    const textual = ['sticky', 'text', 'shape', 'reminder'].includes(it.type);
+    const sized = !['arrow', 'line', 'ink'].includes(it.type);
+    if (st.w != null) { if (sized) it.w = st.w; else ignored.push('w'); }
+    if (st.h != null) { if (sized) it.h = st.h; else ignored.push('h'); }
+    if (st.font != null) { if (textual) it.font = st.font; else ignored.push('font'); }
+    if (st.font_size != null) { if (textual) it.size = st.font_size; else ignored.push('font_size'); }
+    if (st.align != null) { if (textual) it.align = st.align; else ignored.push('align'); }
+    if (st.color != null) applyColor(it, st.color);
+    if (st.text_color != null) { if (textual) it.color = st.text_color; else ignored.push('text_color'); }
+    if (st.fill != null) { if (it.type === 'shape') it.fill = st.fill; else if (it.type === 'text') it.bg = st.fill; else ignored.push('fill'); }
+    if (st.shape != null) { if (it.type === 'shape') it.shape = st.shape; else ignored.push('shape'); }
+    if (st.style != null) { if (it.type === 'sticky') it.paperKind = st.style; else ignored.push('style'); }
+    return ignored;
+  }
   function setTags(it, tags) {
     it.tags = [...new Set((tags || []).map(t => String(t).replace(/^#/, '')).filter(Boolean))];
   }
@@ -181,6 +223,7 @@
     DELETE_TIMEOUT_MS,
     limitsOf,
     parseWhen,
+    styleOf, STYLE_LIMITS, SHAPE_LIST, STYLE_LIST, ALIGN_LIST, FONT_LIST,
     // Optional test hook: async (items) => 'ok'|'declined'|'timeout'
     _confirm: null,
     _importLocal: null,
@@ -313,22 +356,23 @@
       async update_card(a, opts) {
         const its = findItems(a);
         if (!its.length) return notFound();
-        if (a.text == null && a.append == null && a.title == null && a.color == null && !a.tags && !a.add_tags && !a.remove_tags) {
-          throw new Error(tr('mcp.nothing_to_update', 'Provide at least one of: text, color, tags, title, append, add_tags, remove_tags.'));
+        if (a.text == null && a.append == null && a.title == null && a.color == null && !a.tags && !a.add_tags && !a.remove_tags && !STYLE_KEYS.some(k => a[k] != null)) {
+          throw new Error(tr('v2610.mcp_nothing_to_update', 'Provide at least one of: text, color, tags, title, append, add_tags, remove_tags, w, h, font, font_size, text_color, fill, shape, style, align.'));
         }
+        const st = styleOf(a); const ignored = {};
         this.mutate('update_card', () => {
           for (const it of its) {
             if (a.text != null) it.html = htmlOf(a.text);
             if (a.append) it.html = (it.html || '') + '<br>' + htmlOf(a.append);
             if (a.title != null) it.title = a.title;
-            if (a.color) applyColor(it, a.color);
+            const ig = applyStyle(it, st); if (ig.length) ignored[it.id] = ig;
             if (a.tags) setTags(it, a.tags);
             if (a.add_tags) addTags(it, a.add_tags);
             if (a.remove_tags) it.tags = (it.tags || []).filter(t => !a.remove_tags.some(r => nrm(r) === nrm(t)));
           }
         }, opts);
         remount(its);
-        return { ok: true, updated: its.length, ids: its.map(idOf) };
+        return { ok: true, updated: its.length, ids: its.map(idOf), ...(Object.keys(st).length ? { style: st } : {}), ...(Object.keys(ignored).length ? { ignored, note: tr('v2610.mcp_ignored', 'Some fields do not apply to that card type and were not used.') } : {}) };
       },
       async add_tags(a, opts) {
         const tags = a.tags || a.add_tags || [];
@@ -408,7 +452,8 @@
       async create_card(a, opts) {
         const kind = a.kind || 'note';
         const text = a.text || a.title || '';
-        const p = freeSpot(230, 200);
+        const st = styleOf(a); let ignored = [];
+        const p = freeSpot(st.w || 230, st.h || 200);
         let it;
         this.mutate('create_card', () => {
           const base = { x: (a.x != null ? +a.x : p.x - 115), y: (a.y != null ? +a.y : p.y - 100), tags: Array.isArray(a.tags) ? a.tags.map(t => String(t).replace(/^#/, '')) : [] };
@@ -421,12 +466,16 @@
             it = Store.addItem({ ...base, type: 'text', w: kind === 'heading' ? 520 : 360, h: kind === 'heading' ? 60 : 80, html: kind === 'code' ? `<pre><code>${(typeof esc === 'function' ? esc(text) : text)}</code></pre>` : htmlOf(text), size: kind === 'heading' ? 34 : 16 });
           } else if (kind === 'link') {
             it = Store.addItem({ ...base, type: 'link', w: 340, h: 280, url: a.url || text, title: a.title || a.url || text });
+          } else if (kind === 'shape') {
+            it = Store.addItem({ ...base, type: 'shape', w: 220, h: 160, shape: 'rect', html: htmlOf(text), stroke: '#7c8cff', fill: 'transparent', sw: 2.5, font: 'Inter', size: 18 });
           } else {
             it = Store.addItem({ ...base, type: 'sticky', w: 230, h: 200, html: htmlOf(text), paper: colorOf(a.color, sticky0()), font: 'Playpen Sans', size: 20 });
           }
+          ignored = applyStyle(it, st);
+          if (a.x == null && (st.w || st.h)) { it.x = p.x - (it.w || 230) / 2; it.y = (a.y != null ? +a.y : p.y - (it.h || 200) / 2); }
         }, opts);
         remount([it]);
-        return { ok: true, id: it.id, kind };
+        return { ok: true, id: it.id, kind, w: it.w, h: it.h, ...(Object.keys(st).length ? { style: st } : {}), ...(ignored.length ? { ignored, note: tr('v2610.mcp_ignored', 'Some fields do not apply to that card type and were not used.') } : {}) };
       },
       async link_cards(a, opts) {
         const from = findItems({ id: a.from || a.from_id, ids: a.from ? [a.from] : undefined })[0];
@@ -616,8 +665,9 @@
         } catch (e) {
           Store.pending = null;
           // v2.6.9.3: the rollback undoes only what this batch changed (by id), after a visible confirmation that says
-          // how many subscriptions and cards change. Declined → the partial changes stay (one undo entry). No answer in
-          // the confirmation time → rolled back (the safe side), and the result says so.
+          // how many subscriptions and cards change. Declined → the partial changes stay (one undo entry).
+          // v2.6.10: no answer in the confirmation time → NOTHING happens (kept_timeout): the partial changes stay as they
+          // are, as one undo entry, and the result says so. Cards are never removed without an explicit OK.
           const plan = Store.restorePlan(snap, { subs: false }); // MCP has no subscription tools: subscriptions are never rolled back
           const sum = plan.sum; const n = sum.cards.add + sum.cards.remove + sum.cards.change + sum.subs.add + sum.subs.remove + sum.subs.change + (sum.boards.add + sum.boards.remove + sum.boards.change);
           let how = 'none';
@@ -627,14 +677,19 @@
               Features.confirmChanges(tr('v2693.mcp_rollback_q', 'Batch failed — roll back its changes?'), sum, tr('v2693.rollback', 'Roll back'), String(e.message || e)).then((ok) => ok ? 'ok' : 'declined'),
               new Promise((r) => setTimeout(() => r('timeout'), ms > 0 ? ms : 120000)),
             ]);
-            if (ans === 'timeout') { try { if ($('[data-restore-confirm]')) $('#modal-close').click(); } catch (err) {} }
-            if (ans === 'declined') { const ch = NyxUndo.diff(Store.picOf(snap), JSON.parse(Store.pic())); ch.subs = []; Store.undoStack.push({ ch, label: labelOf('batch') }); how = 'kept'; }
-            else { NyxUndo.apply(Store.state, plan.ch, 'undo'); how = ans === 'timeout' ? 'rolled_back_timeout' : 'rolled_back'; }
+            if (ans === 'timeout') { try { if ($('[data-restore-confirm]')) $('#modal-close').click(); } catch (err) {} try { toast('ℹ️ ' + tr('v2610.mcp_kept_timeout_toast', 'MCP batch failed and there was no answer: nothing was rolled back or deleted. Ctrl+Z undoes it.'), { ms: 12000, action: { label: t('undo'), fn: () => App.undo() } }); } catch (err) {} }
+            if (ans === 'declined' || ans === 'timeout') { const ch = NyxUndo.diff(Store.picOf(snap), JSON.parse(Store.pic())); ch.subs = []; Store.undoStack.push({ ch, label: labelOf('batch') }); Store.redoStack = []; how = ans === 'timeout' ? 'kept_timeout' : 'kept'; }
+            else { Store.applyCh(plan.ch, 'undo'); how = 'rolled_back'; }
           }
+          const ms0 = limitsOf(opts).deleteConfirmMs;
+          const note = how === 'kept_timeout' ? tr('v2610.mcp_kept_timeout', 'No answer in Nyx within {m}: nothing was rolled back and nothing was deleted. The changes made before the error are kept as they are; the user can undo them in Nyx with Ctrl+Z.', { m: ms0 >= 60000 ? fmtMb(Math.round(ms0 / 600) / 100) + ' ' + tr('v2610.unit_min', 'minutes') : fmtMb(Math.round(ms0 / 100) / 10) + ' ' + tr('v2610.unit_sec', 'seconds') })
+            : how === 'kept' ? tr('v2610.mcp_kept', 'The user chose to keep the changes made before the error (undo in Nyx with Ctrl+Z).')
+            : how === 'rolled_back' ? tr('v2610.mcp_rolled_back', 'The user confirmed: the changes made before the error were rolled back.')
+            : tr('v2610.mcp_none', 'Nothing had changed before the error.');
           Store.save();
           refreshUi();
           try { if (typeof Canvas !== 'undefined') Canvas.refresh?.(); } catch (err) {}
-          return { ok: false, rolled_back: how === 'rolled_back' || how === 'rolled_back_timeout' || how === 'none', rollback: how, changed: { cards: sum.cards, subs: { add: sum.subs.add, remove: sum.subs.remove, change: sum.subs.change } }, error: String(e.message || e), results };
+          return { ok: false, rolled_back: how === 'rolled_back' || how === 'none', rollback: how, note, changed: { cards: sum.cards, subs: { add: sum.subs.add, remove: sum.subs.remove, change: sum.subs.change } }, error: String(e.message || e), results };
         }
         refreshUi();
         try { if (typeof Canvas !== 'undefined') Canvas.refresh?.(); } catch (e) {}

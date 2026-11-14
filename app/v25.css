@@ -147,3 +147,17 @@ label.consent{padding:8px;border-radius:var(--radius);background:rgba(255,176,32
 .subx-paid{color:#3fb950}.subx-due{color:#d29922}
 .subx-card .subx-bar{margin:0 0 6px}.subx-mini{font-size:11px;margin-bottom:8px}
 .subs-differ{display:flex;gap:8px;align-items:flex-start;margin:6px 0;font-size:13px}
+/* v2.6.10 — Κάδος (bin) corner button + drawer */
+.zoombar .z-bin{position:relative}
+.zoombar .z-bin .bin-n{position:absolute;top:1px;right:1px;min-width:14px;height:14px;padding:0 3px;border-radius:7px;font-size:9.5px;line-height:14px;font-weight:600;background:color-mix(in srgb,var(--text) 22%,transparent);color:var(--text);pointer-events:none}
+.zoombar .z-bin .bin-n.old{background:#d97706;color:#fff}
+.bin-bar{margin:8px 0}
+.bin-list{display:flex;flex-direction:column;gap:4px}
+.bin-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:10px;border:1px solid var(--border);cursor:pointer}
+.bin-row:hover{background:color-mix(in srgb,var(--text) 5%,transparent)}
+.bin-row.old{border-color:#d97706}
+.bin-row .bin-ico{width:22px;text-align:center}
+.bin-row .bin-main{flex:1;min-width:0;display:flex;flex-direction:column}
+.bin-row .bin-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.note.warn{border-left:3px solid #d97706;padding:6px 10px;margin:6px 0}
+.item .txt a[href]{cursor:pointer}

@@ -9,7 +9,7 @@ const App = {
     Tools.buildDock(); Canvas.init(); Panels.tabs();
     if (Store.state.firstRun) this.welcome();
     Canvas.renderBoard(); Tools.pick('select');
-    Features.initDrop(); this.wire(); this.keys(); this.ipc();
+    Features.initDrop(); this.wire(); this.keys(); this.ipc(); Bin.init(); Links.init();
     $('#corner').classList.toggle('nomap', S.minimap === false);
     this.updateBadge(); setInterval(() => this.updateBadge(), 30000);
     setTimeout(() => Features.refreshAllShows(), 4000); setInterval(() => Features.refreshAllShows(), 3600e3);
@@ -37,6 +37,8 @@ const App = {
       const tg = e.target; const typing = tg.closest?.('input,textarea,select,[contenteditable=true]');
       if (e.key === 'F11') { e.preventDefault(); API?.toggleFullscreen(); return; }
       const c = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+      // v2.6.10: Ctrl+Z / Ctrl+Y by the physical key when the layout is not Latin (Greek: e.key is «ζ» / «υ»)
+      const kz = c && !/^[a-z]$/.test(k) && /^Key[A-Z]$/.test(e.code || '') ? e.code.slice(3).toLowerCase() : k;
       // v2.3: while the browser is on top, its shortcuts win and canvas keys (Delete, tools, Ctrl+T new board…) don't fire behind it
       if (typeof Browser !== 'undefined' && Browser.isOn?.() && $('#modal').hidden) {
         if ((c && ['t', 'w', 'l', 'tab', 'r'].includes(k)) || k === 'f5' || (e.altKey && ['arrowleft', 'arrowright'].includes(k))) { e.preventDefault(); Browser.key({ k, shift: e.shiftKey, alt: e.altKey }); return; }
@@ -49,8 +51,8 @@ const App = {
       if (e.key === ' ' && !e.repeat) { Canvas.spaceDown = true; document.body.classList.add('panning'); e.preventDefault(); return; }
       if (e.key === 'Escape') { if (!$('#modal').hidden) return; if (!$('#ctxmenu').hidden) return Panels.closeMenu(); if (!$('#drawer').hidden) return Panels.closeDrawer(); if (Voice.rec) { Voice.cancelled = true; return Voice.stop(); } Canvas.deselect(); Tools.pick('select'); return; }
       if (c) {
-        if (k === 'z' && !e.shiftKey) { e.preventDefault(); return this.undo(); }
-        if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); return this.redo(); }
+        if (kz === 'z' && !e.shiftKey) { e.preventDefault(); return this.undo(); }
+        if (kz === 'y' || (kz === 'z' && e.shiftKey)) { e.preventDefault(); return this.redo(); }
         if (k === 'c') { e.preventDefault(); return Clip.copy(); }
         if (k === 'x') { e.preventDefault(); return Clip.copy(true); }
         if (k === 'd') { e.preventDefault(); return Actions.duplicate(); }
@@ -96,7 +98,10 @@ const App = {
   async undo() { return this.history('undo'); },
   async redo() { return this.history('redo'); },
   async history(dir) {
-    if (Canvas.editing || this._histBusy) return false;
+    if (this._histBusy) return false;
+    // v2.6.10: a card left in edit mode without focus (clicked elsewhere) must not swallow Ctrl+Z: finish the edit first.
+    // Typing inside the card never gets here (its own keydown stops the event and the text field undoes the text).
+    if (Canvas.editing) Canvas.endEdit();
     const sum = dir === 'undo' ? Store.peekUndo() : Store.peekRedo();
     if (sum && sum.subsTouched > 0) {
       this._histBusy = true;
@@ -122,7 +127,7 @@ const App = {
   duplicateBoard(b) { const c = structuredClone(b); c.id = uid(); c.name += ' (2)'; c.items.forEach(i => { i.id = uid(); if (i.reminder) i.reminder.on = false; }); const idx = Store.state.boards.indexOf(b); Store.state.boards.splice(idx + 1, 0, c); Store.save(); this.switchBoard(c.id); },
   deleteBoard(b) {
     if (Store.state.boards.length < 2) return toast(LANG === 'el' ? t('app.002') : 'Need at least one board');
-    const go = () => { if (Canvas.editing) Canvas.endEdit(); const i = Store.state.boards.indexOf(b); if (i < 0) return; Store.state.boards.splice(i, 1); const tr = { b, i }; if (Store.state.active === b.id) { Store.state.active = Store.state.boards[Math.max(0, i - 1)].id; Canvas.renderBoard(); Panels.stylebar(); Minimap.drawSoon(); } Store.save(); Panels.tabs(); toast(`🗑️ ${b.name}`, { action: { label: t('undo'), fn: () => { if (Store.state.boards.includes(tr.b)) return; Store.state.boards.splice(Math.min(tr.i, Store.state.boards.length), 0, tr.b); Store.save(); this.switchBoard(tr.b.id); Panels.tabs(); } }, ms: 8000 }); };
+    const go = () => { if (Canvas.editing) Canvas.endEdit(); const i = Store.state.boards.indexOf(b); if (i < 0) return; Bin.boardDeleted(b, i); Store.state.boards.splice(i, 1); const tr = { b, i }; if (Store.state.active === b.id) { Store.state.active = Store.state.boards[Math.max(0, i - 1)].id; Canvas.renderBoard(); Panels.stylebar(); Minimap.drawSoon(); } Store.save(); Panels.tabs(); toast(`🗑️ ${b.name}`, { action: { label: t('undo'), fn: () => { if (Store.state.boards.includes(tr.b)) return; Store.state.boards.splice(Math.min(tr.i, Store.state.boards.length), 0, tr.b); Store.save(); this.switchBoard(tr.b.id); Panels.tabs(); } }, ms: 8000 }); };
     if (!b.items.length) return go();
     Panels.modal('🗑️ ' + esc(b.name), h('p', {}, LANG === 'el' ? t('app.003', { length: b.items.length }) : `Delete board with ${b.items.length} items?`), { okLabel: t('del'), ok: go });
   },

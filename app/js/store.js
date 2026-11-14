@@ -36,7 +36,7 @@ const Store = {
     clearTimeout(this.saveTimer);
     this.gen++; this.dirty = true; document.body.classList.add('unsaved');
     const run = () => (this.saving = this.saving.catch(() => {}).then(async () => {
-      const gen = this.gen; await this.subsGuard(); const text = this.serialize();
+      const gen = this.gen; this.binPrune(); await this.subsGuard(); const text = this.serialize();
       try { if (API) await API.save(text); else localStorage.setItem('nyx-state', text); if (gen === this.gen) { this.dirty = false; document.body.classList.remove('unsaved'); } }
       catch (e) { console.error('save failed', e); toast('⚠️ ' + t('v26.save_failed', { err: e.message }), { kind: 'err' }); }
     }));
@@ -84,7 +84,7 @@ const Store = {
     const now = this.pic();
     if (now !== this.pending) {
       const ch = NyxUndo.diff(JSON.parse(this.pending), JSON.parse(now));
-      if (!NyxUndo.empty(ch)) { this.undoStack.push({ ch, label: label || '' }); if (this.undoStack.length > 150) this.undoStack.shift(); this.redoStack = []; }
+      if (!NyxUndo.empty(ch)) { this.undoStack.push({ ch, label: label || '' }); if (this.undoStack.length > 150) this.undoStack.shift(); this.redoStack = []; this.binTrack(ch, 'redo'); }
     }
     this.pending = null; this.save();
   },
@@ -99,19 +99,23 @@ const Store = {
   // what going back to an older picture would change (for the visible confirmation)
   // opts.subs === false: leave subscriptions out (e.g. an MCP batch, which has no subscription tools)
   restorePlan(snapText, opts) { const ch = NyxUndo.diff(this.picOf(snapText), JSON.parse(this.pic())); if (opts && opts.subs === false) ch.subs = []; return { ch, sum: NyxUndo.summary(this.state, ch, 'undo') }; },
-  restore(snapText, opts) { const { ch } = this.restorePlan(snapText, opts); return NyxUndo.apply(this.state, ch, 'undo'); },
+  restore(snapText, opts) { const { ch } = this.restorePlan(snapText, opts); return this.applyCh(ch, 'undo'); },
   peekUndo() { const e = this.undoStack[this.undoStack.length - 1]; return e && e.ch ? NyxUndo.summary(this.state, e.ch, 'undo') : null; },
   peekRedo() { const e = this.redoStack[this.redoStack.length - 1]; return e && e.ch ? NyxUndo.summary(this.state, e.ch, 'redo') : null; },
   lastApply: null,
   undo() {
     const e = this.undoStack.pop(); if (!e) return false;
     if (!e.ch) { this.lastApply = null; return this.undo(); } // pre-2.6.9.3 entry shape: never restored wholesale
-    this.lastApply = NyxUndo.apply(this.state, e.ch, 'undo'); this.redoStack.push(e); this.save(); return true;
+    this.lastApply = this.applyCh(e.ch, 'undo'); this.redoStack.push(e); this.save(); return true;
   },
   redo() {
     const e = this.redoStack.pop(); if (!e) return false;
-    this.lastApply = NyxUndo.apply(this.state, e.ch, 'redo'); this.undoStack.push(e); this.save(); return true;
+    this.lastApply = this.applyCh(e.ch, 'redo'); this.undoStack.push(e); this.save(); return true;
   },
+  // v2.6.10: every apply goes through here so a card / subscription that leaves the state lands in the bin (Κάδος)
+  applyCh(ch, dir) { const r = NyxUndo.apply(this.state, ch, dir); this.binTrack(ch, dir); return r; },
+  binTrack(ch, dir) { try { if (window.NyxBin) { NyxBin.track(this.state, ch, dir, { titleOf: (v) => (typeof Features !== 'undefined' && Features.itemTitle) ? Features.itemTitle(v) : '' }); if (window.Bin) Bin.badge(); } } catch (e) { console.warn('bin', e); } },
+  binPrune() { try { if (window.NyxBin && NyxBin.prune(this.state) && window.Bin) Bin.badge(); } catch (e) {} },
 
   addItem(it, board) {
     const b = board || this.board();

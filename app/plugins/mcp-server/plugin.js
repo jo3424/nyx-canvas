@@ -15,6 +15,21 @@ const idsS = { type: 'array', items: { type: 'string' }, description: 'Card ids.
 const tagsS = { type: 'array', items: { type: 'string' } };
 const queryS = { type: 'string', description: 'Search text if no id is given.' };
 const isoS = { type: 'string', description: 'ISO 8601 date-time. If no time zone is given, Europe/Athens is used.' };
+// v2.6.10 — card look (create_card / update_card). Ranges and lists are checked here and again inside Nyx.
+const FONTS_L = ['Inter', 'Playpen Sans', 'Mansalva', 'Mynerve', 'Comic Relief', 'Caveat', 'Permanent Marker', 'Comfortaa', 'Arima', 'Noto Serif', 'Roboto Slab', 'Ubuntu', 'JetBrains Mono', 'Tektur', 'Handjet', 'Press Start 2P', 'Dela Gothic One', 'Orbitron'];
+const colorS = (what) => ({ type: 'string', description: what + ': #rgb / #rrggbb, or a name (yellow, orange, pink, purple, blue, green, white, dark, red, or the Greek κίτρινο, πορτοκαλί, ροζ, μωβ, μπλε, γαλάζιο, πράσινο, άσπρο/λευκό, σκούρο/μαύρο, κόκκινο).' });
+const STYLE_PROPS = {
+  w: { type: 'number', minimum: 40, maximum: 3000, description: 'Card width in canvas pixels, 40–3000.' },
+  h: { type: 'number', minimum: 30, maximum: 3000, description: 'Card height in canvas pixels, 30–3000.' },
+  font: { type: 'string', enum: FONTS_L, description: 'Font family (notes, text, shapes, reminders).' },
+  font_size: { type: 'number', minimum: 8, maximum: 160, description: 'Font size in px, 8–160.' },
+  color: colorS('Card colour (note paper, shape outline, frame/countdown colour, text colour for text cards)'),
+  text_color: colorS('Text colour (notes, text, shapes, reminders)'),
+  fill: { type: 'string', description: 'Shape fill (shape cards) or background (text cards): #rgb / #rrggbb, a colour name, or none.' },
+  shape: { type: 'string', enum: ['rect', 'ellipse', 'diamond', 'triangle', 'star', 'heart'], description: 'Shape outline (shape cards; create_card kind=shape).' },
+  style: { type: 'string', enum: ['classic', 'lined', 'grid', 'dotted', 'kraft', 'index', 'torn', 'polaroid', 'pin', 'glass'], description: 'Paper style of a note (sticky).' },
+  align: { type: 'string', enum: ['left', 'center', 'right'], description: 'Text alignment.' },
+};
 
 const TOOLS = [
   { name: 'search_cards', description: 'Search Nyx canvas cards (text, tags, captions, transcripts) on the active board or all boards.', inputSchema: { type: 'object', properties: { query: str, all_boards: { type: 'boolean' } }, required: ['query'] } },
@@ -24,8 +39,8 @@ const TOOLS = [
   { name: 'list_reminders', description: 'List reminder cards in an optional date range (ISO). Times are shown in Europe/Athens as well as ISO.', inputSchema: { type: 'object', properties: { from: isoS, to: isoS } } },
   { name: 'get_agenda', description: 'Agenda notes and reminders in an optional date range (ISO). Dates are Europe/Athens; DD/MM is included in the result.', inputSchema: { type: 'object', properties: { from: isoS, to: isoS } } },
   { name: 'summarize_board', description: 'Return a text summary of a board. Changes nothing (no new card is created).', inputSchema: { type: 'object', properties: { board: { type: 'string', description: 'Board name or id; default is the active board.' } } } },
-  { name: 'create_card', description: 'Create a card. kind: note|text|checklist|heading|link|reminder|code|frame.', inputSchema: { type: 'object', properties: { kind: { type: 'string' }, text: str, title: str, url: str, date: isoS, at: isoS, tags: tagsS, color: str, x: { type: 'number' }, y: { type: 'number' } }, required: ['kind'] } },
-  { name: 'update_card', description: 'Update a card’s text, color and/or tags.', inputSchema: { type: 'object', properties: { id: idS, ids: idsS, query: queryS, text: str, color: str, tags: tagsS, title: str, append: str, add_tags: tagsS, remove_tags: tagsS } } },
+  { name: 'create_card', description: 'Create a card. kind: note|text|checklist|heading|link|reminder|code|frame|shape. Optional look: w/h (40–3000 / 30–3000 px), font, font_size (8–160), color, text_color, fill, shape, style, align. A value outside the range or list is an error (nothing is created). Fields that do not apply to the card type are listed in «ignored».', inputSchema: { type: 'object', properties: { kind: { type: 'string' }, text: str, title: str, url: str, date: isoS, at: isoS, tags: tagsS, x: { type: 'number' }, y: { type: 'number' }, ...STYLE_PROPS }, required: ['kind'] } },
+  { name: 'update_card', description: 'Update a card’s text, tags and/or look: w/h (40–3000 / 30–3000 px), font, font_size (8–160), color, text_color, fill, shape, style, align. A value outside the range or list is an error (nothing changes). Never deletes a card.', inputSchema: { type: 'object', properties: { id: idS, ids: idsS, query: queryS, text: str, tags: tagsS, title: str, append: str, add_tags: tagsS, remove_tags: tagsS, ...STYLE_PROPS } } },
   { name: 'move_card', description: 'Move a card to another board and/or to an absolute position (x, y).', inputSchema: { type: 'object', properties: { id: idS, ids: idsS, query: queryS, board: { type: 'string', description: 'Target board name or id.' }, to_board: str, x: { type: 'number' }, y: { type: 'number' }, dx: { type: 'number' }, dy: { type: 'number' } } } },
   { name: 'create_reminder', description: 'Create a reminder card with an absolute date and time (ISO). Notifications fire through the existing Nyx reminder scheduler.', inputSchema: { type: 'object', properties: { text: str, title: str, at: isoS, date: isoS, board: str, tags: tagsS, repeat: { type: 'string', enum: ['none', 'daily', 'weekly', 'monthly', 'yearly'] }, x: { type: 'number' }, y: { type: 'number' } } } },
   { name: 'create_board', description: 'Create a new board. Does not switch to it unless switch=true.', inputSchema: { type: 'object', properties: { name: str, emoji: str, color: str, switch: { type: 'boolean' } }, required: ['name'] } },
@@ -34,7 +49,7 @@ const TOOLS = [
   { name: 'group_cards', description: 'Wrap cards in a titled frame (non-destructive, undoable).', inputSchema: { type: 'object', properties: { ids: idsS, id: idS, query: queryS, tag: str, type: str, title: str, color: str } } },
   { name: 'organize_board', description: 'Lay out the board’s cards by type, tag or date. Does not delete or edit content; undoable.', inputSchema: { type: 'object', properties: { by: { type: 'string', enum: ['type', 'tag', 'date'] }, board: str } } },
   { name: 'add_image', description: 'Add an image card from a local file path (under the user profile or Nyx data folder, images only, 30 MB) or an http(s) URL (public addresses, images only, 30 MB). file:// is rejected.', inputSchema: { type: 'object', properties: { path: str, url: str, file: str, src: str, board: str, title: str, caption: str, tags: tagsS, x: { type: 'number' }, y: { type: 'number' } } } },
-  { name: 'batch', description: 'Run several tool calls as one undo step. All actions are validated first; if any fail, nothing is applied. Each inner action must be allowed by the matching permission group. delete_cards still needs an in-Nyx confirmation.', inputSchema: { type: 'object', properties: { actions: { type: 'array', items: { type: 'object', properties: { tool: str, arguments: { type: 'object' } }, required: ['tool'] } } }, required: ['actions'] } },
+  { name: 'batch', description: 'Run several tool calls as one undo step. All actions are validated first. Each inner action must be allowed by the matching permission group. delete_cards still needs an in-Nyx confirmation. If an action fails after others ran, Nyx asks the user whether to roll back: rollback = rolled_back (user OK), kept (user said no) or kept_timeout (no answer: nothing is changed or deleted, the result says so in «note»). Cards are never deleted without the user’s explicit OK.', inputSchema: { type: 'object', properties: { actions: { type: 'array', items: { type: 'object', properties: { tool: str, arguments: { type: 'object' } }, required: ['tool'] } } }, required: ['actions'] } },
   { name: 'delete_cards', description: 'Delete cards after an in-Nyx confirmation dialog (the call waits; declined or timeout if the user does not confirm). Undoable with Ctrl+Z.', inputSchema: { type: 'object', properties: { ids: idsS, id: idS, query: queryS, type: str, tag: str } } },
 ];
 const TOOL_MAP = Object.fromEntries(TOOLS.map(t => [t.name, t]));
@@ -91,6 +106,8 @@ function validate(schema, value, path) {
     if (t === 'boolean' && typeOf(value) !== 'boolean') return path + ': expected boolean, got ' + typeOf(value);
     if (t === 'integer' && (typeOf(value) !== 'number' || !Number.isInteger(value))) return path + ': expected integer, got ' + typeOf(value);
   }
+  if (typeof value === 'number' && schema.minimum != null && value < schema.minimum) return path + ': must be ≥ ' + schema.minimum + ' (got ' + value + ')';
+  if (typeof value === 'number' && schema.maximum != null && value > schema.maximum) return path + ': must be ≤ ' + schema.maximum + ' (got ' + value + ')';
   if (schema.enum && !schema.enum.includes(value)) return path + ': must be one of ' + schema.enum.join(', ');
   if (schema.type === 'object' || schema.properties) {
     if (value && typeof value === 'object' && !Array.isArray(value)) {

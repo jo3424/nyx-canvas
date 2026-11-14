@@ -293,7 +293,7 @@ const Features = {
     Panels.modal('📥 ' + t('set_import'), body, { extra: [h('button', { class: 'btn ghost', 'data-act': 'import-subs-only', onclick: () => { $('#modal-close').click(); setTimeout(() => Subs.importOnly(s.subs || [], t('v2693.src_backup')), 200); } }, t('v2693.only_subs', { n: (s.subs || []).length })), h('button', { class: 'btn ghost', onclick: () => { for (const b of s.boards || []) { b.id = uid(); b.name += ' (backup)'; Store.state.boards.push(b); } Store.save(); Panels.tabs(); $('#modal-close').click(); toast('✓'); } }, LANG === 'el' ? t('features.025') : 'Add as new boards')], okLabel: LANG === 'el' ? t('features.026') : 'Replace all', ok: async () => {
       // v2.6.9.3: «Replace all» says first how many subscriptions and cards change
       const sum = NyxUndo.summary(Store.state, NyxUndo.diff(NyxUndo.capture(s), JSON.parse(Store.pic())), 'undo');
-      setTimeout(async () => { if (!await Features.confirmChanges(t('features.026'), sum, t('features.026'))) return; await Store.save(true); try { await API.inv('snap:create', t('extras.068')); } catch (e) {} Store.state = s; await Store.save(true); location.reload(); }, 200);
+      setTimeout(async () => { if (!await Features.confirmChanges(t('features.026'), sum, t('features.026'))) return; await Store.save(true); try { await API.inv('snap:create', t('extras.068')); } catch (e) {} NyxBin.carryOver(Store.state, s, NyxUndo.diff(JSON.parse(Store.pic()), JSON.parse(JSON.stringify(NyxUndo.capture(s)))), { titleOf: (v) => Features.itemTitle(v) }); Store.state = s; await Store.save(true); location.reload(); }, 200);
     } });
   },
 };
