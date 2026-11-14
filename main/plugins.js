@@ -82,7 +82,7 @@ function makeApi(m, L) {
     get config() { return cfgOf(m); },
     log: (...a) => log(id, ...a),
     storage: { get: (k, d) => (k in store ? store[k] : d), set: (k, v) => { store[k] = v; saveStore(); }, all: () => ({ ...store }) },
-    fetch: (url, opts) => has(m, 'net') ? fetch(url, opts) : deny('net'),
+    fetch: (url, opts) => has(m, 'net') ? fetch(url, require('./routerkey').withAuth(url, opts)) : deny('net'), // v2.6.10.1: router key for router URLs
     notify: (title, body) => { if (!has(m, 'notify')) deny('notify'); try { new Notification({ title: String(title), body: String(body || '') }).show(); } catch (e) {} bridge.toast(`${m.name}: ${title}${body ? ' — ' + body : ''}`); },
     toast: (msg) => bridge.toast(String(msg)),
     board: new Proxy({}, { get: (_, op) => (typeof op !== 'string' || op === 'then' || op === 'toJSON' || op === 'constructor') ? undefined : (...args) => has(m, 'board') ? bridge.op('board.' + String(op), args, id) : deny('board') }),

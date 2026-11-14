@@ -6,10 +6,13 @@ const { spawn } = require('child_process');
 const secrets = require('./secrets');
 const nyxPath = require('./paths');
 const limits = require('./limits');
+const routerkey = require('./routerkey');
 
 function headers(p) {
   const h = { 'Content-Type': 'application/json' };
-  const key = p.keyRef ? secrets.get(p.keyRef) : '';
+  let key = p.keyRef ? secrets.get(p.keyRef) : '';
+  // v2.6.10.1: the local router (provider «llama» / the router port) gets Nyx's router key unless the provider has its own
+  if (!key && routerkey.isRouterProvider(p)) key = routerkey.key();
   if (key) h.Authorization = 'Bearer ' + key;
   if (/openrouter\.ai/.test(p.base || '')) { h['HTTP-Referer'] = 'https://nyx.local'; h['X-Title'] = 'Nyx Canvas'; }
   return h;
@@ -53,6 +56,7 @@ function waitOf(hd) { const g = (k) => hd?.get ? hd.get(k) : hd?.[k]; return par
 const RATE_AUTO_WAIT = 20; // seconds we silently wait (max 2 times) before giving up
 function abortedErr(url) { const e = new NetError('aborted', t('v268.cancelled'), { url }); e.code = 'ABORTED'; return e; }
 async function jfetch(url, opts = {}, timeout = 180000, _try = 0) {
+  opts = routerkey.withAuth(url, opts); // v2.6.10.1: every router call carries the key (also retries / probes)
   const ext = opts.signal;
   const ctrl = new AbortController();
   const tm = timeout > 0 ? setTimeout(() => ctrl.abort(), timeout) : null;

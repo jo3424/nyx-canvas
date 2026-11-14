@@ -352,8 +352,39 @@ Hub.paintHubTabs = function (panes, show) {
     const build = /b12\d+/.test(String(L.exe || L.extra || '')) ? (String(L.exe + L.extra).match(/b12\d+/) || ['b12230'])[0] : t('v267.llm_build_unknown');
     const maxShow = maxLabel(this._routerLive && this._routerLive.max != null ? this._routerLive.max : (meta.max || null));
     const llamaBox = compact('llama', t('v267.llm_router'), t('v267.llm_summary', { v0: build, v1: dirShow, v2: maxShow, v3: ctxShow, v4: 'Vulkan' }), 'llama', { health: true, port: L.port || 8080, cfg: L });
+    // v2.6.10.1: router API key — «ενεργό» + copy (the key itself stays in main) + warning when the router answers without it
+    const keyRow = (() => {
+      const box = h('div', { class: 'srv-key', 'data-router-key': '' });
+      const line = h('span', { class: 'grow small', 'data-rk': 'line' }, '🔑 ' + t('v26101.key_active'));
+      const copy = h('button', { class: 'btn sm ghost', 'data-rk': 'copy', onclick: async () => {
+        try { await API.inv('proc:routerKeyCopy'); toast(t('v26101.key_copied'), { ms: 6000 }); } catch (e) { toast('⚠️ ' + cleanErr(e), { kind: 'err', ms: 8000 }); }
+      } }, t('v26101.copy'));
+      const warn = h('p', { class: 'small rk-warn', 'data-rk': 'warn', hidden: true });
+      box.append(row(line, copy), warn);
+      const port = +(L.port || 8080);
+      const check = async () => {
+        const r = await API.inv('proc:routerKey', port).catch(() => null); if (!r) return;
+        box.dataset.state = r.state;
+        const msg = r.state === 'open' ? t('v26101.warn_open', { v0: port }) : r.state === 'mismatch' ? t('v26101.warn_mismatch', { v0: port }) : ((r.autostart && r.autostart.on && !r.autostart.keyed) ? t('v26101.warn_autostart') : '');
+        warn.hidden = !msg; warn.textContent = msg ? '⚠️ ' + msg : '';
+      };
+      check();
+      const iv = setInterval(() => { if (!document.contains(box)) return clearInterval(iv); check(); }, 20000);
+      // re-check at once when the router comes up / goes down (public /health — no «unauthorized» lines in its log)
+      let lastUp = null;
+      const ivU = setInterval(async () => {
+        if (!document.contains(box)) return clearInterval(ivU);
+        const hh = await API.inv('proc:health', 'http://127.0.0.1:' + port + '/health', 800).catch(() => null);
+        const up = !!(hh && (hh.ok || hh.status));
+        if (lastUp !== null && up !== lastUp) check();
+        lastUp = up;
+      }, 2500);
+      box._check = check;
+      return box;
+    })();
     el.append(
       llamaBox,
+      keyRow,
       compact('whisper', t('v267.stt_row'), t('v267.stt_summary', { v0: (W.model || '').split(/[\\/]/).pop() || 'ggml', v1: W.language || A.stt.language || 'el', v2: W.port || 8178 })),
     );
     const llamaProv = A.providers.find((p) => p.id === 'llama') || { id: 'llama', base: 'http://127.0.0.1:' + (L.port || 8080) + '/v1', kind: 'local' };
@@ -434,7 +465,11 @@ Hub.paintHubTabs = function (panes, show) {
                 paint(r);
               } catch (err) { e.target.checked = !want; toast('⚠️ ' + t('v2671.win_autostart_fail', { v0: cleanErr(err) }), { kind: 'err', ms: 9000 }); }
             } }), h('span', {}, t('v2671.win_autostart'))),
-            h('p', { class: 'muted small' }, t('v2671.win_autostart_help', { v0: L.port || 8080 }) + (st && st.path ? ' · ' + st.path : ''))
+            h('p', { class: 'muted small' }, t('v2671.win_autostart_help', { v0: L.port || 8080 }) + (st && st.path ? ' · ' + st.path : '')),
+            // v2.6.10.1: a script written by 2.6.10 starts the router without the key → say so, rewrite only on click
+            (on && st && st.keyed === false) ? h('p', { class: 'small rk-warn', 'data-rk': 'autostart' }, '⚠️ ' + t('v26101.warn_autostart'), ' ', h('button', { class: 'btn sm', 'data-rk': 'rewrite', onclick: async () => {
+              try { const r = await API.inv('proc:winAutostart', { on: true, cfg: L }); toast(t('v26101.autostart_rewritten'), { ms: 6000 }); paint(r); } catch (err) { toast('⚠️ ' + t('v2671.win_autostart_fail', { v0: cleanErr(err) }), { kind: 'err', ms: 9000 }); }
+            } }, t('v26101.autostart_rewrite'))) : null
           );
         };
         API.inv('proc:winAutostart').then(paint).catch(() => paint({ on: !!L.winAutostart }));

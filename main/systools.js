@@ -50,7 +50,7 @@ async function vswhere() {
   const r = await run(vw, ['-latest', '-products', '*', '-format', 'json'], 6000);
   try { const j = JSON.parse(r.out)[0]; return j ? { path: j.productPath || j.installationPath, version: `${j.displayName || ''} ${j.catalog?.productDisplayVersion || j.installationVersion || ''}`.trim() } : null; } catch (e) { return null; }
 }
-async function httpUp(url) { try { const c = new AbortController(); setTimeout(() => c.abort(), 1500); const r = await fetch(url, { signal: c.signal }); return r.ok; } catch (e) { return false; } }
+async function httpUp(url) { try { const c = new AbortController(); setTimeout(() => c.abort(), 1500); const r = await fetch(url, require('./routerkey').withAuth(url, { signal: c.signal })); return r.ok; } catch (e) { return false; } }
 async function detectOne(t, overrides = {}) {
   const res = { id: t.id, name: t.name, cat: t.cat, kind: t.kind, note: t.noteKey ? tr(t.noteKey) : (t.note || ''), found: false, path: '', version: '' };
   if (t.special === 'vswhere') { const v = await vswhere(); if (v) Object.assign(res, { found: true, path: v.path, version: v.version }); return res; }

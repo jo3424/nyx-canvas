@@ -161,3 +161,8 @@ label.consent{padding:8px;border-radius:var(--radius);background:rgba(255,176,32
 .bin-row .bin-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
 .note.warn{border-left:3px solid #d97706;padding:6px 10px;margin:6px 0}
 .item .txt a[href]{cursor:pointer}
+/* v2.6.10.1: router API key row in the Hub (Μηχανές) */
+.srv-key{display:flex;flex-direction:column;gap:4px;padding:6px 10px;margin:-2px 0 6px;border-radius:8px;background:color-mix(in srgb,var(--text) 4%,transparent)}
+.srv-key .row{display:flex;align-items:center;gap:8px}
+.rk-warn{color:#d29922;background:rgba(210,153,34,.10);border:1px solid color-mix(in srgb,#d29922 45%,transparent);border-radius:8px;padding:6px 10px;margin:4px 0;line-height:1.45}
+.rk-warn .btn{margin-left:6px}

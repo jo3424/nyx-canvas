@@ -61,12 +61,15 @@ function startupDir() {
   if (process.platform === 'win32' && process.env.APPDATA) return path.join(process.env.APPDATA, 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup');
   return '';
 }
+const routerKeyArg = (extra) => /(^|\s)--api-key(-file)?(\s|=|$)/.test(String(extra || ''));
 function vbsEscape(s) { return String(s).replace(/"/g, '""'); }
 function cmdToken(a) { a = String(a); return /[\s"]/.test(a) || a === '' ? '"' + a.replace(/"/g, '""') + '"' : a; }
-function startupVbs(c) {
+// v2.6.10.1: opts.keyFile → «--api-key-file <file>» (the router key stays out of the command line and out of this script)
+function startupVbs(c, opts = {}) {
   c = resolveLlamaCfg(c || {});
   const port = +c.port || 8080;
   const args = argsFor('llama', c);
+  if (opts.keyFile && !routerKeyArg(c.extra)) args.push('--api-key-file', String(opts.keyFile));
   const runCmd = [c.exe, ...args].map(cmdToken).join(' ');
   const health = 'http://127.0.0.1:' + port + '/health';
   return [
@@ -91,7 +94,9 @@ function startupVbs(c) {
 function winAutostartGet() {
   const dir = startupDir(), file = dir ? path.join(dir, STARTUP_NAME) : '';
   const on = !!(file && fs.existsSync(file));
-  return { on, path: file, dir, available: !!dir, platform: process.platform };
+  // v2.6.10.1: keyed = the script passes the router key (--api-key-file); a 2.6.10 script does not → the Hub says so
+  let keyed = false; if (on) { try { keyed = /--api-key(-file)?\b/.test(fs.readFileSync(file, 'utf8')); } catch (e) {} }
+  return { on, keyed, path: file, dir, available: !!dir, platform: process.platform };
 }
 function winAutostartSet(on, c) {
   const dir = startupDir();
@@ -99,6 +104,7 @@ function winAutostartSet(on, c) {
   const file = path.join(dir, STARTUP_NAME);
   if (!on) {
     if (fs.existsSync(file)) fs.unlinkSync(file);
+    try { require('./routerkey').removeKeyFile(); } catch (e) {}
     return { on: false, path: file, dir };
   }
   c = resolveLlamaCfg(c || {});
@@ -110,8 +116,10 @@ function winAutostartSet(on, c) {
     throw new ProcError('model', t('procs.011'), { field: 'model' });
   }
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(file, startupVbs(c), 'utf8');
-  return { on: true, path: file, dir };
+  const rk = require('./routerkey'); rk.setPort(+c.port || 8080);
+  const keyFile = routerKeyArg(c.extra) ? '' : rk.writeKeyFile();
+  fs.writeFileSync(file, startupVbs(c, { keyFile }), 'utf8');
+  return { on: true, keyed: !!keyFile || routerKeyArg(c.extra), path: file, dir };
 }
 const alive = (c) => !!c && c.exitCode == null && c.signalCode == null;
 function status(id) { const p = procs[id]; return p ? { running: alive(p.child), pid: p.child?.pid, startedAt: p.startedAt, log: p.log.slice(-60), exit: p.exit, cmd: p.cmd, ctxInfo: p.ctxInfo || null } : { running: false, log: [] }; }
@@ -171,7 +179,10 @@ async function start(id, c, onEvent, { settleMs = 1500 } = {}) {
   }
   const args = argsFor(id, c);
   const shell = isBatch(c.exe);
-  const child = shell ? spawn(batchLine(c.exe, args), [], { cwd: path.dirname(c.exe), windowsHide: true, shell: true }) : spawn(c.exe, args, { cwd: path.dirname(c.exe), windowsHide: true });
+  // v2.6.10.1: the router gets Nyx's API key through LLAMA_API_KEY (not in args → not in the command line / P.cmd / logs)
+  let env;
+  if (id === 'llama') { const rk = require('./routerkey'); rk.setPort(port); env = rk.routerEnv(c); }
+  const child = shell ? spawn(batchLine(c.exe, args), [], { cwd: path.dirname(c.exe), windowsHide: true, shell: true, env }) : spawn(c.exe, args, { cwd: path.dirname(c.exe), windowsHide: true, env });
   const P = procs[id] = { child, shell, log: [], startedAt: Date.now(), cmd: [c.exe, ...args].map(a => /\s/.test(a) ? `"${a}"` : a).join(' '), ctxInfo: c._ctxInfo || null };
   const push = (d) => { for (const l of String(d).split(/\r?\n/)) if (l.trim()) { P.log.push(l.slice(0, 400)); if (P.log.length > 400) P.log.shift(); } };
   child.stdout.on('data', push); child.stderr.on('data', push);

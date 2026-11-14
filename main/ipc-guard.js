@@ -93,7 +93,7 @@ const SCHEMA = {
   'sys:winSettings': ['s'], 'sys:findFiles': ['o?'], 'sys:launch': ['path', 's?'], 'sys:exists': ['strs'], 'sys:ocr': ['media', 's?'],
   'sys:reveal': ['path'], 'sys:pickExe': ['s?', 'a?', 's?'], 'sys:pickDir': ['s?'], 'sys:info': [], 'sys:migrateAiPaths': ['o?'], 'sys:detect': ['o?', 'p'],
   'sys:scan': ['o?'], 'sys:scanCancel': [], 'sys:scanState': [], 'sys:openFolder': ['path'],
-  'proc:start': ['key', 'o'], 'proc:precheck': ['key', 'o'], 'proc:stop': ['key'], 'proc:status': ['key'], 'proc:health': ['url', 'n?'], 'proc:winAutostart': ['o?'], 'proc:pids': [], 'proc:stopWait': ['key', 'n?'],
+  'proc:start': ['key', 'o'], 'proc:precheck': ['key', 'o'], 'proc:stop': ['key'], 'proc:status': ['key'], 'proc:health': ['url', 'n?'], 'proc:winAutostart': ['o?'], 'proc:routerKey': ['n?'], 'proc:routerKeyCopy': [], 'proc:pids': [], 'proc:stopWait': ['key', 'n?'],
   'video:probe': ['media'], 'video:clip': ['media', 'n', 'n', 's?'], 'video:clipToMedia': ['media', 'n', 'n'], 'video:frame': ['media', 'n?'], 'video:ffmpeg': ['s?'],
   'web:capture': ['wc'], 'web:selection': ['wc'], 'web:pageText': ['wc'], 'web:renderText': ['url', 'o?'], 'web:clearSession': [],
   'drag:start': ['drag'], 'file:saveAs': ['media', 's?'], 'file:saveText': ['s', 'text'], 'file:reveal': ['media'], 'file:readMedia': ['media'],

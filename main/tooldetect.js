@@ -10,7 +10,7 @@ function mkDeps(over = {}) {
   const d = {
     fs, fsp: over.fsp || fs.promises, platform: over.platform || process.platform, env: over.env || process.env, home: over.home || nyxPath.userHome({ env: over.env || process.env, platform: over.platform || process.platform }),
     exec: over.exec || ((cmd, args, timeout = 5000) => new Promise((res) => { try { require('child_process').execFile(cmd, args, { timeout, windowsHide: true, maxBuffer: 4 << 20 }, (err, out, er) => res({ err, out: String(out || '') + String(er || '') })); } catch (e) { res({ err: e, out: '' }); } })),
-    http: over.http || (async (url) => { try { const c = new AbortController(); setTimeout(() => c.abort(), 1200); const r = await fetch(url, { signal: c.signal }); return r.ok; } catch (e) { return false; } }),
+    http: over.http || (async (url) => { try { const c = new AbortController(); setTimeout(() => c.abort(), 1200); const r = await fetch(url, require('./routerkey').withAuth(url, { signal: c.signal })); return r.ok; } catch (e) { return false; } }),
   };
   d.path = d.platform === 'win32' ? nodePath.win32 : nodePath.posix;
   return d;

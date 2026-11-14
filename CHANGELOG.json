@@ -1,4 +1,12 @@
 {
+ "2.6.10.1": {
+  "el": [
+   "Κλειδί API για τον τοπικό router (llama-server): ένα τυχαίο κλειδί φτιάχνεται μία φορά και φυλάγεται στα κρυπτογραφημένα μυστικά του Nyx (όχι στο nyx.json). Ο router ξεκινά από το Nyx με το κλειδί (χωρίς να φαίνεται στη γραμμή εντολής) και κάθε κλήση του Nyx το στέλνει. Έτσι μια ιστοσελίδα ή άλλο πρόγραμμα του PC δεν μπορεί πια να χρησιμοποιήσει τον router χωρίς κλειδί. Στο Hub: «Κλειδί router: ενεργό» και «Αντιγραφή» (για τον Hermes). Αν ο router τρέχει χωρίς κλειδί (ξεκίνησε έξω από το Nyx), βγαίνει κίτρινη προειδοποίηση. Το Nyx δεν τον επανεκκινεί μόνο του."
+  ],
+  "en": [
+   "API key for the local router (llama-server): a random key is created once and kept in Nyx's encrypted secrets (not in nyx.json). Nyx starts the router with it (not visible in the command line) and sends it on every call, so a web page or another program on the PC can no longer use the router without the key. Hub: «Router key: active» + «Copy» (for Hermes). A router answering without a key (started outside Nyx) shows a yellow warning; Nyx never restarts it on its own."
+  ]
+ },
  "2.6.10": {
   "el": [
    "Ctrl+Z / Ctrl+Y παντού: αναιρούν και επαναφέρουν προσθήκη, μετακίνηση, επεξεργασία και διαγραφή κάρτας όπου κι αν είναι η εστίαση (εκτός όταν γράφεις σε πεδίο κειμένου) — και με ελληνικό πληκτρολόγιο. Νέος Κάδος (κουμπί 🗑 κάτω δεξιά με μετρητή): οι διαγραμμένες κάρτες και συνδρομές με όνομα, πίνακα και ώρα· επαναφορά μίας ή πολλών με checkbox στη θέση και τον πίνακα τους (αν ο πίνακας δεν υπάρχει, ρωτά). Κρατούνται τουλάχιστον 30 ημέρες· τίποτα δεν σβήνεται οριστικά χωρίς ρητό OK. Η επιβεβαίωση συνδρομών και το «Αναίρεση» παραμένουν.",

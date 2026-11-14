@@ -9,7 +9,7 @@ const vsengine = require('./vsengine');
 const dnd = require('./dnd');
 const { isInside, writeFileAtomic } = require('./fsutil');
 const secure = require('./secure');
-const secrets = require('./secrets'), ai = require('./ai'), procs = require('./procs'), systools = require('./systools'), nyxPath = require('./paths'), finder = require('./finder'), video = require('./video'), plugins = require('./plugins');
+const secrets = require('./secrets'), routerkey = require('./routerkey'), ai = require('./ai'), procs = require('./procs'), systools = require('./systools'), nyxPath = require('./paths'), finder = require('./finder'), video = require('./video'), plugins = require('./plugins');
 
 const WEB_PARTITION = 'persist:nyxweb';
 const CHROME_UA = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome} Safari/537.36`;
@@ -151,7 +151,7 @@ function bridgeOp(op, args, pluginId) {
 
 function wire(ctx) {
   C = ctx;
-  secrets.init(C.USER()); secrets.setWarn((m) => send('toast', { text: m, kind: 'err', ms: 15000 }));
+  secrets.init(C.USER()); routerkey.init(C.USER()); secrets.setWarn((m) => send('toast', { text: m, kind: 'err', ms: 15000 }));
   plugins.init({ builtinDir: path.join(__dirname, '..', 'app', 'plugins'), userDir: path.join(C.DATA_ROOT(), 'plugins'), dataDir: C.DATA_ROOT(), bridge: { op: bridgeOp, emit: (ev, data) => send('plugin:event', { ev, data }), toast: (m) => send('toast', m), win: () => C.mainWin() } });
   setupWebSession();
   app.on('web-contents-created', onWebContentsCreated);
@@ -159,7 +159,7 @@ function wire(ctx) {
   const H = (ch, fn) => ipcMain.handle(ch, async (_e, ...a) => fn(...a));
 
   // secrets
-  H('secret:set', (k, v) => { if (!/^[\w:.-]+$/.test(k)) throw new Error('bad key'); secrets.set(k, v); return true; });
+  H('secret:set', (k, v) => { if (!/^[\w:.-]+$/.test(k) || /^router\./i.test(k)) throw new Error('bad key'); secrets.set(k, v); return true; });
   H('secret:has', (k) => secrets.has(k));
   // AI
   // v2.6 (B-31): an unreachable local provider (LM Studio off…) is an expected answer, not a crash → no stack trace in the log
@@ -247,7 +247,14 @@ function wire(ctx) {
   H('proc:precheck', (id, cfg) => { const e = procs.precheck(id, cfg); return e ? { ok: false, field: e.field, error: e.message } : { ok: true }; });
   H('proc:stop', (id) => procs.stop(id));
   H('proc:status', (id) => procs.status(id));
-  H('proc:health', async (url, ms) => { try { const c = new AbortController(); const wait = (ms > 0 ? +ms : 2000); setTimeout(() => c.abort(), wait); const r = await fetch(url, { signal: c.signal }); return { ok: r.ok, status: r.status }; } catch (e) { return { ok: false }; } });
+  H('proc:health', async (url, ms) => { try { const c = new AbortController(); const wait = (ms > 0 ? +ms : 2000); setTimeout(() => c.abort(), wait); const r = await fetch(url, routerkey.withAuth(url, { signal: c.signal })); return { ok: r.ok, status: r.status }; } catch (e) { return { ok: false }; } });
+  // v2.6.10.1: router API key — the renderer only learns «active» and the probe state; the key itself never leaves main.
+  H('proc:routerKey', async (port) => {
+    const pr = await routerkey.probe(port || routerkey.getPort());
+    const a = procs.winAutostartGet();
+    return { active: routerkey.active(), state: pr.state, port: pr.port, autostart: { on: a.on, keyed: !!a.keyed } };
+  });
+  H('proc:routerKeyCopy', async () => { await clipboard.writeText(routerkey.key()); return true; });
   H('proc:winAutostart', (opts) => {
     opts = opts || {};
     if (opts.on === true || opts.on === false) return procs.winAutostartSet(!!opts.on, opts.cfg || {});

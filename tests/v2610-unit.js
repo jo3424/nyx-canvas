@@ -155,8 +155,8 @@ function loadStore() {
   // ---- 8) version, changelog, locales ----
   {
     const pkg = require('../package.json'); const CH = require('../CHANGELOG.json');
-    ok(pkg.version === '2.6.10' && pkg.devDependencies.electron === '45.2.3', 'version 2.6.10, Electron 45.2.3', pkg.version);
-    ok(Object.keys(CH)[0] === '2.6.10' && CH['2.6.10'].el.length === 3 && CH['2.6.10'].en.length === 3, 'CHANGELOG 2.6.10 first, 3 items');
+    ok(pkg.version.startsWith('2.6.10') && pkg.devDependencies.electron === '45.2.3', 'version 2.6.10, Electron 45.2.3', pkg.version);
+    ok(['2.6.10', '2.6.10.1'].includes(Object.keys(CH)[0]) && CH['2.6.10'].el.length === 3 && CH['2.6.10'].en.length === 3, 'CHANGELOG 2.6.10 first, 3 items');
     const keys = Object.keys(el).filter((k) => k.startsWith('v2610.'));
     ok(keys.length >= 30 && keys.every((k) => en[k]), 'v2610 strings in el and en', keys.length);
   }

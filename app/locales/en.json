@@ -2023,5 +2023,13 @@
  "v2610.mcp_none": "Nothing had changed before the error.",
  "v2610.mcp_kept_timeout_toast": "The MCP batch failed and there was no answer: nothing was rolled back or deleted. Ctrl+Z undoes it.",
  "v2610.unit_min": "minutes",
- "v2610.unit_sec": "seconds"
+ "v2610.unit_sec": "seconds",
+ "v26101.key_active": "Router key: active",
+ "v26101.copy": "Copy",
+ "v26101.key_copied": "Router key copied to the clipboard. Give it only to programs you trust (e.g. Hermes).",
+ "v26101.warn_open": "The router on port {v0} answers without a key. It was started outside Nyx, so any page or program on this PC can use it. Nyx does not restart it on its own: stop it and start it from here.",
+ "v26101.warn_mismatch": "The router on port {v0} expects a different key (started outside Nyx with its own --api-key). Nyx cannot use it. Stop it and start it from here.",
+ "v26101.warn_autostart": "The Windows autostart was written by an older version and starts the router without the key.",
+ "v26101.autostart_rewrite": "Rewrite it with the key",
+ "v26101.autostart_rewritten": "Windows autostart rewritten — it now passes the key. Takes effect at the next Windows start."
 }
