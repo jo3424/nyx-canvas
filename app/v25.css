@@ -108,6 +108,7 @@ label.consent{padding:8px;border-radius:var(--radius);background:rgba(255,176,32
 .at-chip.at-card .at-row { display: flex; align-items: center; gap: 5px; width: 100%; }
 .at-chip.at-card .nm { flex: 1; }
 .at-chip .at-meta { font-size: 11px; line-height: 1.35; white-space: normal; padding-right: 18px; }
+.at-chip .at-note { font-size: 11px; line-height: 1.35; white-space: normal; padding-right: 18px; color: var(--warn, #e5b54a); }
 .at-chip .at-cancel { font-size: 11px; border: 0; background: none; color: var(--accent); cursor: pointer; padding: 0; }
 .at-chip.at-card .x { position: absolute; top: 4px; right: 4px; }
 .as-tools .btn.to-canvas { display: inline-flex; align-items: center; gap: 6px; }

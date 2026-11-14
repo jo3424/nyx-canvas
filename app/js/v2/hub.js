@@ -264,22 +264,29 @@ const Hub = {
   // v2.6.9: VRAM warning from the measured snapshot only (Windows GPU counters per process); no data → no warning
   vramText(w) {
     const gb = (b) => ((b || 0) / 1073741824).toFixed(1).replace('.', LANG === 'en' ? '.' : ',') + ' GB';
-    if (!w || (w.state !== 'gvs' && w.state !== 'high')) return '';
+    if (!w || (w.state !== 'gvs' && w.state !== 'spill' && w.state !== 'slow')) return '';
     let why = '';
     if (w.state === 'gvs') why = t('v269.vram_gvs', { v0: w.gvs.map(x => x.name || x.pid).join(', '), v1: gb(w.gvs.reduce((a, x) => a + (x.vram || 0), 0)) });
-    else if (w.others.length) why = t('v269.vram_other', { v0: w.others.map(x => (x.name || x.pid) + ' ' + gb(x.vram)).join(', ') });
+    else if (w.state === 'spill') why = t('v2692.vram_spill', { v0: gb(w.spill) });
+    else if (w.state === 'slow') why = t('v2692.vram_slow', { v0: Math.round(w.speed.last), v1: Math.round(w.speed.best) });
+    if (w.state !== 'gvs' && w.others.length) why += ' ' + t('v269.vram_other', { v0: w.others.map(x => (x.name || x.pid) + ' ' + gb(x.vram)).join(', ') });
     return t('v269.vram_warn', { v0: gb(w.used), v1: gb(w.total), v2: Math.round(w.pct * 100), v3: why }).trim();
   },
   paintVramWarn(el, snap) {
     if (!el) return null;
     const w = NyxLimits.vramWarn(snap);
     const txt = this.vramText(w);
-    el.hidden = !txt; el.textContent = txt ? '⚠️ ' + txt : ''; el.title = txt ? t('v269.vram_tip') : '';
+    el.hidden = !txt; el.textContent = txt ? '⚠️ ' + txt : ''; el.title = txt ? t('v269.vram_tip') + ' ' + t('v2692.vram_rule_tip') : '';
     el.setAttribute('data-vram', w.state);
     return w;
   },
   paintToolCap(capEl, k, model) {
     if (!capEl) return;
+    // v2.6.9.2: Embeddings pointing to a chat model (e.g. Qwen 27B) → visible warning; nothing is changed or downloaded
+    if (k === 'embed' && model && !NyxLimits.isEmbedModel(model)) {
+      capEl.hidden = false; capEl.setAttribute('data-tools', 'embed-chat'); capEl.className = 'hub-pill task-tools bad';
+      capEl.textContent = '⚠️ ' + t('v2692.embed_chat'); capEl.title = t('v2692.embed_chat_tip', { v0: String(model).split(/[\\/]/).pop() }); return;
+    }
     if (k !== 'commands' || !model) { capEl.hidden = true; capEl.setAttribute('data-tools', ''); return; }
     const name = String(model).split(/[\\/]/).pop();
     const tc = NyxLimits.toolCap(model);

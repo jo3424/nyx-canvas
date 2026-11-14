@@ -1,4 +1,16 @@
 {
+ "2.6.9.2": {
+  "el": [
+   "Όραση: η εικόνα (jpg/png), τα καρέ βίντεο και οι περιλήψεις ζητούνται πλέον χωρίς σκέψη (chat_template_kwargs enable_thinking:false). Ο Qwen3.8-27B στον router σκεφτόταν μέχρι να εξαντληθούν τα 400 tokens και το περιεχόμενο γύριζε κενό («0 tok»). Αν η απάντηση είναι ακόμα κενή, ξαναρωτά μία φορά χωρίς όριο max_tokens και το γράφει στο chip.",
+   "Το chip λέει την πραγματική αιτία: σφάλμα του Router, λήξη χρόνου, κενή απάντηση με finish_reason και tokens σκέψης. Το «ρύθμισε τη θέση Όραση» εμφανίζεται μόνο όταν η θέση είναι πραγματικά άδεια.",
+   "Hub: προειδοποίηση όταν τα Embeddings δείχνουν σε μοντέλο συνομιλίας (π.χ. Qwen 27B). VRAM: το 94–99% είναι φυσιολογικό για Qwen + MTP + mmproj + 32K· κίτρινο μόνο όταν ανεβαίνει η Shared GPU memory, πέφτουν τα t/s ή τρέχει το Voice Studio στη GPU — όχι από το ποσοστό μόνο του."
+  ],
+  "en": [
+   "Vision: images (jpg/png), video frames and summaries are now requested without thinking (chat_template_kwargs enable_thinking:false). Qwen3.8-27B on the router thought until all 400 tokens were used and the content came back empty (“0 tok”). If the answer is still empty it asks once more without a max_tokens limit and says so on the chip.",
+   "The chip shows the real cause: Router error, timeout, empty answer with finish_reason and thinking tokens. “Set the Vision slot” appears only when the slot is really empty.",
+   "Hub: warning when Embeddings point to a chat model (e.g. Qwen 27B). VRAM: 94–99% is normal for Qwen + MTP + mmproj + 32K; yellow only when Shared GPU memory rises, t/s drops or Voice Studio is on the GPU — never from the percentage alone."
+  ]
+ },
  "2.6.9.1": {
   "el": [
    "Κρίσιμη διόρθωση: ο Qwen3.8-27B δεν κολλάει πια με 500 «Jinja Exception: System message must be at the beginning». Ένα μόνο system μήνυμα, στην αρχή· πίνακας, ημερομηνία και περίληψη ιστορικού μπαίνουν σε ένα μπλοκ <context> στο τέλος του τελευταίου μηνύματος χρήστη (σταθερό cache prefix). Επανάληψη μόνο όταν ο server λέει ότι φορτώνει ή το /v1/models δείχνει «loading», με ορατό όριο (προεπιλογή 10, ρυθμίζεται στο Hub)· κάθε άλλο 500 σταματά αμέσως με κόκκινο μήνυμα. Το ⏹ κόβει και τις επαναλήψεις.",

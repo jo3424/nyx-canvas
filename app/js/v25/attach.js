@@ -219,6 +219,8 @@ const Att = {
     if (e.kind === 'zip' && (e.children || e.files)) c.append(this.fileList(e, live ? send : null));
     const meta = this.stageLine(e, live);
     if (meta) c.append(h('div', { class: 'at-meta muted' }, meta));
+    // v2.6.9.2: the cause is written on the chip itself (was only in the tooltip)
+    if (e.note && e.state === 'ok') c.append(h('div', { class: 'at-note', 'data-note': '1' }, '⚠ ' + e.note));
     if (live && e.state === 'heavy') c.append(h('button', { class: 'at-cancel', type: 'button', onclick: () => this.cancelHeavy(e) }, t('v2681.att_cancel')));
     if (live && e.state === 'ok' && (e.text || e.children) && !e.summary && (over || e.kind === 'zip' || e.kind === 'code')) c.append(h('button', { class: 'at-sum', type: 'button', onclick: () => this.summaryJob(e) }, t('v2682.summary_btn')));
     if (live && e.summary) c.append(h('div', { class: 'at-meta muted' }, t('v2682.summary_ready')));
@@ -260,7 +262,8 @@ const Att = {
     else { info = await API.inv('att:inspect', e.path); Object.assign(e, { size: info.size, kind: info.kind, mtime: info.mtime }); }
     e.kind = info.kind; e.hash = this.hashOf(e, info);
     const hit = this.fromCache(e.hash);
-    if (hit && (hit.text || hit.summary || hit.kind === 'image')) {
+    // v2.6.9.2: an image whose description failed is not served from the cache (re-adding it asks again)
+    if (hit && (hit.text || hit.summary)) {
       Object.assign(e, { text: hit.text, summary: hit.summary, note: hit.note, tree: hit.tree, children: hit.children, skipped: hit.skipped, pages: hit.pages, frames: hit.frames, via: hit.via, stages: (hit.stages || []).map(s => ({ ...s })) });
       this.markStage(e, 'cache', t('v2681.att_cache'), t0, { tokens: this.tok(e.text || e.summary || '', e.kind) });
       e.state = 'ok'; e.pct = 100; e.fastOk = true;
@@ -300,17 +303,36 @@ const Att = {
   },
   resumeHeavy() { this.pauser().resume(); this.chips(); },
   abortBg(e) { for (const id of (e && e._bg) || []) { try { API.inv('ai:chatAbort', id).catch(() => {}); } catch (er) {} } },
+  // v2.6.9.2: background requests (vision, video frames, summaries) always ask WITHOUT thinking. Qwen3.8 on the router
+  // thinks by default («preserving reasoning enabled»): with max_tokens 400 the thinking ate every token and the content
+  // came back empty → «χωρίς ανάλυση εικόνας». If the answer is still empty (server ignored enable_thinking, or it hit
+  // the length limit), the 2.6.9 rule applies: ask once more without the max_tokens limit, and say so on the chip.
   async llm(task, messages, opts = {}, e) {
+    const r = await this.llmRaw(task, messages, opts, e);
+    if (r.text || opts.noReask) return r.text;
+    if (e) (e.notes2692 ||= []).push(t('v2692.reask_empty', { v0: r.finish || '—', v1: r.reasoningN }));
+    const r2 = await this.llmRaw(task, messages, { ...opts, max_tokens: 0 }, e);
+    if (r2.text) return r2.text;
+    throw Object.assign(new Error(t('v2692.empty_answer', { v0: r2.model || '—', v1: r2.finish || '—', v2: r2.reasoningN })), { code: 'EMPTY', finish: r2.finish });
+  },
+  async llmRaw(task, messages, opts = {}, e) {
     for (let attempt = 0; attempt < 6; attempt++) {
       await this.pauser().wait();
       if (e && e.cancelHeavy) throw Object.assign(new Error('cancelled'), { code: 'ABORTED' });
-      const { p, m } = await AI.pickModel(task);
+      let pm;
+      try { pm = await AI.pickModel(task); }
+      catch (er) { if (!er.code) er.code = 'NOMODEL'; throw er; }
+      const { p, m } = pm;
       const id = 'bg-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
       this._bgStreams.add(id); if (e) (e._bg ||= new Set()).add(id);
       try {
-        const r = await invokeChat(p, { model: m, messages, temperature: opts.temperature ?? 0.3, max_tokens: opts.max_tokens || 700, _streamId: id, _bg: true });
+        const body = { model: m, messages, temperature: opts.temperature ?? 0.3, chat_template_kwargs: { enable_thinking: false }, _streamId: id, _bg: true };
+        if (opts.max_tokens !== 0) body.max_tokens = opts.max_tokens || 700;
+        const r = await invokeChat(p, body);
         this._via = p.name || p.id;
-        return stripThink(r.message?.content || '', r.message?.reasoning_content || r.reasoning).trim();
+        const reasoning = r.message?.reasoning_content || r.reasoning || '';
+        const text = stripThink(r.message?.content || '', reasoning).trim();
+        return { text, finish: r.finish || r.finish_reason || '', reasoningN: reasoning ? (r.reasoning_n || this.tok(String(reasoning))) : 0, model: String(m || '').split(/[\\/]/).pop(), via: this._via };
       } catch (er) {
         // Aborted because the user pressed send: wait for the reply to finish, then do this step again.
         if (this._pausedIds.has(id) || this.pauser().paused) { this._pausedIds.delete(id); continue; }
@@ -344,7 +366,7 @@ const Att = {
       const text = e.kind === 'zip' && e.children ? this.zipRows(e).filter(r => r.text).map(r => `### ${r.name}\n${r.text}`).join('\n\n') : (e.text || '');
       e.summary = await this.summarize(text, e.name, (p) => { if (e.cancelHeavy) throw Object.assign(new Error('cancelled'), { code: 'ABORTED' }); this.prog(e, 5 + p * 90); }, e);
       this.markStage(e, 'summary', t('v25.at_summary'), t0, { tokens: this.tok(e.summary) });
-    } catch (er) { if (!e.cancelHeavy) e.note = t('v25.at_nosum'); }
+    } catch (er) { if (!e.cancelHeavy) e.note = t('v25.at_nosum') + (er && er.code !== 'ABORTED' ? ' — ' + (er.code === 'NOMODEL' ? cleanErr(er) : this.visionCause(er)) : ''); }
     finally { e.summarizing = false; if (e.state === 'heavy') e.state = prev === 'bad' ? 'bad' : 'ok'; e.pct = 100; this.toCache(e); this.chips(); }
   },
   kindOfName(n) { const x = (n.split('.').pop() || '').toLowerCase(); return /^(jpe?g|png|webp|gif|bmp|avif|heic|tiff?)$/.test(x) ? 'image' : /^(mp4|mov|mkv|webm|avi|m4v)$/.test(x) ? 'video' : /^(mp3|wav|m4a|ogg|opus|flac|aac)$/.test(x) ? 'audio' : x === 'pdf' ? 'pdf' : 'unknown'; },
@@ -354,8 +376,20 @@ const Att = {
     if (/win/i.test(V2.info?.platform || '')) { try { const o = await API.inv('sys:ocr', e.media, 'el'); if (o?.trim()) { parts.push(t('v25.at_ocr') + ':\n' + o.trim()); ok = true; } } catch (er) {} }
     this.prog(e, 70);
     if (e.cancelHeavy) return;
-    try { const d = await this.vision(e.media, t('v25.at_vprompt'), e); if (d) { parts.unshift(t('v25.at_desc') + ': ' + d); ok = true; e.via = this._via; } } catch (er) { if (!e.cancelHeavy) e.note = t('v25.at_novision'); }
-    e.text = parts.join('\n\n'); if (!ok && !e.note) e.note = t('v25.at_novision');
+    let cause = '';
+    try { const d = await this.vision(e.media, t('v25.at_vprompt'), e); if (d) { parts.unshift(t('v25.at_desc') + ': ' + d); ok = true; e.via = this._via; } } catch (er) { if (!e.cancelHeavy) cause = this.visionCause(er); }
+    e.text = parts.join('\n\n');
+    // v2.6.9.2: the chip says the real reason; «ρύθμισε τη θέση Όραση» only when the slot is really empty
+    if (cause) e.note = cause; else if (!ok && !e.note) e.note = t('v2692.no_desc');
+    if (e.notes2692 && e.notes2692.length) e.note = [e.note, ...e.notes2692].filter(Boolean).join(' · ');
+  },
+  visionCause(er) {
+    if (!er) return '';
+    if (er.code === 'NOMODEL') return t('v25.at_novision');
+    if (er.code === 'EMPTY') return er.message;
+    const msg = cleanErr(er);
+    if (er.code === 'TIMEOUT' || /time ?out|timed out|ETIMEDOUT/i.test(msg)) return t('v2692.vision_timeout', { v0: msg });
+    return t('v2692.vision_error', { v0: msg || '—' });
   },
   async vision(file, prompt, e) {
     const url = await API.inv('ai:imageData', file);
@@ -365,8 +399,9 @@ const Att = {
       if (e && e.cancelHeavy) throw e1;
       const g = AI.enabled().find(p => p.id === 'groq' || /groq\.com/.test(p.base || ''));
       if (!g || Private?.on) throw e1;
-      const r = await API.inv('ai:chat', g, { model: Store.state.settings.agent?.groqVision || 'meta-llama/llama-4-scout-17b-16e-instruct', messages: msgs, temperature: 0.2, max_tokens: 400 });
-      this._via = 'Groq'; return stripThink(r.message?.content || '').trim();
+      let r; try { r = await API.inv('ai:chat', g, { model: Store.state.settings.agent?.groqVision || 'meta-llama/llama-4-scout-17b-16e-instruct', messages: msgs, temperature: 0.2, max_tokens: 400 }); } catch (e2) { throw e1; } // the local cause is the one to show
+      const txt = stripThink(r.message?.content || '').trim(); if (!txt) throw e1;
+      this._via = 'Groq'; return txt;
     }
   },
   async audio(e) {
@@ -378,17 +413,17 @@ const Att = {
     if (e.cancelHeavy) return;
     await this.audio(e); const transcript = e.text || ''; const err = e.error; delete e.error; this.prog(e, 70);
     if (e.cancelHeavy) return;
-    const frames = []; let dur = 0;
+    const frames = []; let dur = 0; let frameCause = '';
     try { dur = (await API.inv('video:probe', e.media))?.duration || 0; } catch (er) {}
     const ts = dur > 0 ? [0.1, 0.5, 0.9].map(f => +(dur * f).toFixed(2)) : [0];
     for (const tt of ts) {
       if (e.cancelHeavy) break;
-      try { const f = await API.inv('video:frame', e.media, tt); let d = ''; try { d = await this.vision(f, t('v25.at_vprompt_frame'), e); } catch (er) {} frames.push({ t: tt, file: f, desc: d }); } catch (er) { break; }
+      try { const f = await API.inv('video:frame', e.media, tt); let d = ''; try { d = await this.vision(f, t('v25.at_vprompt_frame'), e); } catch (er) { frameCause ||= this.visionCause(er); } frames.push({ t: tt, file: f, desc: d }); } catch (er) { break; }
     }
     e.frames = frames; this.prog(e, 88);
     const fx = frames.filter(f => f.desc).map(f => `[${f.t.toFixed(1)}s] ${f.desc}`).join('\n');
     e.text = [transcript, fx ? t('v25.at_frames') + ':\n' + fx : ''].filter(Boolean).join('\n\n');
-    if (!e.text) e.error = err || t('v25.at_novideo'); else if (!transcript || !fx) e.note = !transcript ? (err || t('v25.at_nospeech')) : t('v25.at_novision');
+    if (!e.text) e.error = err || t('v25.at_novideo'); else if (!transcript || !fx) e.note = !transcript ? (err || t('v25.at_nospeech')) : (frameCause || t('v2692.no_desc'));
   },
   async pdf(e) {
     const doc = await Extras.pdfDoc({ file: e.media }); let out = '';

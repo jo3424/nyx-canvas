@@ -1928,5 +1928,15 @@
  "v2691.trace_title": "Router: what was asked and what it answered",
  "v2691.na_router_fit": "In router mode the «max that fits» is about one model file and does not apply — not computed here.",
  "v2691.state_unknown": "router: /v1/models gives no model status, so it is unknown which model is loaded — /props?model= is not requested so that no load starts",
- "v2691.state_unknown_short": "unknown — the server gives no status"
+ "v2691.state_unknown_short": "unknown — the server gives no status",
+ "v2692.reask_empty": "empty answer (finish_reason: {v0}, thinking ~{v1} tok) → asked again without a max_tokens limit",
+ "v2692.empty_answer": "{v0} returned an empty answer (finish_reason: {v1}, thinking ~{v2} tok) — check thinking/limit on the Router",
+ "v2692.vision_timeout": "Router timeout: {v0}",
+ "v2692.vision_error": "Router error: {v0}",
+ "v2692.no_desc": "no image description (the answer had no text)",
+ "v2692.vram_spill": "Shared GPU memory rose by {v0} since the first measurement: the model is spilling into system RAM.",
+ "v2692.vram_slow": "Speed dropped to {v0} t/s (best this session: {v1} t/s).",
+ "v2692.vram_rule_tip": "The percentage alone is not a problem (94–99% is normal for Qwen + MTP + mmproj + 32K). Yellow only when Voice Studio is on the GPU, Shared GPU memory rises by more than 512 MB, or the same model's t/s falls below 70% of its best.",
+ "v2692.embed_chat": "chat model in Embeddings",
+ "v2692.embed_chat_tip": "“{v0}” is a chat model, not an embeddings model: semantic search will be slow or fail. Pick a small embeddings model (e.g. bge-m3, nomic-embed, Qwen3-Embedding). Nothing is downloaded automatically."
 }

@@ -16,9 +16,9 @@ const ok = (c, m, x) => { console.log((c ? '  ✓ ' : '  ✗ ') + m + (!c && x !
 const NOW = new Date('2026-11-13T15:00:00Z'); // Παρασκευή 13/11/2026, 17:00 Europe/Athens
 
 (async () => {
-  ok(pkg.version === '2.6.9' || pkg.version === '2.6.9.1', 'package.json version 2.6.9(+)', pkg.version);
+  ok(pkg.version === '2.6.9' || pkg.version.startsWith('2.6.9.'), 'package.json version 2.6.9(+)', pkg.version);
   ok(pkg.devDependencies && /45\.2\.3/.test(pkg.devDependencies.electron || ''), 'Electron stays 45.2.3', pkg.devDependencies && pkg.devDependencies.electron);
-  const CH = require('../CHANGELOG.json'); ok(['2.6.9', '2.6.9.1'].includes(Object.keys(CH)[0]) && CH['2.6.9'].el.length === 3 && CH['2.6.9'].en.length === 3, 'CHANGELOG 2.6.9 first, 3 deliverables (el/en)');
+  const CH = require('../CHANGELOG.json'); ok(['2.6.9', '2.6.9.1', '2.6.9.2'].includes(Object.keys(CH)[0]) && CH['2.6.9'].el.length === 3 && CH['2.6.9'].en.length === 3, 'CHANGELOG 2.6.9 first, 3 deliverables (el/en)');
 
   // ---- 1) dates: the evidence phrases ----
   const d45 = C.resolveDate('σε 45 μέρες', { now: NOW });
@@ -176,7 +176,7 @@ const NOW = new Date('2026-11-13T15:00:00Z'); // Παρασκευή 13/11/2026, 
   ok(vw.state === 'gvs' && vw.gvs.length === 1 && vw.gvs[0].pid === 11, 'Voice Studio found by its folder (same exe name as the router)', vw);
   ok(L.vramWarn({ gpu: { adapter: { total: 24 * GB, used: 10 * GB }, procs: [{ pid: 10, name: 'llama-server', vram: 9 * GB }] } }).state === 'ok', 'router alone at 10/24 GB → no warning');
   ok(L.vramWarn({ gpu: { adapter: null, procs: [] } }).state === 'none' && L.vramWarn(null).state === 'none', 'no measurement → no warning (never from file sizes)');
-  ok(L.vramWarn({ gpu: { adapter: { total: 24 * GB, used: 23 * GB }, procs: [] } }).state === 'high', '≥ 90% used → warning even without Voice Studio');
+  ok(L.vramWarn({ gpu: { adapter: { total: 24 * GB, used: 23 * GB }, procs: [] } }, { shared0: 0 }).state === 'ok', '≥ 90% used alone → no warning (2.6.9.2: 94–99% is normal for Qwen+MTP+mmproj+32K)');
   const hubSrc = fs.readFileSync(path.join(R, 'app/js/v2/hub.js'), 'utf8');
   ok(/paintToolCap/.test(hubSrc) && /paintVramWarn/.test(hubSrc) && /perf:snapshot/.test(fs.readFileSync(path.join(R, 'app/js/v2/hub-tabs.js'), 'utf8')), 'Hub paints tool-call warning and the measured VRAM warning');
   const ps = fs.readFileSync(path.join(R, 'main/res/gpu.ps1'), 'utf8'); ok(/path = \$pa/.test(ps), 'gpu.ps1 reports the process path');

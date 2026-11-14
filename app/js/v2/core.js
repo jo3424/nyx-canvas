@@ -298,6 +298,17 @@ const NyxLimits = {
   speedOf(tm) { return tm && tm.predicted_n != null && tm.predicted_ms > 0 ? tm.predicted_n / (tm.predicted_ms / 1000) : null; },
   // VRAM warning only from a real measurement (perf snapshot); Voice Studio found by process name or path
   GVS_PROC: /voice.?studio|gpu-voice|vs-engine|omnivoice/i,
+  // v2.6.9.2: 94–99% VRAM is normal for Qwen + MTP + mmproj + 32K (68–77 t/s). The percentage alone never warns.
+  // Yellow only when (a) Voice Studio holds VRAM, (b) Windows «Shared GPU memory» rose above what this session first
+  // measured (= spill to system RAM), or (c) the speed of the same model fell clearly below its best in this session.
+  // Thresholds are visible in the tooltip (v2692.vram_rule_tip): +512 MB shared, < 70% of the best t/s.
+  SPILL_MIN: 512 * 1048576, SLOW_RATIO: 0.7,
+  _shared0: null, _speeds: {},
+  noteSpeed(model, tm) {
+    const sp = this.speedOf(tm); if (sp == null || !model) return null;
+    const k = String(model).split(/[\\/]/).pop(); const o = this._speeds[k] || { best: 0, n: 0 };
+    o.last = sp; o.n++; o.best = Math.max(o.best, sp); o.at = Date.now(); this._speeds[k] = o; this._lastSpeedModel = k; return o;
+  },
   vramWarn(snap, opts) {
     opts = opts || {};
     const ad = snap && snap.gpu && snap.gpu.adapter;
@@ -307,8 +318,20 @@ const NyxLimits = {
     const gvs = procs.filter((x) => this.GVS_PROC.test(String(x.name || '') + ' ' + String(x.path || '')));
     const others = procs.filter((x) => !gvs.includes(x) && !x.owner && !/llama-server|llama-router/i.test(String(x.name || '')) && x.vram >= (opts.otherMin || 512 * 1048576));
     const high = pct >= (opts.highPct || 0.9);
-    return { state: gvs.length ? 'gvs' : high ? 'high' : 'ok', pct, used: ad.used, total: ad.total, gvs, others, high };
+    const shared = snap.gpu.shared;
+    let spill = 0;
+    if (shared != null && Number.isFinite(+shared)) {
+      const base = opts.shared0 != null ? opts.shared0 : this._shared0;
+      if (base == null || +shared < base) { if (opts.shared0 == null) this._shared0 = +shared; }
+      else spill = +shared - base;
+    }
+    const spd = opts.speed || (this._lastSpeedModel && this._speeds[this._lastSpeedModel]) || null;
+    const slow = !!(spd && spd.n >= 2 && spd.best > 0 && spd.last < spd.best * this.SLOW_RATIO);
+    const state = gvs.length ? 'gvs' : spill >= this.SPILL_MIN ? 'spill' : slow ? 'slow' : 'ok';
+    return { state, pct, used: ad.used, total: ad.total, gvs, others, high, spill, shared: shared ?? null, speed: spd ? { last: spd.last, best: spd.best } : null };
   },
+  EMBED_RE: /embed|bge|\be5\b|e5-|minilm|gte-|nomic|jina|arctic|mxbai|sentence|retriev|colbert/i,
+  isEmbedModel(model) { return this.EMBED_RE.test(String(model || '')); },
   emptiedByThink(raw, extracted) { return !!String(raw || '').trim() && !String((extracted && extracted.text) || '').trim(); },
   stripThink(s, r) { return this.extractThink(s, r).text; },
   shouldContinue(finish, round, maxContinue) {
@@ -393,7 +416,7 @@ async function chatTurn(p, body, onNotice, onDelta) {
     try { r = await invokeChat(p, { ...body, messages: msgs, ...(prep.body || {}), ...(cap ? { think_cap: cap } : {}), loadRetries: body.loadRetries ?? A.loadRetries ?? 10 }, onNotice, onDelta); }
     catch (e) { AI.markBlocked(p, e, true); AI.noteRequest({ failed: true, error: cleanErr(e), model: body.model }); throw e; }
     if (r && !r.message && r.error && r.status === 403) { const e = new Error(r.error); e.status = 403; AI.markBlocked(p, e, true); throw e; }
-    if (r.timings || r.usage) { AI.lastTimings = r.timings || null; r._timings = r.timings || null; }
+    if (r.timings || r.usage) { AI.lastTimings = r.timings || null; r._timings = r.timings || null; if (r.timings) NyxLimits.noteSpeed(r.model || body.model, r.timings); }
     if (r.thinkingIgnored && onNotice) onNotice('info', t('v265.think_ignored'));
     if (r.reasoning_n) reasonN += r.reasoning_n;
     const calls = r.message?.tool_calls;

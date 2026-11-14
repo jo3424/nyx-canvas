@@ -49,6 +49,6 @@ async function snapshot(app, servers = {}) {
   const pidSet = new Map([...metrics.map(m => [m.pid, 'nyx:' + m.type]), ...srv.map(s => [s.pid, s.id])]);
   const vramProcs = (g.procs || []).map(p => ({ ...p, owner: pidSet.get(p.pid) || '' })).sort((a, b) => b.vram - a.vram).slice(0, 12);
   for (const s of srv) s.vram = vramProcs.filter(p => p.pid === s.pid).reduce((a, p) => a + p.vram, 0) || null;
-  return { at: Date.now(), ms: Date.now() - t0, platform: process.platform, ram: { total: os.totalmem(), free: os.freemem() }, nyx: metrics, nyxTotal: metrics.reduce((a, m) => a + m.mem, 0), servers: srv, gpu: { adapter: mainAdapter(g), util: g.util ?? null, temp: g.temp ?? null, hot: g.hot ?? null, tempSrc: g.tempSrc || '', procs: vramProcs, error: g.error || '' } };
+  return { at: Date.now(), ms: Date.now() - t0, platform: process.platform, ram: { total: os.totalmem(), free: os.freemem() }, nyx: metrics, nyxTotal: metrics.reduce((a, m) => a + m.mem, 0), servers: srv, gpu: { adapter: mainAdapter(g), shared: g.shared ?? null, util: g.util ?? null, temp: g.temp ?? null, hot: g.hot ?? null, tempSrc: g.tempSrc || '', procs: vramProcs, error: g.error || '' } };
 }
 module.exports = { snapshot, linuxGpu, mainAdapter };
