@@ -99,6 +99,11 @@ function fakeRouter(port, apiKey) {
   ok(procs.winAutostartGet().on && procs.winAutostartGet().keyed === false, 'a 2.6.10 script (no key) → keyed = false → the Hub warns and offers a rewrite');
   const off = procs.winAutostartSet(false, {});
   ok(!off.on && !fs.existsSync(kf), 'autostart off → script and key file removed');
+  const wk = rk.writeKeyFile; rk.writeKeyFile = () => { throw new Error('router key: no data folder'); };
+  const on2 = procs.winAutostartSet(true, { exe, modelsDir: TMP, port: 8080, np: 1 });
+  rk.writeKeyFile = wk;
+  ok(on2.on && on2.keyed === false && procs.winAutostartGet().keyed === false, 'key file cannot be written → script still written, keyed = false (Hub warns, not silent)', on2);
+  procs.winAutostartSet(false, {});
 
   console.log('4) every router call carries the key (fake llama-server with --api-key)');
   const port = await freePort(); rk.setPort(port);

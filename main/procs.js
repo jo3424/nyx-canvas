@@ -117,7 +117,9 @@ function winAutostartSet(on, c) {
   }
   fs.mkdirSync(dir, { recursive: true });
   const rk = require('./routerkey'); rk.setPort(+c.port || 8080);
-  const keyFile = routerKeyArg(c.extra) ? '' : rk.writeKeyFile();
+  let keyFile = '';
+  // without a key file the script still works (old behaviour); keyed:false makes the Hub show the yellow warning — never silent
+  if (!routerKeyArg(c.extra)) { try { keyFile = rk.writeKeyFile(); } catch (e) { console.warn('[routerkey] autostart without key file: ' + e.message); } }
   fs.writeFileSync(file, startupVbs(c, { keyFile }), 'utf8');
   return { on: true, keyed: !!keyFile || routerKeyArg(c.extra), path: file, dir };
 }
