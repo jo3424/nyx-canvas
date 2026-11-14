@@ -276,7 +276,8 @@ const histChat = (tokens) => { const out = []; let n = 0; const r = rng(3); whil
   const lcSrc = fs.readFileSync(path.join(R, 'app/js/v26/logcopy.js'), 'utf8');
   ok(/pre\.srv-log, pre\.logs/.test(lcSrc) && /v2682\.copy_all/.test(lcSrc) && /navigator\.clipboard\.writeText/.test(lcSrc), 'every engine/plugin log gets «Αντιγραφή όλων»');
   const asSrc = fs.readFileSync(path.join(R, 'app/js/v2/assistant.js'), 'utf8');
-  ok(/key\.toLowerCase\(\) === 'z'\) \{ e\.stopPropagation\(\); if \(e\.target\.value\) return; e\.preventDefault\(\); return App\.undo\(\); \}/.test(asSrc), 'Ctrl+Z in the assistant field undoes the canvas only when the field is empty');
+  // superseded in 2.6.9.3: Ctrl+Z in the assistant field never reaches the canvas, even when the field is empty
+  ok(!/id: 'as-q'[^\n]*App\.undo/.test(asSrc) && /\['z', 'y'\]\.includes\(e\.key\.toLowerCase\(\)\)\) \{ e\.stopPropagation\(\); return; \}/.test(asSrc), 'Ctrl+Z in the assistant field never undoes the canvas (2.6.9.3)');
 
   console.log('rules');
   const attSrc = fs.readFileSync(path.join(R, 'app/js/v25/attach.js'), 'utf8');

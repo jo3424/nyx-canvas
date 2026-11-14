@@ -61,7 +61,7 @@ const ks = Object.keys(el).filter((k) => k.startsWith('v2692.'));
 ok(ks.length === 10 && ks.every((k) => en[k]), 'el/en strings (10)', ks);
 
 const pkg = require('../package.json');
-ok(pkg.version === '2.6.9.2' && pkg.devDependencies.electron === '45.2.3', 'version 2.6.9.2, Electron 45.2.3', pkg.version);
-const CH = require('../CHANGELOG.json'); ok(Object.keys(CH)[0] === '2.6.9.2' && CH['2.6.9.2'].el.length === 3 && CH['2.6.9.2'].en.length === 3, 'CHANGELOG 2.6.9.2 first, 3 items');
+ok(['2.6.9.2', '2.6.9.3'].includes(pkg.version) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.9.2(+), Electron 45.2.3', pkg.version);
+const CH = require('../CHANGELOG.json'); ok(['2.6.9.2', '2.6.9.3'].includes(Object.keys(CH)[0]) && CH['2.6.9.2'].el.length === 3 && CH['2.6.9.2'].en.length === 3, 'CHANGELOG 2.6.9.2 first, 3 items');
 console.log(`\nv2.6.9.2 unit: ${passes} passed, ${fails} failed`);
 process.exit(fails ? 1 : 0);

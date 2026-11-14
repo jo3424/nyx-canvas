@@ -90,8 +90,24 @@ const App = {
     API.onWidgetState((s) => document.body.classList.toggle('widget-open', !!s?.open));
     API.onState?.(() => {});
   },
-  undo() { if (Canvas.editing) return; if (Store.undo()) { Canvas.refresh(); Panels.refreshDrawer(); Features.refreshSubsCards(); Panels.tabs(); Panels.stylebar(); } },
-  redo() { if (Canvas.editing) return; if (Store.redo()) { Canvas.refresh(); Panels.refreshDrawer(); Features.refreshSubsCards(); Panels.tabs(); Panels.stylebar(); } },
+  // v2.6.9.3: undo/redo apply only what that action changed. If it would remove or change a subscription, a visible
+  // confirmation says how many subscriptions and cards change first.
+  _histBusy: false,
+  async undo() { return this.history('undo'); },
+  async redo() { return this.history('redo'); },
+  async history(dir) {
+    if (Canvas.editing || this._histBusy) return false;
+    const sum = dir === 'undo' ? Store.peekUndo() : Store.peekRedo();
+    if (sum && sum.subsTouched > 0) {
+      this._histBusy = true;
+      let ok = false; try { ok = await Features.confirmChanges(t(dir === 'undo' ? 'v2693.undo_q' : 'v2693.redo_q'), sum, t(dir === 'undo' ? 'undo' : 'v2693.redo')); } finally { this._histBusy = false; }
+      if (!ok) return false;
+    }
+    const done = dir === 'undo' ? Store.undo() : Store.redo();
+    if (done) { this.afterHistory(); const sk = Store.lastApply && Store.lastApply.skippedSubs; if (sk && sk.length) toast('ℹ️ ' + t('v2693.subs_kept', { v0: sk.length }), { ms: 8000 }); }
+    return done;
+  },
+  afterHistory() { Canvas.refresh(); Panels.refreshDrawer(); Features.refreshSubsCards(); Panels.tabs(); Panels.stylebar(); },
   switchBoard(id) {
     if (Store.state.active === id) return; if (Canvas.editing) Canvas.endEdit();
     Store.state.active = id; Store.save(); Panels.tabs(); Canvas.renderBoard(); Panels.stylebar(); Minimap.drawSoon(); Panels.refreshDrawer?.();

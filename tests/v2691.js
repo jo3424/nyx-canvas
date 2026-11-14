@@ -75,7 +75,7 @@ const lastAssistant = (win) => win.evaluate(() => { const all = (Store.state.cha
   const router = await startRouter();
   const { app, win } = await launch();
   const ver = await win.evaluate(() => (Store.info && Store.info.version) || '');
-  ok(['2.6.9.1', '2.6.9.2'].includes(String(ver)), 'app version 2.6.9.1(+)', ver);
+  ok(['2.6.9.1', '2.6.9.2', '2.6.9.3'].includes(String(ver)), 'app version 2.6.9.1(+)', ver);
   await win.evaluate((a) => {
     Store.state.settings.theme = 'midnight'; Theme.apply(Store.state.settings);
     const A = Store.state.settings.ai; const L = A.providers.find((p) => p.id === 'llama');

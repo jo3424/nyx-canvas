@@ -48,7 +48,8 @@ ok(/WRITE:\s*new Set\(/.test(asSrc) && /create_card/.test(asSrc) && /blocked:\s*
 ok(/tools\(\) \{ return Object\.entries\(this\.T\)/.test(asSrc), 'tools() still advertises the full Cmd.T list (stable prefix)');
 ok(/v2681\.to_canvas/.test(asSrc) && /Cmd\.toCanvas/.test(asSrc), 'visible To-the-canvas button under replies');
 ok(/canvasConfirm !== false/.test(asSrc), 'confirm-before-canvas honors the setting');
-ok(/App\.undo\(\)/.test(asSrc) && /key\.toLowerCase\(\) === 'z'/.test(asSrc), 'Ctrl+Z in the composer undoes assistant canvas changes');
+// superseded in 2.6.9.3 (user-confirmed cause of the lost subscriptions): Ctrl+Z in the composer is the field's own undo only
+ok(!/id: 'as-q'[^\n]*App\.undo/.test(asSrc) && /\['z', 'y'\]\.includes\(e\.key\.toLowerCase\(\)\)\) \{ e\.stopPropagation\(\); return; \}/.test(asSrc), 'Ctrl+Z in the composer never undoes the canvas (2.6.9.3)');
 ok(/Cmd\.toCanvas/.test(asSrc) && !/onclick: \(\) => Cmd\.T\.create_card\.run/.test(asSrc), 'reply button uses toCanvas, not a silent create_card.run');
 
 console.log('core defaults + migrate');

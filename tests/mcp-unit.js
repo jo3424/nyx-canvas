@@ -101,7 +101,7 @@ function loadBoard() {
       text: (it) => [it.html, it.title, it.name, it.caption, it.reminder && it.reminder.msg].filter(Boolean).join(' '),
       lexical: (q, all) => { const nq = String(q).toLowerCase(); return all.filter(i => (Search.text(i) + ' ' + (i.tags || []).join(' ')).toLowerCase().includes(nq)); },
     },
-    Features: { itemTitle: (it) => String(it.title || (it.html || '').replace(/<[^>]+>/g, ' ') || it.name || it.type || '') },
+    Features: { itemTitle: (it) => String(it.title || (it.html || '').replace(/<[^>]+>/g, ' ') || it.name || it.type || ''), confirmChanges: async () => true }, // 2.6.9.3: rollback confirmation (auto-yes here)
     PALETTE: ['#7c8cff', '#ffd23f', '#ff5d8f'],
     STICKY: ['#ffe66d'],
     setTimeout, clearTimeout,
@@ -113,7 +113,8 @@ function loadBoard() {
   const storeCode = fs.readFileSync(path.join(ROOT, 'app', 'js', 'store.js'), 'utf8');
   vm.createContext(sandbox);
   const boardCode = fs.readFileSync(path.join(ROOT, 'app', 'js', 'v2', 'mcp-board.js'), 'utf8');
-  new vm.Script(storeCode + '\nthis.Store = Store;\n' + boardCode, { filename: 'store+mcp-board.js' }).runInContext(sandbox);
+  const undoCode = fs.readFileSync(path.join(ROOT, 'app', 'js', 'v26', 'undo.js'), 'utf8'); // 2.6.9.3: change-based undo
+  new vm.Script(undoCode + '\n' + storeCode + '\nthis.Store = Store;\n' + boardCode, { filename: 'undo+store+mcp-board.js' }).runInContext(sandbox);
   Store = sandbox.Store;
   Store.state = Store.fresh();
   Store.state.agenda = [];

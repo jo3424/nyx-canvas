@@ -1,4 +1,16 @@
 {
+ "2.6.9.3": {
+  "el": [
+   "Αναίρεση χωρίς απώλειες: το Ctrl+Z και κάθε αναίρεση αγγίζουν μόνο ό,τι άλλαξε εκείνη η ενέργεια (κάρτες, πίνακες, συνδρομές ανά id) — ποτέ ολόκληρη τη λίστα συνδρομών. Το Ctrl+Z στο πεδίο του βοηθού δεν αγγίζει πια τον καμβά. Πριν από αναίρεση που αφαιρεί/αλλάζει συνδρομές, «αναίρεση όλων» του βοηθού, επαναφορά snapshot και rollback MCP: επιβεβαίωση με πόσες συνδρομές και κάρτες αλλάζουν. Οι συνδρομές του βοηθού έχουν αναίρεση. Αποθήκευση που αφαιρεί 2+ συνδρομές: προειδοποίηση και snapshot «pre-subs-drop».",
+   "«Μόνο συνδρομές» από αντίγραφο ασφαλείας ή snapshot: ταίριασμα ανά id, προσθέτει όσες λείπουν και δείχνει όσες διαφέρουν για επιλογή· οι πίνακες δεν αλλάζουν. Η λίστα snapshots δείχνει πόσες συνδρομές έχει το καθένα.",
+   "Συνδρομές, νέα εμφάνιση: «Αυτόν τον μήνα» = οι χρεώσεις μέσα στον τρέχοντα μήνα (οι ετήσιες μόνο στον μήνα τους), πληρώθηκαν/μένουν με μπάρα· μέσος/μήνα, τον χρόνο, ενεργές· «Επόμενες χρεώσεις» με ημερομηνίες. Όλα τα ποσά από κώδικα (NyxCalc), όχι από το LLM. Το ημερολόγιο του widget δουλεύει όπως πριν."
+  ],
+  "en": [
+   "Undo without loss: Ctrl+Z and every undo touch only what that action changed (cards, boards, subscriptions by id) — never the whole subscription list. Ctrl+Z in the assistant field no longer touches the canvas. Before an undo that removes/changes subscriptions, the assistant’s “undo all”, a snapshot restore and an MCP rollback: a confirmation with how many subscriptions and cards change. Assistant-added subscriptions are undoable. A save that drops 2+ subscriptions: warning and a “pre-subs-drop” snapshot.",
+   "“Subscriptions only” from a backup or snapshot: matched by id, adds the missing ones and lists the different ones for choice; boards do not change. The snapshot list shows each snapshot’s subscription count.",
+   "Subscriptions redesign: “This month” = charges inside the current month (yearly ones only in their month), paid/remaining with a bar; average per month, per year, active; “Upcoming charges” with dates. All amounts by code (NyxCalc), not the LLM. The widget calendar works as before."
+  ]
+ },
  "2.6.9.2": {
   "el": [
    "Όραση: η εικόνα (jpg/png), τα καρέ βίντεο και οι περιλήψεις ζητούνται πλέον χωρίς σκέψη (chat_template_kwargs enable_thinking:false). Ο Qwen3.8-27B στον router σκεφτόταν μέχρι να εξαντληθούν τα 400 tokens και το περιεχόμενο γύριζε κενό («0 tok»). Αν η απάντηση είναι ακόμα κενή, ξαναρωτά μία φορά χωρίς όριο max_tokens και το γράφει στο chip.",

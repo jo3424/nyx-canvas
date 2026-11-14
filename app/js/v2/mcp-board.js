@@ -615,11 +615,26 @@
           Store.commit(labelOf('batch'));
         } catch (e) {
           Store.pending = null;
-          Store.restore(snap);
+          // v2.6.9.3: the rollback undoes only what this batch changed (by id), after a visible confirmation that says
+          // how many subscriptions and cards change. Declined → the partial changes stay (one undo entry). No answer in
+          // the confirmation time → rolled back (the safe side), and the result says so.
+          const plan = Store.restorePlan(snap, { subs: false }); // MCP has no subscription tools: subscriptions are never rolled back
+          const sum = plan.sum; const n = sum.cards.add + sum.cards.remove + sum.cards.change + sum.subs.add + sum.subs.remove + sum.subs.change + (sum.boards.add + sum.boards.remove + sum.boards.change);
+          let how = 'none';
+          if (n > 0) {
+            const ms = limitsOf(opts).deleteConfirmMs;
+            const ans = await Promise.race([
+              Features.confirmChanges(tr('v2693.mcp_rollback_q', 'Batch failed — roll back its changes?'), sum, tr('v2693.rollback', 'Roll back'), String(e.message || e)).then((ok) => ok ? 'ok' : 'declined'),
+              new Promise((r) => setTimeout(() => r('timeout'), ms > 0 ? ms : 120000)),
+            ]);
+            if (ans === 'timeout') { try { if ($('[data-restore-confirm]')) $('#modal-close').click(); } catch (err) {} }
+            if (ans === 'declined') { const ch = NyxUndo.diff(Store.picOf(snap), JSON.parse(Store.pic())); ch.subs = []; Store.undoStack.push({ ch, label: labelOf('batch') }); how = 'kept'; }
+            else { NyxUndo.apply(Store.state, plan.ch, 'undo'); how = ans === 'timeout' ? 'rolled_back_timeout' : 'rolled_back'; }
+          }
           Store.save();
           refreshUi();
           try { if (typeof Canvas !== 'undefined') Canvas.refresh?.(); } catch (err) {}
-          return { ok: false, rolled_back: true, error: String(e.message || e), results };
+          return { ok: false, rolled_back: how === 'rolled_back' || how === 'rolled_back_timeout' || how === 'none', rollback: how, changed: { cards: sum.cards, subs: { add: sum.subs.add, remove: sum.subs.remove, change: sum.subs.change } }, error: String(e.message || e), results };
         }
         refreshUi();
         try { if (typeof Canvas !== 'undefined') Canvas.refresh?.(); } catch (e) {}

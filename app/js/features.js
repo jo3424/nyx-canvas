@@ -265,6 +265,24 @@ const Features = {
     else { const changed = !!it.hash && it.hash !== r.hash; Object.assign(it, { count: r.count, snippets: r.snippets, hash: r.hash, checkedAt: r.checkedAt, pageTitle: r.title, error: r.ok ? '' : 'HTTP ' + r.status }); if (changed) { it.changed = true; if (!manual) playSound('pop'); } }
     Store.save(); if (Items.nodes.has(it.id)) Items.mount(it); if (manual) toast(`🔎 ${it.count ?? 0} ${t('tr_mentions')}`);
   },
+  // v2.6.9.3: one visible confirmation for every restore (undo that touches subscriptions, assistant «undo all»,
+  // snapshot restore, MCP rollback): how many subscriptions and cards change, with the subscription names.
+  restoreLines(sum) {
+    const S = sum.subs, C = sum.cards, B = sum.boards || { add: 0, remove: 0, change: 0 };
+    const L = [t('v2693.c_subs', { rem: S.remove, chg: S.change, add: S.add }) + (S.names.length ? ' — ' + S.names.slice(0, 8).join(', ') + (S.names.length > 8 ? '…' : '') : ''),
+      t('v2693.c_cards', { rem: C.remove, chg: C.change, add: C.add })];
+    if (B.add || B.remove || B.change) L.push(t('v2693.c_boards', { rem: B.remove, chg: B.change, add: B.add }));
+    if (S.skip) L.push(t('v2693.c_skip', { n: S.skip }));
+    return L;
+  },
+  confirmChanges(title, sum, okLabel, note) {
+    return new Promise((res) => {
+      let done = false;
+      const body = h('div', { 'data-restore-confirm': '1', 'data-subs-rem': String(sum.subs.remove), 'data-subs-chg': String(sum.subs.change), 'data-cards': String(sum.cards.add + sum.cards.remove + sum.cards.change) },
+        h('ul', { class: 'confirm-list' }, ...this.restoreLines(sum).map(x => h('li', {}, x))), note ? h('p', { class: 'muted small' }, note) : null);
+      Panels.modal('⚠️ ' + esc(title), body, { okLabel: okLabel || t('undo'), ok: () => { done = true; res(true); }, onClose: () => { if (!done) res(false); } });
+    });
+  },
   refreshSubsCards() { for (const it of Store.items()) if (it.type === 'subs') { Items.el(it) && (Items.el(it)._sig = '', Items.mount(it)); } },
   // ---------- backup ----------
   async exportBackup() { if (!API) return; await Store.save(true); const out = await API.exportBackup(Store.serialize()); if (out) toast('💾 ✓ ' + out, { ms: 5000 }); },
@@ -272,7 +290,11 @@ const Features = {
     if (!API) return; const text = await API.importBackup(); if (!text) return;
     const s = JSON.parse(text);
     const body = h('div', {}, h('p', {}, LANG === 'el' ? t('features.024', { v0: s.boards?.length || 0, v1: s.subs?.length || 0 }) : `${s.boards?.length || 0} boards, ${s.subs?.length || 0} subscriptions.`));
-    Panels.modal('📥 ' + t('set_import'), body, { extra: [h('button', { class: 'btn ghost', onclick: () => { for (const b of s.boards || []) { b.id = uid(); b.name += ' (backup)'; Store.state.boards.push(b); } Store.save(); Panels.tabs(); $('#modal-close').click(); toast('✓'); } }, LANG === 'el' ? t('features.025') : 'Add as new boards')], okLabel: LANG === 'el' ? t('features.026') : 'Replace all', ok: async () => { Store.state = s; await Store.save(true); location.reload(); } });
+    Panels.modal('📥 ' + t('set_import'), body, { extra: [h('button', { class: 'btn ghost', 'data-act': 'import-subs-only', onclick: () => { $('#modal-close').click(); setTimeout(() => Subs.importOnly(s.subs || [], t('v2693.src_backup')), 200); } }, t('v2693.only_subs', { n: (s.subs || []).length })), h('button', { class: 'btn ghost', onclick: () => { for (const b of s.boards || []) { b.id = uid(); b.name += ' (backup)'; Store.state.boards.push(b); } Store.save(); Panels.tabs(); $('#modal-close').click(); toast('✓'); } }, LANG === 'el' ? t('features.025') : 'Add as new boards')], okLabel: LANG === 'el' ? t('features.026') : 'Replace all', ok: async () => {
+      // v2.6.9.3: «Replace all» says first how many subscriptions and cards change
+      const sum = NyxUndo.summary(Store.state, NyxUndo.diff(NyxUndo.capture(s), JSON.parse(Store.pic())), 'undo');
+      setTimeout(async () => { if (!await Features.confirmChanges(t('features.026'), sum, t('features.026'))) return; await Store.save(true); try { await API.inv('snap:create', t('extras.068')); } catch (e) {} Store.state = s; await Store.save(true); location.reload(); }, 200);
+    } });
   },
 };
 
@@ -296,15 +318,75 @@ const Subs = {
     let color = s.color; const sw = h('div', { class: 'sw-row span2' }, ...['#e50914', '#1db954', '#ff0033', '#113ccf', '#10a37f', '#d97757', '#107c10', '#0070d1', '#7b2cff', '#ffb020', '#7c8cff', '#f472b6'].map(c => h('button', { class: 'sw' + (c === color ? ' on' : ''), style: { '--c': c }, onclick: (e) => { color = c; $$('.sw', sw).forEach(b => b.classList.remove('on')); e.currentTarget.classList.add('on'); } })));
     f.el.append(sw);
     if (isNew) f.el.prepend(h('div', { class: 'preset-grid span2' }, ...SUB_PRESETS.map(p => h('button', { class: 'preset', style: { '--pc': p[2] }, onclick: () => { f.inputs.name.value = p[0]; f.inputs.url.value = p[1]; f.inputs.icon.value = p[3]; f.inputs.category.value = p[4]; color = p[2]; f.inputs.price.focus(); } }, h('span', {}, p[3]), p[0]))));
-    const extra = isNew ? [] : [h('button', { class: 'btn ghost danger', onclick: () => { Store.change(() => { Store.state.subs = Store.state.subs.filter(x => x.id !== s.id); }); $('#modal-close').click(); Panels.refreshDrawer(); Features.refreshSubsCards(); } }, iconSvg('trash-2', 15), ' ' + t('del'))];
+    const extra = isNew ? [] : [h('button', { class: 'btn ghost danger', onclick: () => { Store.change(() => { const i = Store.state.subs.findIndex(x => x.id === s.id); if (i >= 0) Store.state.subs.splice(i, 1); }, t('v2693.lbl_del_sub', { v0: s.name })); $('#modal-close').click(); Panels.refreshDrawer(); Features.refreshSubsCards(); } }, iconSvg('trash-2', 15), ' ' + t('del'))];
     Panels.modal('💳 ' + (isNew ? t('sub_add') : esc(s.name)), f.el, { wide: true, extra, ok: () => {
       const v = f.val(); if (!v.name.trim()) return false;
       Store.change(() => { Object.assign(s, { ...v, name: v.name.trim(), price: +v.price || 0, remindDays: +v.remindDays || 0, color }); if (isNew) Store.state.subs.push(s); });
       Panels.refreshDrawer(); Features.refreshSubsCards();
     } });
   },
-  toCanvas() { Features.addAtCenter({ type: 'subs', w: 360, h: 340 }); },
+  toCanvas() { Features.addAtCenter({ type: 'subs', w: 380, h: 460 }); },
+  summary() { return NyxCalc.subsSummary(Store.state.subs || [], { lang: LANG === 'en' ? 'en' : 'el' }); },
+  when(u) { return u.days === 0 ? t('v2693.today') : u.days === 1 ? t('v2693.tomorrow') : u.days <= 7 ? t('v2693.in_days', { n: u.days }) : u.dm; },
+  heroEl() {
+    const S = this.summary();
+    const up = S.upcoming;
+    return h('div', { class: 'subx', 'data-subx': '1' },
+      h('div', { class: 'subx-head' }, h('b', {}, '💳 ' + t('subs')), h('span', { class: 'muted' }, S.month.name + ' ' + S.month.y)),
+      h('div', { class: 'subx-hero' },
+        h('div', { class: 'subx-lab' }, t('v2693.this_month')),
+        h('div', { class: 'subx-big', 'data-subx-month': String(S.total) }, S.totalText),
+        h('div', { class: 'muted' }, t('v2693.paid'), ' ', h('span', { class: 'subx-paid', 'data-subx-paid': String(S.paid) }, S.paidText), ' · ' + t('v2693.left') + ' ', h('span', { class: 'subx-due', 'data-subx-due': String(S.due) }, S.dueText), ' ' + t('v2693.until', { v0: S.month.lastDM })),
+        h('div', { class: 'subx-bar' }, h('i', { style: { width: Math.round(S.pct * 100) + '%' } })),
+        h('div', { class: 'subx-row3' },
+          h('div', { class: 'subx-k' }, h('span', { class: 'subx-lab' }, t('v2693.avg_month')), h('b', { 'data-subx-avg': String(S.avg) }, S.avgText)),
+          h('div', { class: 'subx-k' }, h('span', { class: 'subx-lab' }, t('v2693.per_year')), h('b', { 'data-subx-year': String(S.year) }, S.yearText)),
+          h('div', { class: 'subx-k' }, h('span', { class: 'subx-lab' }, t('v2693.active')), h('b', { 'data-subx-active': String(S.active) }, String(S.active)))),
+        S.otherCur ? h('div', { class: 'muted small' }, t('v2693.other_cur', { n: S.otherCur, cur: S.cur })) : null),
+      up.length ? h('div', { class: 'subx-list', 'data-subx-upcoming': String(up.length) }, h('div', { class: 'subx-lab' }, t('v2693.upcoming')),
+        ...up.map(u => h('div', { class: 'subx-it', 'data-subx-it': u.id, style: { '--pc': u.color || 'var(--accent)' } },
+          h('div', { class: 'subx-dot' }, u.icon || (u.name || '?')[0]),
+          h('div', { class: 'subx-n' }, u.name, h('div', { class: 'subx-d muted' }, t('cyc_' + u.cycle) + (u.cycle === 'yearly' || u.cycle === 'quarterly' ? ' · ' + u.monthName : ''))),
+          h('div', { class: 'subx-amt' }, u.text, h('div', { class: 'subx-d ' + (u.inMonth ? 'subx-due' : 'muted') }, u.inMonth ? this.when(u) : t('v2693.not_this_month') + ' · ' + u.dm))))) : null,
+      S.noDate.length ? h('div', { class: 'muted small' }, t('v2693.no_date', { v0: S.noDate.join(', ') })) : null);
+  },
+  // v2.6.9.3: bring back ONLY subscriptions from a backup or snapshot. Matched by id: missing ones are added, identical
+  // ones skipped, different ones listed so you choose which version stays. Boards, cards and settings are not touched.
+  importOnly(src, from) {
+    const m = NyxUndo.subsMerge(Store.state.subs, src);
+    const pick = new Map();
+    const row = (x) => { const cb = h('input', { type: 'checkbox', 'data-differ': x.id, onchange: (e) => pick.set(x.id, e.target.checked) });
+      return h('label', { class: 'subs-differ' }, cb, h('span', {}, h('b', {}, x.cur.name || x.id), ' — ' + t('v2693.differ_now', { v0: this.money(x.cur.price, x.cur.currency), v1: t('cyc_' + (x.cur.cycle || 'monthly')), v2: x.cur.next ? fmtDM(x.cur.next) : '—' }) + ' · ' + t('v2693.differ_src', { v0: this.money(x.src.price, x.src.currency), v1: t('cyc_' + (x.src.cycle || 'monthly')), v2: x.src.next ? fmtDM(x.src.next) : '—' }))); };
+    const body = h('div', { 'data-subs-import': '1', 'data-add': String(m.add.length), 'data-differ': String(m.differ.length) },
+      h('p', {}, t('v2693.imp_head', { v0: from || '', add: m.add.length, differ: m.differ.length, same: m.same.length })),
+      m.add.length ? h('ul', { class: 'confirm-list' }, ...m.add.map(x => h('li', {}, '＋ ' + (x.name || x.id) + ' · ' + this.money(x.price, x.currency) + ' · ' + t('cyc_' + (x.cycle || 'monthly'))))) : null,
+      m.differ.length ? h('div', {}, h('p', { class: 'muted small' }, t('v2693.imp_differ_help')), ...m.differ.map(row)) : null,
+      h('p', { class: 'muted small' }, t('v2693.imp_boards_safe')));
+    return new Promise((res) => {
+      let done = false;
+      Panels.modal('📥 ' + t('v2693.imp_title'), body, { okLabel: t('v2693.imp_ok'), ok: () => {
+        const take = m.differ.filter(x => pick.get(x.id));
+        if (!m.add.length && !take.length) { done = true; res({ added: 0, replaced: 0 }); return; }
+        Store.change(() => {
+          for (const x of m.add) Store.state.subs.push(x);
+          for (const x of take) { const i = Store.state.subs.findIndex(y => String(y.id) === x.id); if (i >= 0) Store.state.subs[i] = x.src; }
+        }, t('v2693.lbl_import_subs'));
+        Panels.refreshDrawer(); Features.refreshSubsCards();
+        toast('✓ ' + t('v2693.imp_done', { add: m.add.length, rep: take.length }), { ms: 6000 });
+        done = true; res({ added: m.add.length, replaced: take.length });
+      }, onClose: () => { if (!done) res(null); } });
+    });
+  },
   cardHtml() {
+    // v2.6.9.3: the canvas card shows the same summary as the drawer (amounts from NyxCalc.subsSummary)
+    if (typeof NyxCalc !== 'undefined' && NyxCalc.subsSummary) {
+      const S = this.summary(); const up = S.upcoming.slice(0, 6);
+      return `<div class="card subs-card subx-card"><div class="sc-head"><span>${iconSvg('credit-card', 18)} ${t('subs')} · ${esc(S.month.name)}</span><button class="live mini act" data-act="open-subs">${iconSvg('settings-2', 13)}</button></div>
+        <div class="subx-lab">${t('v2693.this_month')}</div><div class="sc-total"><b data-subx-month="${S.total}">${S.totalText}</b><span>${t('v2693.paid')} ${S.paidText} · ${t('v2693.left')} ${S.dueText}</span></div>
+        <div class="subx-bar"><i style="width:${Math.round(S.pct * 100)}%"></i></div>
+        <div class="subx-mini muted">${t('v2693.avg_month')} ${S.avgText} · ${t('v2693.per_year')} ${S.yearText} · ${t('v2693.active')} ${S.active}</div>
+        <div class="sc-list">${up.map(u => `<div class="sc-row ${u.inMonth && u.days <= 7 ? 'soon' : ''}" style="--pc:${esc(u.color || '#888')}"><span class="sc-ico">${esc(u.icon || '💳')}</span><span class="sc-name">${esc(u.name)}</span><span class="sc-next">${u.inMonth ? esc(this.when(u)) : esc(t('v2693.not_this_month')) + ' · ' + u.dm}</span><span class="sc-price">${u.text}</span></div>`).join('') || `<div class="muted small">${t('sub_empty')}</div>`}</div></div>`;
+    }
     const tot = this.totals(); const list = this.sorted().filter(s => s.active !== false).slice(0, 6);
     return `<div class="card subs-card"><div class="sc-head"><span>${iconSvg('credit-card', 18)} ${t('subs')}</span><button class="live mini act" data-act="open-subs">${iconSvg('settings-2', 13)}</button></div><div class="sc-total"><b>${this.money(tot.month, tot.cur)}</b><span>${t('sub_month')} · ${this.money(tot.month * 12, tot.cur)} ${t('sub_year')}</span></div>
       <div class="sc-list">${list.map(s => { const d = this.daysTo(s.next); return `<div class="sc-row ${d != null && d <= (s.remindDays ?? 2) ? 'soon' : ''}" style="--pc:${esc(s.color || '#888')}"><span class="sc-ico">${esc(s.icon || '💳')}</span><span class="sc-name">${esc(s.name)}</span><span class="sc-next">${s.next ? fmtDM(s.next) + ' · ' + relDays(s.next) : ''}</span><span class="sc-price">${this.money(s.price, s.currency)}</span></div>`; }).join('') || `<div class="muted small">${t('sub_empty')}</div>`}</div></div>`;

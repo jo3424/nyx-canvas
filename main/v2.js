@@ -130,6 +130,14 @@ async function snapshot(label = 'auto') {
   return name;
 }
 
+const snapCountCache = new Map();
+async function snapCounts(name) {
+  if (snapCountCache.has(name)) return snapCountCache.get(name);
+  let r = { subs: null, cards: null, boards: null };
+  try { const j = JSON.parse(await fsp.readFile(path.join(SNAP_DIR(), path.basename(name)), 'utf8')); r = { subs: Array.isArray(j.subs) ? j.subs.length : 0, cards: (j.boards || []).reduce((a, b) => a + ((b && b.items) || []).length, 0), boards: (j.boards || []).length }; } catch (e) {}
+  snapCountCache.set(name, r); return r;
+}
+
 // ---------- plugin bridge (main <-> renderer ops) ----------
 function bridgeOp(op, args, pluginId) {
   return new Promise((res, rej) => {
@@ -306,7 +314,9 @@ function wire(ctx) {
   ipcMain.on('plugin:dispatch', (_e, ev, data) => plugins.dispatch(ev, data));
   // snapshots
   H('snap:create', (label) => snapshot(label || t('extras.060')));
-  H('snap:list', async () => { try { const fl = (await fsp.readdir(SNAP_DIR())).filter(f => f.endsWith('.json')).sort().reverse(); return await Promise.all(fl.map(async f => ({ name: f, size: (await fsp.stat(path.join(SNAP_DIR(), f))).size }))); } catch (e) { return []; } });
+  // v2.6.9.3: each snapshot also reports how many subscriptions / cards / boards it holds (read once, cached by name;
+  // snapshot files never change after they are written). Read-only.
+  H('snap:list', async () => { try { const fl = (await fsp.readdir(SNAP_DIR())).filter(f => f.endsWith('.json')).sort().reverse(); return await Promise.all(fl.map(async f => ({ name: f, size: (await fsp.stat(path.join(SNAP_DIR(), f))).size, ...(await snapCounts(f)) }))); } catch (e) { return []; } });
   H('snap:read', (name) => fsp.readFile(path.join(SNAP_DIR(), path.basename(name)), 'utf8'));
   // windows
   H('sticky:open', (item) => openSticky(item));

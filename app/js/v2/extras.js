@@ -145,14 +145,23 @@ const Extras = {
       body.append(h('div', { class: 'row gap' }, h('button', { class: 'btn primary sm', onclick: async () => { const f = form([['label', t('extras.058'), 'text', '']]); Panels.modal(t('extras.059'), f.el, { ok: async () => { await Store.save(true); await API.inv('snap:create', f.val().label || t('extras.060')); Panels.drawerKind = null; this.snapshots(); } }); } }, iconSvg('camera', 14), t('extras.061')), h('span', { class: 'muted small' }, t('extras.062'))));
       const list = await API.inv('snap:list');
       if (!list.length) body.append(h('p', { class: 'muted' }, t('extras.063')));
-      for (const s of list) body.append(h('div', { class: 'snap' }, h('span', { html: iconSvg('history', 16) }), h('div', { class: 'grow' }, h('b', {}, snapLabel(s.name)), h('div', { class: 'muted small' }, snapDate(s.name) + ' · ' + Math.round(s.size / 1024) + ' KB')),
+      // v2.6.9.3: subscriptions / cards per snapshot + «Μόνο συνδρομές» (boards untouched)
+      for (const s of list) body.append(h('div', { class: 'snap', 'data-snap': s.name, 'data-subs': s.subs == null ? '' : String(s.subs) }, h('span', { html: iconSvg('history', 16) }), h('div', { class: 'grow' }, h('b', {}, snapLabel(s.name)), h('div', { class: 'muted small' }, snapDate(s.name) + ' · ' + (s.subs == null ? '' : t('v2693.snap_counts', { subs: s.subs, cards: s.cards }) + ' · ') + Math.round(s.size / 1024) + ' KB')),
+        h('button', { class: 'btn sm ghost', 'data-act': 'snap-subs-only', title: t('v2693.only_subs_tip'), onclick: () => this.restoreSubs(s) }, t('v2693.only_subs_short')),
         h('button', { class: 'btn sm', onclick: () => this.restore(s) }, t('extras.064'))));
     });
   },
   async restore(s) {
     const txt = await API.inv('snap:read', s.name); let st; try { st = JSON.parse(txt); } catch (e) { return toast(t('extras.065'), { kind: 'err' }); }
     const n = st.boards?.reduce((a, b) => a + b.items.length, 0);
-    Panels.modal(t('extras.066'), h('p', {}, t('extras.067', { v0: snapLabel(s.name), v1: snapDate(s.name), v2: st.boards?.length, n })), { okLabel: t('extras.064'), ok: async () => { await Store.save(true); await API.inv('snap:create', t('extras.068')); Store.state = V2.migrate(st); await Store.save(true); location.reload(); } });
+    // v2.6.9.3: the confirmation also says how many subscriptions and cards change (the full restore is still offered)
+    const sum = NyxUndo.summary(Store.state, NyxUndo.diff(NyxUndo.capture(st), JSON.parse(Store.pic())), 'undo');
+    const body = h('div', { 'data-restore-confirm': '1', 'data-subs-rem': String(sum.subs.remove), 'data-subs-chg': String(sum.subs.change) }, h('p', {}, t('extras.067', { v0: snapLabel(s.name), v1: snapDate(s.name), v2: st.boards?.length, n })), h('ul', { class: 'confirm-list' }, ...Features.restoreLines(sum).map(x => h('li', {}, x))), h('p', { class: 'muted small' }, t('v2693.full_restore_note')));
+    Panels.modal(t('extras.066'), body, { okLabel: t('extras.064'), extra: [h('button', { class: 'btn ghost', onclick: () => { $('#modal-close').click(); setTimeout(() => this.restoreSubs(s, st), 200); } }, t('v2693.only_subs', { n: (st.subs || []).length }))], ok: async () => { await Store.save(true); await API.inv('snap:create', t('extras.068')); Store.state = V2.migrate(st); await Store.save(true); location.reload(); } });
+  },
+  async restoreSubs(s, st) {
+    if (!st) { const txt = await API.inv('snap:read', s.name); try { st = JSON.parse(txt); } catch (e) { return toast(t('extras.065'), { kind: 'err' }); } }
+    return Subs.importOnly(st.subs || [], snapLabel(s.name) + ' · ' + snapDate(s.name));
   },
   // ----- PDF -----
   async pdfjs() { if (!this._pdf) { this._pdf = await import('../../vendor/pdfjs/pdf.min.mjs'); this._pdf.GlobalWorkerOptions.workerSrc = new URL('../../vendor/pdfjs/pdf.worker.min.mjs', document.baseURI.replace(/[^/]*$/, '') + 'js/v2/').href; } return this._pdf; },

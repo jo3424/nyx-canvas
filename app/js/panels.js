@@ -137,10 +137,9 @@ const Panels = {
   subs() {
     this.openDrawer('subs', `${iconSvg('credit-card', 20)} ${t('subs')}`, (body) => {
       const subs = Store.state.subs; const tot = Subs.totals();
-      body.append(h('div', { class: 'sub-hero' },
-        h('div', {}, h('div', { class: 'big' }, Subs.money(tot.month, tot.cur)), h('div', { class: 'muted' }, t('sub_month'))),
-        h('div', {}, h('div', { class: 'big2' }, Subs.money(tot.month * 12, tot.cur)), h('div', { class: 'muted' }, t('sub_year'))),
-        h('div', {}, h('div', { class: 'big2' }, String(subs.filter(s => s.active !== false).length)), h('div', { class: 'muted' }, LANG === 'el' ? t('panels.022') : 'active'))));
+      // v2.6.9.3: redesign (mockup 14/11) — «Αυτόν τον μήνα» = charges inside this month, paid / remaining + bar;
+      // μέσος/μήνα, τον χρόνο, ενεργές; «Επόμενες χρεώσεις» with dates. Every amount from NyxCalc.subsSummary (code).
+      body.append(Subs.heroEl());
       if (tot.cats.length) body.append(h('div', { class: 'catbar' }, ...tot.cats.map(([c, v, col]) => h('div', { style: { flex: v, background: col }, title: `${c}: ${Subs.money(v, tot.cur)}` }))), h('div', { class: 'chips small' }, ...tot.cats.map(([c, v, col]) => h('span', { class: 'chip' }, h('i', { class: 'dot', style: { background: col } }), `${c} ${Subs.money(v, tot.cur)}`))));
       body.append(h('div', { class: 'row gap' }, h('button', { class: 'btn', onclick: () => Subs.edit() }, iconSvg('plus', 16), ' ' + t('sub_add')), h('button', { class: 'btn ghost', onclick: () => Subs.toCanvas() }, iconSvg('layout-dashboard', 16), ' ' + t('sub_tocanvas'))));
       if (!subs.length) { body.append(h('div', { class: 'empty' }, '💳', h('p', {}, t('sub_empty'))), h('div', { class: 'preset-grid' }, ...SUB_PRESETS.slice(0, 12).map(p => h('button', { class: 'preset', style: { '--pc': p[2] }, onclick: () => Subs.edit(null, p) }, h('span', {}, p[3]), p[0])))); return; }
@@ -155,7 +154,7 @@ const Panels = {
             h('button', { class: 'icon-btn', title: LANG === 'el' ? t('panels.023') : 'Paid → next period', html: iconSvg('check-check', 16), onclick: () => { Store.change(() => { s.next = Subs.addCycle(s.next || new Date().toISOString().slice(0, 10), s.cycle); }); this.refreshDrawer(); Features.refreshSubsCards(); toast('✓ ' + s.name + ' → ' + fmtDay(s.next)); } }),
             h('button', { class: 'icon-btn', title: t('edit'), html: iconSvg('pencil', 16), onclick: () => Subs.edit(s) }))));
       }
-      body.append(list);
+      body.append(h('div', { class: 'subx-lab subx-all' }, t('v2693.all')), list);
     });
   },
   // ---------- reminders ----------

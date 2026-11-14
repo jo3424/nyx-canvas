@@ -130,3 +130,20 @@ label.consent{padding:8px;border-radius:var(--radius);background:rgba(255,176,32
 .at-chip .at-files li.listed { opacity: .7; }
 .at-chip .at-sum { font-size: 11px; border: 1px solid var(--line); border-radius: 6px; background: none; color: var(--accent); cursor: pointer; padding: 1px 6px; margin-top: 2px; }
 .at-chip.at-card .at-row { padding-right: 16px; }
+/* v2.6.9.3 — subscriptions redesign (mockup 14/11) */
+.subx{margin-bottom:12px;font-size:13px}
+.subx-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.subx-head b{font-size:17px}
+.subx-hero{border:1px solid var(--border);background:var(--panel-solid);border-radius:14px;padding:14px 16px}
+.subx-lab{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.subx-all{margin:14px 0 6px}
+.subx-big{font-size:32px;font-weight:700;line-height:1.1;margin:2px 0 6px}
+.subx-bar{height:6px;border-radius:3px;background:var(--border);overflow:hidden;margin:8px 0 4px}.subx-bar i{display:block;height:100%;background:var(--accent)}
+.subx-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}
+.subx-k{border:1px solid var(--border);border-radius:10px;padding:8px}.subx-k b{display:block;font-size:15px}
+.subx-list{margin-top:12px;display:flex;flex-direction:column;gap:6px}
+.subx-it{display:flex;align-items:center;gap:10px;border:1px solid var(--border);border-radius:10px;padding:8px 10px}
+.subx-dot{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-weight:700;background:color-mix(in srgb,var(--pc) 30%,var(--border))}
+.subx-n{flex:1;min-width:0}.subx-d{font-size:11px}.subx-amt{text-align:right}
+.subx-paid{color:#3fb950}.subx-due{color:#d29922}
+.subx-card .subx-bar{margin:0 0 6px}.subx-mini{font-size:11px;margin-bottom:8px}
+.subs-differ{display:flex;gap:8px;align-items:flex-start;margin:6px 0;font-size:13px}

@@ -19,7 +19,7 @@ const Agent = {
     R.aborted = new Promise(res => { R.abort = () => res({ cancelled: true }); });
     this.cur = R; this.live(R); return R;
   },
-  end(R) { if (this.cur === R) this.cur = null; R.liveEl?.remove(); this.sendBtn(false); if (R.snaps.length) { this.undos.set(R.id, R); if (this.undos.size > 12) this.undos.delete(this.undos.keys().next().value); } },
+  end(R) { if (this.cur === R) this.cur = null; R.liveEl?.remove(); this.sendBtn(false); R.endPic = this.snapAll(); if (R.snaps.length) { this.undos.set(R.id, R); if (this.undos.size > 12) this.undos.delete(this.undos.keys().next().value); } },
   // ---------- live steps panel (with Stop) ----------
   // a tool's own one-line summary (used when no model writes the answer: offline intents)
   say(line) { if (this.cur && line) this.cur.say.push(line); },
@@ -39,19 +39,21 @@ const Agent = {
   sub(text) { const R = this.cur; const s = R?.steps[R.steps.length - 1]; if (s?.el) { s.el.querySelector('.sub').textContent = text; this.showLive(); } },
   liveNote(text) { const R = this.cur; if (!R?.liveEl) return; R.liveEl.querySelector('.ag-steps').append(h('li', { class: 'note' }, text)); this.showLive(); },
   plan(steps) { const R = this.cur; if (!R) return; R.plan = steps.map(String).slice(0, 12); const el = h('div', { class: 'ag-plan' }, h('b', {}, t('v25.ag_plan')), h('ol', {}, ...R.plan.map(s => h('li', {}, s)))); R.liveEl.querySelector('.ag-steps').before(el); this.showLive(); },
-  // ---------- undo (whole-state snapshots before every changing action; memory only) ----------
-  snapAll() { const s = Store.state; return JSON.stringify({ boards: s.boards, subs: s.subs, active: s.active }); },
-  restoreAll(snap) {
-    const s = JSON.parse(snap); Store.change(() => { Store.state.boards = s.boards; Store.state.subs = s.subs; Store.state.active = s.active; });
-    try { Canvas.refresh(); Panels.refreshDrawer(); Features.refreshSubsCards(); Panels.tabs(); Panels.stylebar(); Minimap?.drawSoon?.(); } catch (e) { console.warn(e); }
-  },
+  // ---------- undo (v2.6.9.3: a picture before every changing action + one at the end of the run; memory only).
+  // «Undo» applies only what the run changed between those two pictures (cards, boards, subscriptions by id) to the
+  // current state — anything changed after the run (e.g. a subscription you added later) stays.
+  snapAll() { return Store.pic(); },
   async undo(runId, fromStep = 0) {
     const R = this.undos.get(runId); if (!R) return toast(t('v25.ag_undo_gone'));
     const sn = R.snaps.find(x => x.i >= fromStep); if (!sn) return;
     const later = R.snaps.filter(x => x.i >= fromStep).length;
-    if (!await Cmd.confirm(t('v25.ag_undo_q'), [t('v25.ag_undo_list', { n: later })], t('v25.ag_undo'))) return;
-    this.restoreAll(sn.snap); R.snaps = R.snaps.filter(x => x.i < fromStep); if (!R.snaps.length) this.undos.delete(runId);
-    toast('↶ ' + t('v25.ag_undone', { n: later })); Assistant.render();
+    const ch = NyxUndo.diff(JSON.parse(sn.snap), JSON.parse(R.endPic || this.snapAll()));
+    const sum = NyxUndo.summary(Store.state, ch, 'undo');
+    if (!await Features.confirmChanges(t('v25.ag_undo_q'), sum, t('v25.ag_undo'), t('v25.ag_undo_list', { n: later }))) return;
+    let res = null; Store.change(() => { res = NyxUndo.apply(Store.state, ch, 'undo'); }, t('v25.ag_undo'));
+    try { Canvas.refresh(); Panels.refreshDrawer(); Features.refreshSubsCards(); Panels.tabs(); Panels.stylebar(); Minimap?.drawSoon?.(); } catch (e) { console.warn(e); }
+    R.endPic = sn.snap; R.snaps = R.snaps.filter(x => x.i < fromStep); if (!R.snaps.length) this.undos.delete(runId);
+    toast('↶ ' + t('v25.ag_undone', { n: later }) + (res && res.skippedSubs.length ? ' · ' + t('v2693.subs_kept', { v0: res.skippedSubs.length }) : '')); Assistant.render();
   },
   // ---------- verify: what actually changed on the boards ----------
   verify(R, res) {

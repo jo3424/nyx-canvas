@@ -262,6 +262,61 @@
     const sc = splitCents(total, weights); if (!sc) return { ok: false, op, error: 'bad_parts' };
     return { ok: true, op: 'split', total: total / 100, text: F(total), parts: sc.map((c, i) => ({ name: names[i] || String(i + 1), amount: c / 100, text: F(c) })), check: F(sc.reduce((x, y) => x + y, 0)) };
   }
+  // v2.6.9.3 — subscriptions: every amount and date here is computed by code (cents, Europe/Athens wall dates).
+  // «this month» = the charges that fall INSIDE the current calendar month (a yearly one only in its own month;
+  // a weekly one 4–5 times); paid = before today, or before `next` (you already moved it to the next period).
+  const MONTH_NOM_EL = ['Ιανουάριος', 'Φεβρουάριος', 'Μάρτιος', 'Απρίλιος', 'Μάιος', 'Ιούνιος', 'Ιούλιος', 'Αύγουστος', 'Σεπτέμβριος', 'Οκτώβριος', 'Νοέμβριος', 'Δεκέμβριος'];
+  const MONTH_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const PER_YEAR = { weekly: 52, monthly: 12, quarterly: 4, yearly: 1 };
+  const STEP_M = { monthly: 1, quarterly: 3, yearly: 12 };
+  const cmpD = (a, b) => (a.y - b.y) || (a.m - b.m) || (a.d - b.d);
+  const isoD = (c) => `${c.y}-${pad(c.m)}-${pad(c.d)}`;
+  function parseIso(v) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v || '')); return m ? { y: +m[1], m: +m[2], d: +m[3] } : null; }
+  function occurrence(base, cycle, k) { if (cycle === 'weekly') return addDays(base, 7 * k); const st = STEP_M[cycle] || 1; const r = addMonths(base, st * k); return { y: r.y, m: r.m, d: r.d }; }
+  // charges of one subscription inside [from, to]
+  function occurrencesIn(base, cycle, from, to) {
+    const out = [];
+    if (cycle === 'weekly') { let k = Math.ceil(dayDiff(base, from) / 7); for (let o = occurrence(base, cycle, k); cmpD(o, to) <= 0; o = occurrence(base, cycle, ++k)) if (cmpD(o, from) >= 0) out.push(o); return out; }
+    const st = STEP_M[cycle] || 1; const md = (from.y * 12 + from.m) - (base.y * 12 + base.m);
+    for (let mm = md; mm <= (to.y * 12 + to.m) - (base.y * 12 + base.m); mm++) { if (((mm % st) + st) % st) continue; const o = occurrence(base, cycle, mm / st); if (cmpD(o, from) >= 0 && cmpD(o, to) <= 0) out.push(o); }
+    return out;
+  }
+  function nextFrom(base, cycle, today) {
+    if (cmpD(base, today) >= 0) return base;
+    if (cycle === 'weekly') return occurrence(base, cycle, Math.ceil(dayDiff(base, today) / 7));
+    const st = STEP_M[cycle] || 1; let k = Math.floor(((today.y * 12 + today.m) - (base.y * 12 + base.m)) / st); let o = occurrence(base, cycle, k);
+    while (cmpD(o, today) < 0) o = occurrence(base, cycle, ++k);
+    return o;
+  }
+  function subsSummary(subs, opts) {
+    opts = opts || {}; const lang = opts.lang === 'en' ? 'en' : 'el';
+    const w = wallNow(opts.now, opts.tz); const today = { y: w.y, m: w.m, d: w.d };
+    const first = { y: w.y, m: w.m, d: 1 }; const last = { y: w.y, m: w.m, d: new Date(Date.UTC(w.y, w.m, 0)).getUTCDate() };
+    const act = (subs || []).filter((s) => s && s.active !== false);
+    const counts = {}; for (const s of act) { const c = s.currency || 'EUR'; counts[c] = (counts[c] || 0) + 1; }
+    const cur = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0] || 'EUR';
+    const F = (c) => fmtMoney(c, lang, cur);
+    const same = act.filter((s) => (s.currency || 'EUR') === cur);
+    let yearC = 0, totalC = 0, paidC = 0; const upcoming = [], noDate = [], charges = [];
+    for (const s of same) {
+      const cyc = PER_YEAR[s.cycle] ? s.cycle : 'monthly'; const c = parseAmount(s.price == null || s.price === '' ? 0 : s.price);
+      if (c == null) continue;
+      yearC += c * PER_YEAR[cyc];
+      const base = parseIso(s.next); if (!base) { noDate.push(s.name || s.id); continue; }
+      for (const o of occurrencesIn(base, cyc, first, last)) {
+        const paid = cmpD(o, base) < 0 || cmpD(o, today) < 0; totalC += c; if (paid) paidC += c;
+        charges.push({ id: s.id, name: s.name || '', date: isoD(o), amount: c / 100, text: F(c), paid });
+      }
+      const nx = nextFrom(base, cyc, today); const inMonth = nx.y === w.y && nx.m === w.m;
+      upcoming.push({ id: s.id, name: s.name || '', icon: s.icon || '', color: s.color || '', cycle: cyc, amount: c / 100, text: F(c), date: isoD(nx), dm: `${pad(nx.d)}/${pad(nx.m)}`, days: dayDiff(today, nx), inMonth, monthName: (lang === 'en' ? MONTH_EN : MONTH_NOM_EL)[nx.m - 1] });
+    }
+    upcoming.sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
+    charges.sort((a, b) => a.date.localeCompare(b.date));
+    const avgC = Math.round(yearC / 12);
+    return { ok: true, cur, month: { y: w.y, m: w.m, name: (lang === 'en' ? MONTH_EN : MONTH_NOM_EL)[w.m - 1], lastDM: `${pad(last.d)}/${pad(last.m)}` }, today: isoD(today),
+      total: totalC / 100, totalText: F(totalC), paid: paidC / 100, paidText: F(paidC), due: (totalC - paidC) / 100, dueText: F(totalC - paidC), pct: totalC ? paidC / totalC : 0,
+      avg: avgC / 100, avgText: F(avgC), year: yearC / 100, yearText: F(yearC), active: act.length, otherCur: act.length - same.length, noDate, charges, upcoming };
+  }
   // the tool result the model must quote (it never does the arithmetic itself)
   function dateTool(args, opts) {
     const r = resolveDate(args && (args.expr || args.text || args.date), { ...(opts || {}), base: args && args.base });
@@ -274,7 +329,7 @@
     if (/(μοιρασ|υπολογισ|ποσοστ|αθροισ|ποσο κανει|ποσα|ποσεσ μερεσ|ημερομην|ποτε|ποια μερα|τι μερα|αυριο|μεθαυριο|εβδομαδ|σε \d+|\d{1,2}\/\d{1,2}|split|how much|what day|which day|tomorrow|in \d+ (day|week|month))/.test(n)) return true;
     return n.split(/[\s,]+/).some((w) => w.length >= 4 && (WD_STEM.some(([re]) => re.test(w)) || MONTH_STEM.some(([re]) => re.test(w) && w.length >= 5)));
   }
-  const api = { needsCalc, TZ, WD_EL, WD_EN, norm, wallNow, addDays, addMonths, resolveDate, toInstant, zonedInstant, parseAmount, fmtMoney, splitCents, arith, money, dateTool };
+  const api = { needsCalc, TZ, WD_EL, WD_EN, norm, wallNow, addDays, addMonths, resolveDate, toInstant, zonedInstant, parseAmount, fmtMoney, splitCents, arith, money, dateTool, subsSummary, occurrencesIn };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.NyxCalc = api;
 })(typeof window !== 'undefined' ? window : globalThis);
