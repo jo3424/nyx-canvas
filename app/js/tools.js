@@ -28,33 +28,39 @@ const Tools = {
     if (!['select', 'hand'].includes(id)) Canvas.deselect();
   },
   mark() { $$('#dock .tool').forEach(b => b.classList.toggle('on', b.dataset.tool === this.cur)); },
+  // v2.6.11: the tool options are a flyout that touches its dock button and stays inside the window (look2611.js →
+  // Flyout.place). Same choices and settings as before; only the look changed. Items 1–9 carry their digit in the tooltip
+  // (data-fk) and Flyout.key() picks them only while the flyout is open and nobody is typing.
   opts() {
     const o = $('#toolopts'); const S = Store.state.settings; o.innerHTML = '';
-    const cur = this.cur;
+    const cur = this.cur; let fk = 0;
+    const num = (el) => { if (fk < 9) { fk++; el.dataset.fk = String(fk); el.setAttribute('aria-keyshortcuts', String(fk)); } return el; };
+    const sec = (cls, ...kids) => h('div', { class: 'fo-sec ' + (cls || '') }, ...kids);
+    const head = () => h('div', { class: 'fo-head', 'aria-hidden': 'true', html: iconSvg(({ pen: 'pen-tool', marker: 'brush', highlighter: 'highlighter', eraser: 'eraser', text: 'type', sticky: 'sticky-note', shape: 'shapes' })[cur] || 'circle', 15) });
+    o.classList.add('flyout'); o.dataset.flyout = cur; o.setAttribute('role', 'toolbar'); o.setAttribute('aria-label', t('t_' + cur));
     if (['pen', 'marker', 'highlighter'].includes(cur)) {
       const key = cur === 'pen' ? 'penColor' : cur === 'marker' ? 'markerColor' : 'hlColor';
       const colors = cur === 'highlighter' ? ['#ffe14d', '#9be15d', '#4fd1ff', '#ff8fab', '#c3a6ff', '#ffb86b'] : PALETTE;
-      o.append(...colors.map(c => h('button', { class: 'sw' + (S[key] === c ? ' on' : ''), style: { '--c': c }, onclick: () => { S[key] = c; Store.save(); this.opts(); } })));
-      o.append(colorInput(S[key], (c) => { S[key] = c; Store.save(); }));
-      o.append(h('div', { class: 'sep' }));
+      o.append(head(), sec('fo-grid', ...colors.map(c => num(h('button', { class: 'sw' + (S[key] === c ? ' on' : ''), style: { '--c': c }, 'data-tip': c.toUpperCase(), 'aria-label': c.toUpperCase(), onclick: () => { S[key] = c; Store.save(); this.opts(); } }))), colorInput(S[key], (c) => { S[key] = c; Store.save(); })));
       const sizeKey = cur + 'Size'; const sizes = cur === 'pen' ? [2, 4, 7, 12] : cur === 'marker' ? [8, 14, 22] : [16, 26, 38];
       S[sizeKey] ||= sizes[1];
-      o.append(...sizes.map(sz => h('button', { class: 'szb' + (S[sizeKey] === sz ? ' on' : ''), onclick: () => { S[sizeKey] = sz; Store.save(); this.opts(); } }, h('span', { style: { width: Math.min(22, sz + 2) + 'px', height: Math.min(22, sz + 2) + 'px' } }))));
+      o.append(h('div', { class: 'sep' }), sec('fo-col', ...sizes.map(sz => h('button', { class: 'szb' + (S[sizeKey] === sz ? ' on' : ''), 'data-tip': sz + ' px', 'aria-label': sz + ' px', onclick: () => { S[sizeKey] = sz; Store.save(); this.opts(); } }, h('span', { style: { width: Math.min(22, sz + 2) + 'px', height: Math.min(22, sz + 2) + 'px' } })))));
     } else if (cur === 'shape') {
-      o.append(...SHAPES.map(([k, ic]) => h('button', { class: 'ob' + (S.shapeKind === k ? ' on' : ''), html: iconSvg(ic, 18), onclick: () => { S.shapeKind = k; Store.save(); this.opts(); } })));
+      o.append(head(), sec('fo-col', ...SHAPES.map(([k, ic]) => num(h('button', { class: 'ob' + ((S.shapeKind || 'rect') === k ? ' on' : ''), 'data-shape': k, 'data-tip': 'v2611.sh_' + k, 'aria-label': t('v2611.sh_' + k), html: iconSvg(ic, 18), onclick: () => { S.shapeKind = k; Store.save(); this.opts(); } })))));
     } else if (cur === 'eraser') {
-      o.append(h('span', { class: 'hint' }, LANG === 'el' ? t('tools.001') : 'Drag over drawings to erase'));
+      o.append(head(), h('span', { class: 'hint' }, LANG === 'el' ? t('tools.001') : 'Drag over drawings to erase'));
     } else if (cur === 'text' || cur === 'sticky') {
-      o.append(h('span', { class: 'hint' }, LANG === 'el' ? t('tools.002') : 'Click on the canvas to write'));
+      o.append(head());
+      if (cur === 'text') o.append(h('span', { class: 'hint' }, LANG === 'el' ? t('tools.002') : 'Click on the canvas to write'));
       if (cur === 'sticky') {
-        o.append(...STICKY.map(c => h('button', { class: 'sw' + ((S.stickyColor || STICKY[0]) === c ? ' on' : ''), style: { '--c': c }, onclick: () => { S.stickyColor = c; Store.save(); this.opts(); } })));
+        o.append(sec('fo-grid', ...STICKY.map(c => h('button', { class: 'sw' + ((S.stickyColor || STICKY[0]) === c ? ' on' : ''), style: { '--c': c }, 'data-tip': c.toUpperCase(), 'aria-label': c.toUpperCase(), onclick: () => { S.stickyColor = c; Store.save(); this.opts(); } }))));
         o.append(h('div', { class: 'sep' }));
-        o.append(h('span', { class: 'hint' }, t('v23.paper_kind')));
-        o.append(...PAPER_KINDS.map(([k, ic]) => h('button', { class: 'ob' + ((S.stickyKind || '') === k ? ' on' : ''), title: t('v23.pk_' + (k || 'classic')), 'data-pk': k || 'classic', onclick: () => { S.stickyKind = k; Store.save(); this.opts(); } }, iconSvg(ic, 18))));
-        o.append(h('span', { class: 'hint' }, t('v2671.paper_hint')));
+        o.append(h('span', { class: 'hint fo-label', 'data-tip': 'v2671.paper_hint' }, t('v23.paper_kind')));
+        o.append(sec('fo-grid', ...PAPER_KINDS.map(([k, ic]) => num(h('button', { class: 'ob' + ((S.stickyKind || '') === k ? ' on' : ''), 'data-tip': 'v23.pk_' + (k || 'classic'), 'aria-label': t('v23.pk_' + (k || 'classic')), 'data-pk': k || 'classic', onclick: () => { S.stickyKind = k; Store.save(); this.opts(); } }, iconSvg(ic, 18))))));
       }
     }
     o.hidden = !o.childElementCount;
+    if (!o.hidden && typeof Flyout !== 'undefined') Flyout.place();
   },
   down(e) {
     const p = Canvas.s2w(e.clientX, e.clientY); const cur = this.cur; const S = Store.state.settings;

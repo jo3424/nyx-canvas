@@ -1,0 +1,79 @@
+/* v2.6.11 — appearance only: tab strip, flyouts, Library drawer, Bin corner, Hub, optional panel styles */
+
+/* ---- board tabs: shrink → «+N ▾», never wrap ---- */
+.tabs-zone{flex:1 1 0;min-width:0;display:flex;align-items:center;gap:4px;height:100%}
+#titlebar .drag-fill{flex:0 0 24px}
+#tabs.tabs{flex:0 1 auto;min-width:0;overflow:hidden;flex-wrap:nowrap}
+#tabs.measuring .tab{width:auto!important}
+.tab{min-width:0;box-sizing:border-box}
+.tab-name{min-width:0;flex:1 1 auto}
+.tab.narrow{padding:0 8px;gap:4px}
+.tab.narrow .tab-count{display:none}
+.tab:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.tabs-more{flex:none;height:28px;padding:0 8px;gap:2px;border:1px solid var(--border);font-size:12px;font-weight:650;color:var(--text)}
+.tabs-more[aria-expanded=true]{background:color-mix(in srgb,var(--accent) 16%,transparent)}
+.tabs-more:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+#titlebar .tabs-more{-webkit-app-region:no-drag}
+.add-tab{flex:none}
+#ctxmenu .mi-emo{display:inline-block;width:20px;text-align:center}
+
+/* ---- flyouts: touch their dock button (position from Flyout.place) ---- */
+#toolopts.flyout{left:0;top:0;transform:none;display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px;border-radius:12px;max-height:none;overflow:visible;z-index:17;animation:flyIn .14s var(--ease)}
+@keyframes flyIn{from{opacity:0}}
+#toolopts.flyout.scroll{overflow-y:auto;overflow-x:hidden;scrollbar-width:thin}
+#toolopts.flyout .fo-head{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent);flex:none}
+#toolopts.flyout .fo-grid{display:grid;grid-template-columns:repeat(2,30px);gap:5px;justify-items:center;align-items:center}
+#toolopts.flyout .fo-col{display:flex;flex-direction:column;gap:4px;align-items:center}
+#toolopts.flyout .sep{width:70%;height:1px;background:var(--border);margin:2px 0;flex:none}
+#toolopts.flyout .hint{max-width:150px;font-size:11.5px}
+#toolopts.flyout .fo-label{max-width:70px;font-size:10.5px;line-height:1.25;cursor:help}
+#toolopts.flyout .ob{width:30px;height:30px}
+#toolopts.flyout .ob.on,#toolopts.flyout .szb.on{box-shadow:inset 0 0 0 1.5px var(--accent)}
+#toolopts.flyout .sw.on{box-shadow:0 0 0 2px var(--panel-solid),0 0 0 3.5px var(--accent)}
+#tip{white-space:normal;max-width:min(360px,90vw)}
+#tip .tip-key{display:inline-block;min-width:16px;margin-left:6px;padding:0 4px;border-radius:4px;border:1px solid var(--border);font:600 11px/16px var(--font-ui),sans-serif;text-align:center;color:var(--text);background:color-mix(in srgb,var(--text) 8%,transparent)}
+
+/* ---- Library: right drawer, tabs on one line, real counter in the footer ---- */
+#drawer[data-kind=library]{width:min(480px,calc(100vw - 90px))}
+.drawer-head h2{display:flex;align-items:center;gap:8px;min-width:0}
+.drawer-head h2 svg{flex:none}
+.drawer-head .dh-kbd{margin-left:6px;padding:1px 6px;border-radius:6px;border:1px solid var(--border);font:600 11px/18px var(--font-ui),sans-serif;color:var(--muted);vertical-align:middle}
+#drawer .seg.lib-tabs{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+#drawer .seg.lib-tabs::-webkit-scrollbar{display:none}
+#drawer .seg.lib-tabs button{flex:1 0 auto;padding:7px 8px;font-size:12px;display:inline-flex;align-items:center;justify-content:center;gap:5px}
+#drawer .seg.lib-tabs.compact button:not(.on) .lt-l{display:none}
+#drawer .seg.lib-tabs.compact button.on{flex-grow:3}
+.lib-chips .chip{font-size:12px}
+.lib-foot{position:sticky;bottom:-16px;z-index:1;margin:10px -16px -16px;padding:9px 16px;justify-content:flex-start;font-size:12px;color:var(--muted);background:color-mix(in srgb,var(--panel-solid) 96%,transparent);border-top:1px solid var(--border)}
+
+/* ---- Bin: its own corner (bottom left), away from the zoom buttons ---- */
+.bin-corner{position:fixed;left:12px;bottom:12px;z-index:15}
+.bin-corner .z-bin{position:relative;width:40px;height:40px;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;color:var(--muted);background:var(--panel);border:1px solid var(--border);backdrop-filter:blur(var(--blur)) saturate(1.4);box-shadow:0 12px 30px -16px rgba(0,0,0,.85)}
+.bin-corner .z-bin:hover{color:var(--text)}
+.bin-corner .z-bin:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.z-bin .bin-n{position:absolute;top:2px;right:2px;min-width:15px;height:15px;padding:0 3px;border-radius:8px;font-size:9.5px;line-height:15px;font-weight:650;text-align:center;background:color-mix(in srgb,var(--text) 22%,transparent);color:var(--text);pointer-events:none}
+.z-bin .bin-n.old{background:#d97706;color:#fff}
+body.presenting .bin-corner,body.viewer .bin-corner{display:none!important}
+
+/* ---- AI Hub: header line, cards that never cut text, Greek states ---- */
+.hub-head{margin:-2px 0 10px;padding:7px 11px;border:1px solid var(--border);border-radius:10px;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text);background:color-mix(in srgb,var(--accent) 8%,transparent);overflow-wrap:break-word}
+.hub-stats{grid-template-columns:repeat(auto-fit,minmax(118px,1fr))}
+.hub-stat{border-radius:12px;padding:10px;min-width:0}
+.hub-stat b,.hub-stat span{overflow-wrap:break-word}
+.hub-stat span{display:block;line-height:1.35;margin-top:2px}
+.hub-pane .hub-row{padding:8px 10px;margin-bottom:6px;border:1px solid var(--border);border-radius:10px;background:color-mix(in srgb,var(--text) 3%,transparent)}
+.hub-pane .hub-row:last-child{border-bottom:1px solid var(--border)}
+.hub-pane .hub-row .grow{min-width:0;flex:1 1 150px;overflow-wrap:break-word}
+.hub-pane .hub-row .hub-pill,.hub-pills .hub-pill{white-space:normal;overflow-wrap:break-word;word-break:normal;max-width:100%;min-width:0}
+.hub-pills{display:inline-flex;flex-wrap:wrap;gap:4px;min-width:0;max-width:100%}
+.hub-pill.off{color:var(--muted)}
+.hub-model.is-loaded{border-color:color-mix(in srgb,var(--accent) 70%,var(--border))!important;box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 35%,transparent)}
+.hub-mname{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px}
+
+/* ---- optional panel styles (Themes drawer) ---- */
+.ui-style-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin-bottom:6px}
+.ui-style-btn{padding:8px 10px;border-radius:10px;border:1px solid var(--border);text-align:left;font-size:12.5px;color:var(--text);background:color-mix(in srgb,var(--text) 4%,transparent)}
+.ui-style-btn.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.ui-style-btn:disabled{opacity:.55;cursor:not-allowed}
+/* Hub → Models: the «tool calls» pill sits under the task name (it was squeezed into the 20 px icon column) */
+.task-row .task-tools{grid-column:2/-1;justify-self:start;margin-left:0;white-space:nowrap}

@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="v2.css">
 <link rel="stylesheet" href="v25.css">
+<link rel="stylesheet" href="v2611.css">
 </head>
 <body data-theme="midnight">
 <div id="bgfx"><canvas id="stars"></canvas><div class="aurora a1"></div><div class="aurora a2"></div><div class="scan"></div><div class="vignette"></div></div>
@@ -21,8 +22,11 @@
 
 <header id="titlebar">
   <div class="brand" title="Nyx Canvas"><img src="assets/icon.png" alt=""><span>Nyx</span></div>
-  <div id="tabs" class="tabs"></div>
-  <button class="tb-btn add-tab" id="btn-add-tab" data-tip="tab_new"></button>
+  <div id="tabs-zone" class="tabs-zone">
+    <div id="tabs" class="tabs" role="tablist" aria-orientation="horizontal"></div>
+    <button class="tb-btn tabs-more" id="tabs-more" type="button" aria-haspopup="menu" aria-expanded="false" hidden></button>
+    <button class="tb-btn add-tab" id="btn-add-tab" data-tip="tab_new"></button>
+  </div>
   <div class="drag-fill"></div>
   <div class="tb-right">
     <button class="tb-btn search-pill" id="btn-search"><i data-i="search"></i><span data-t="search_ph"></span><kbd>Ctrl K</kbd></button>
@@ -62,6 +66,7 @@
 <script src="vendor/perfect-freehand.js"></script>
 <script src="js/i18n.js"></script>
 <script src="js/util.js"></script>
+<script src="js/v26/ui2611.js"></script>
 <script src="js/themes.js"></script>
 <script src="js/store.js"></script>
 <script src="js/v26/undo.js"></script>
@@ -77,6 +82,7 @@
 <script src="js/v26/bin-ui.js"></script>
 <script src="js/v26/links.js"></script>
 <script src="js/app.js"></script>
+<script src="js/v26/look2611.js"></script>
 <script src="js/v2/hub.js"></script>
 <script src="js/v2/hub-tabs.js"></script>
 <script src="js/v2/assistant.js"></script>

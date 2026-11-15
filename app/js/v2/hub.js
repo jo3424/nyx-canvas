@@ -173,7 +173,8 @@ const Hub = {
       bar.append(h('button', { class: 'hub-tab' + (this.tab === id ? ' on' : ''), type: 'button', 'data-hub-tab': id, role: 'tab', onclick: () => show(id) }, iconSvg(ic, 15), ' ' + label));
       panes[id] = h('div', { class: 'hub-pane' + (this.tab === id ? ' on' : ''), 'data-hub-pane': id, role: 'tabpanel' });
     }
-    body.append(bar, panes.status, panes.models, panes.engines, panes.cloud);
+    // v2.6.11: header line «loaded / max · max N · N in the folder» from the router's real answers (HubHead, look2611.js)
+    body.append(typeof HubHead !== 'undefined' ? HubHead.el() : '', bar, panes.status, panes.models, panes.engines, panes.cloud);
     if (typeof this.paintHubTabs === 'function') this.paintHubTabs(panes, show);
     else show(this.tab || 'status');
   },

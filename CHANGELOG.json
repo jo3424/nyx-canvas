@@ -1,4 +1,20 @@
 {
+ "2.6.11": {
+  "el": [
+   "Καρτέλες πινάκων που δεν χάνονται: μικραίνουν μέχρι ένα χρήσιμο ελάχιστο πλάτος και μετά εμφανίζεται «+N ▾» με τους υπόλοιπους πίνακες. Η ροδέλα κυλά τη γραμμή, η ενεργή καρτέλα φαίνεται πάντα (και με ←/→/Home/End), η γραμμή δεν αναδιπλώνεται.",
+   "Flyouts σχημάτων, στυλό και σημείωσης στο ύφος των mockups: ακουμπούν το κουμπί τους και μένουν μέσα στο παράθυρο. Πλήκτρα 1–9 μόνο όσο είναι ανοιχτό το flyout και όχι όταν γράφεις· το πλήκτρο φαίνεται στο tooltip.",
+   "Βιβλιοθήκη δεξιά: καρτέλες σε μία γραμμή, ομάδες με ονόματα, σωστός μετρητής («Εμφανίζονται X από N» / «N συνολικά»). Ο Κάδος έχει δική του γωνία κάτω αριστερά, όχι δίπλα στο zoom.",
+   "AI Hub: γραμμή «φορτωμένα / μέγιστο · μέγιστο N · N στον φάκελο» από πραγματικά δεδομένα του router, ελληνικές καταστάσεις (σε λειτουργία/σταματημένο, φορτωμένο/στον δίσκο, ζωντανές σελίδες), κάρτες χωρίς κοψίματα. Καμία αλλαγή στη λειτουργία router/μοντέλων.",
+   "6 προαιρετικά στυλ πάνελ (Θέματα → Στυλ πάνελ). Προεπιλογή μένει η εμφάνιση του θέματος· το «Γυαλί» μόνο με αντίθεση ≥ 4,5:1."
+  ],
+  "en": [
+   "Board tabs never get lost: they shrink to a useful minimum width, then «+N ▾» lists the rest. The wheel scrolls the strip, the active tab is always visible (also with ←/→/Home/End), the strip never wraps.",
+   "Shape, pen and note flyouts in the mockup style: they touch their button and stay inside the window. Keys 1–9 only while the flyout is open and not while typing; the key is shown in the tooltip.",
+   "Library on the right: tabs on one line, named groups, a correct counter. The Bin has its own corner (bottom left), not next to zoom.",
+   "AI Hub: «loaded / max · max N · N in the folder» line from real router data, Greek states, cards without cut text. No change to router/model behaviour.",
+   "6 optional panel styles (Themes → Panel style). The theme look stays the default; «Glass» only with contrast ≥ 4.5:1."
+  ]
+ },
  "2.6.10.1": {
   "el": [
    "Κλειδί API για τον τοπικό router (llama-server): ένα τυχαίο κλειδί φτιάχνεται μία φορά και φυλάγεται στα κρυπτογραφημένα μυστικά του Nyx (όχι στο nyx.json). Ο router ξεκινά από το Nyx με το κλειδί (χωρίς να φαίνεται στη γραμμή εντολής) και κάθε κλήση του Nyx το στέλνει. Έτσι μια ιστοσελίδα ή άλλο πρόγραμμα του PC δεν μπορεί πια να χρησιμοποιήσει τον router χωρίς κλειδί. Στο Hub: «Κλειδί router: ενεργό» και «Αντιγραφή» (για τον Hermes). Αν ο router τρέχει χωρίς κλειδί (ξεκίνησε έξω από το Nyx), βγαίνει κίτρινη προειδοποίηση. Το Nyx δεν τον επανεκκινεί μόνο του."

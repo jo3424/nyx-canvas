@@ -87,17 +87,23 @@ Hub.paintHubTabs = function (panes, show) {
 
     const llamaDot = dot(cached.llamaKind || 'x'); llamaDot.setAttribute('data-st', 'llama-dot');
     const llamaMsg = h('span', { class: 'grow', 'data-st': 'llama-msg' }, t('v267.llm_router') + ' · :' + port);
-    const llamaPill = h('span', { 'data-st': 'llama-pill' });
+    const llamaPill = h('span', { 'data-st': 'llama-pill', class: 'hub-pills' });
     if (cached.loadedNames) llamaPill.append(pill(cached.loadedNames));
     const whisperDot = dot(cached.whisperOn ? 'g' : 'x');
     const ttsOn = !!(this.procState.tts?.running);
     const sdOn = !!(this.procState.sd?.running);
+    // v2.6.11: one clear Greek state per row (σε λειτουργία / σταματημένο), never an English «running/stopped»
+    const runPill = (on, st) => { const p = pill(on == null ? t('v2611.st_check') : on ? t('v2611.st_on') : t('v2611.st_off'), on ? 'ok' : on === false ? 'off' : ''); p.setAttribute('data-run', on == null ? '' : on ? 'on' : 'off'); if (st) p.setAttribute('data-st', st); return p; };
+    const llamaRun = runPill(cached.llamaKind ? cached.llamaKind === 'g' : null, 'llama-run');
+    const whisperRun = runPill(cached.whisperOn != null ? !!cached.whisperOn : null, 'whisper-run');
+    const liveN = document.querySelectorAll('webview').length;
     const running = h('div', {},
       h('div', { class: 'hub-h4' }, t('v267.running')),
-      row(llamaDot, llamaMsg, llamaPill),
-      row(whisperDot, h('span', { class: 'grow' }, t('v267.stt_row') + ' · :' + (A.servers.whisper.port || 8178)), pill((A.servers.whisper.model || A.stt.kind || '').toString().split(/[\\/]/).pop() || 'whisper')),
-      row(dot(ttsOn ? 'g' : 'x'), h('span', { class: 'grow' }, t('v267.tts_row')), ttsOn ? pill('OmniVoice') : h('button', { class: 'btn sm', onclick: () => this.startTtsEngine?.() || toast(t('v267.not_configured')) }, t('hub.064').trim())),
-      row(dot(sdOn ? 'g' : 'x'), h('span', { class: 'grow' }, t('v267.image_row')), sdOn ? pill('sd-server') : h('span', { class: 'muted small' }, t('v267.not_configured'))));
+      row(llamaDot, llamaMsg, llamaPill, llamaRun),
+      row(whisperDot, h('span', { class: 'grow' }, t('v267.stt_row') + ' · :' + (A.servers.whisper.port || 8178)), h('span', { class: 'hub-pills' }, pill((A.servers.whisper.model || A.stt.kind || '').toString().split(/[\\/]/).pop() || 'whisper')), whisperRun),
+      row(dot(ttsOn ? 'g' : 'x'), h('span', { class: 'grow' }, t('v267.tts_row')), ttsOn ? pill('OmniVoice') : h('button', { class: 'btn sm', onclick: () => this.startTtsEngine?.() || toast(t('v267.not_configured')) }, t('hub.064').trim()), runPill(ttsOn)),
+      row(dot(sdOn ? 'g' : 'x'), h('span', { class: 'grow' }, t('v267.image_row')), sdOn ? pill('sd-server') : h('span', { class: 'muted small' }, t('v267.not_configured'))),
+      row(dot(liveN ? 'g' : 'x'), h('span', { class: 'grow', 'data-st': 'live-pages', 'data-n': String(liveN) }, t('v2611.live_pages')), pill(t('v2611.live_pages_n', { v0: liveN }))));
 
     const lastBox = h('div', {}, h('div', { class: 'hub-h4' }, t('v267.last_msg')));
     if (!last) lastBox.append(h('p', { class: 'muted small' }, t('v267.last_none')));
@@ -189,6 +195,9 @@ Hub.paintHubTabs = function (panes, show) {
       llamaPill.innerHTML = '';
       if (loadedNames.length) llamaPill.append(pill(loadedNames.join(' · ')));
       whisperDot.className = 'hub-dot ' + (whisperOn ? 'g' : 'x');
+      const setRun = (p, on) => { p.textContent = on ? t('v2611.st_on') : t('v2611.st_off'); p.className = 'hub-pill ' + (on ? 'ok' : 'off'); p.setAttribute('data-run', on ? 'on' : 'off'); };
+      setRun(llamaRun, llamaOn); setRun(whisperRun, whisperOn);
+      if (typeof HubHead !== 'undefined') HubHead.set(models, liveMax);
 
       el._live = {
         loadLabel, loadSub,
@@ -231,6 +240,12 @@ Hub.paintHubTabs = function (panes, show) {
     const llama = A.providers.find((p) => p.id === 'llama');
     try { list = llama && llama.enabled ? (await AI.models(llama.id, true)) || [] : []; }
     catch (e) { err = cleanErr(e); }
+    if (typeof HubHead !== 'undefined' && !err) {
+      // v2.6.11: header from the same read-only /props the Status tab uses (never a stale or fixed number)
+      const info = llama && llama.enabled ? await raceMs(API.inv('ai:routerInfo', llama, { timeout: 800 }), 900, null) : null;
+      const mx = info && info.ok && info.max_instances != null ? info.max_instances : (llamaMeta(A.servers.llama).max || null);
+      HubHead.set(list, mx);
+    }
     if (err && !list.length) inst.append(h('p', { class: 'warn small' }, err));
     else if (!list.length) inst.append(h('p', { class: 'muted small' }, t('v266.zone_keep_empty')));
     const cfg = A.servers.llama;
@@ -251,7 +266,10 @@ Hub.paintHubTabs = function (panes, show) {
       const name = id.split(/[\\/]/).pop();
       const lic = licenseFor(id);
       const size = (m.size || m.bytes) ? fmtGB(m.size || m.bytes) : '';
-      const card = row(dot(m.loaded === false ? 'x' : 'g'), h('span', { class: 'grow', 'data-model': id }, name + (size ? ' · ' + size : '')), pill(lic.license), pill(t('v267.zone_keep_pill')));
+      // v2.6.11: card per model with a Greek state (φορτωμένο / φορτώνει / στον δίσκο); long names wrap, never cut
+      const ms = NyxUI.modelState(m);
+      const card = row(dot(ms === 'loaded' ? 'g' : ms === 'loading' ? 'y' : 'x'), h('span', { class: 'grow hub-mname', 'data-model': id }, name + (size ? ' · ' + size : '')), h('span', { class: 'hub-pills' }, pill(lic.license), pill(t('v267.zone_keep_pill'))), pill(t('v2611.m_' + ms), (ms === 'loaded' ? 'ok' : ms === 'loading' ? 'warn' : 'off') + ' hub-mstate'));
+      card.classList.add('hub-model'); card.setAttribute('data-mstate', ms); if (ms === 'loaded') card.classList.add('is-loaded');
       inst.append(card);
     }
     // v2.6.9.1: the mmproj hint is shown once (under the tasks); it was repeated here.

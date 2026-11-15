@@ -23,7 +23,8 @@ const Panels = {
   tabs() {
     const T = $('#tabs'); T.innerHTML = ''; const S = Store.state;
     for (const b of S.boards) {
-      const tab = h('div', { class: 'tab' + (b.id === S.active ? ' on' : ''), draggable: 'true', style: { '--tc': b.color || 'var(--accent)' }, title: b.name },
+      // v2.6.11: role=tab + roving tabindex (the active tab is the one reachable with Tab; ←/→ Home/End move between boards)
+      const tab = h('div', { class: 'tab' + (b.id === S.active ? ' on' : ''), draggable: 'true', style: { '--tc': b.color || 'var(--accent)' }, title: b.name, role: 'tab', 'aria-selected': b.id === S.active ? 'true' : 'false', tabindex: b.id === S.active ? '0' : '-1', 'data-board': b.id },
         h('span', { class: 'tab-emo' }, b.emoji || '•'), h('span', { class: 'tab-name' }, b.name), h('span', { class: 'tab-count' }, String(b.items.length || '')),
         S.boards.length > 1 ? h('button', { class: 'tab-x', title: t('del'), html: iconSvg('x', 11), onpointerdown: (e) => e.stopPropagation(), onclick: (e) => { e.stopPropagation(); App.deleteBoard(b); } }) : null);
       tab.onauxclick = (e) => { if (e.button === 1 && S.boards.length > 1) { e.preventDefault(); App.deleteBoard(b); } };
@@ -39,7 +40,9 @@ const Panels = {
       tab.ondrop = (e) => { const id = e.dataTransfer.getData('nyx/tab'); tab.classList.remove('dragover'); if (!id || id === b.id) return; e.preventDefault(); const arr = S.boards; const from = arr.findIndex(x => x.id === id); const [m] = arr.splice(from, 1); arr.splice(arr.indexOf(b), 0, m); Store.save(); this.tabs(); };
       T.append(tab);
     }
-    const on = T.querySelector('.on'); on?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    // v2.6.11: tabs shrink to a useful minimum, then «+N ▾» holds the rest; the active tab always stays visible (look2611.js)
+    if (typeof TabStrip !== 'undefined') TabStrip.layout({ follow: true });
+    else { const on = T.querySelector('.on'); on?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
   },
   renameBoard(b) {
     const f = form([['name', t('rename'), 'text', b.name], ['emoji', 'Emoji', 'text', b.emoji || '']]);
@@ -61,11 +64,16 @@ const Panels = {
   libTab: 'emoji', libQ: '', libGroup: 'all', iconPack: 'lucide', iconColor: '#ffffff',
   library(tab) {
     if (tab) this.libTab = tab;
-    this.openDrawer('library', `${iconSvg('smile-plus', 20)} ${LANG === 'el' ? t('panels.017') : 'Library'}`, (body) => {
-      const tabs = h('div', { class: 'seg' }, ...[['emoji', '😀'], ['stickers', '🌟'], ['reactions', '💥'], ['icons', '✦'], ['memes', '🖼️']].map(([k, e]) => h('button', { class: this.libTab === k ? 'on' : '', onclick: () => { this.libTab = k; this.drawerKind = null; this.library(); } }, e + ' ' + t('lib_' + k))));
+    // v2.6.11: right drawer in the widgets-v1 look: tabs on one line (scroll, never wrap), labelled group chips,
+    // a footer counter that always says the real numbers (shown / total)
+    this.openDrawer('library', `${iconSvg('smile-plus', 20)} ${LANG === 'el' ? t('panels.017') : 'Library'} <kbd class="dh-kbd">Ctrl+E</kbd>`, (body) => {
+      const tabs = h('div', { class: 'seg lib-tabs', role: 'tablist' }, ...[['emoji', '😀'], ['stickers', '🌟'], ['reactions', '💥'], ['icons', '✦'], ['memes', '🖼️']].map(([k, e]) => h('button', { class: this.libTab === k ? 'on' : '', role: 'tab', 'aria-selected': this.libTab === k ? 'true' : 'false', 'data-lib-tab': k, title: t('lib_' + k), 'aria-label': t('lib_' + k), onclick: () => { this.libTab = k; this.drawerKind = null; this.library(); } }, h('span', { class: 'lt-e', 'aria-hidden': 'true' }, e), h('span', { class: 'lt-l' }, t('lib_' + k)))));
+      tabs.addEventListener('wheel', (e) => { if (tabs.scrollWidth > tabs.clientWidth) { e.preventDefault(); tabs.scrollLeft += (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY); } }, { passive: false });
       const q = h('input', { class: 'inp search', placeholder: t('lib_search'), value: this.libQ });
-      const extra = h('div', { class: 'lib-extra' }); const grid = h('div', { class: 'lib-grid ' + this.libTab }); const more = h('div', { class: 'lib-more' });
+      const extra = h('div', { class: 'lib-extra' }); const grid = h('div', { class: 'lib-grid ' + this.libTab }); const more = h('div', { class: 'lib-more lib-foot', 'data-lib-count': '1' });
       body.append(tabs, h('div', { class: 'lib-search' }, h('span', { html: iconSvg('search', 16) }), q), extra, grid, more);
+      // not enough room for every label on one line → the other tabs keep only their icon (name in the tooltip)
+      requestAnimationFrame(() => { tabs.classList.toggle('compact', tabs.scrollWidth > tabs.clientWidth + 1); tabs.querySelector('.on')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); });
       q.oninput = debounce(() => { this.libQ = q.value; this.fillLib(grid, extra, more); }, 120);
       setTimeout(() => q.focus(), 50);
       this.fillLib(grid, extra, more);
@@ -77,7 +85,7 @@ const Panels = {
     if (tab === 'emoji' || tab === 'stickers') {
       await loadScript('assets/data/emoji.js');
       const groups = [['all', '✦'], ['recent', '🕘'], [0, '😀'], [1, '🧑'], [3, '🐶'], [4, '🍕'], [5, '✈️'], [6, '⚽'], [7, '💡'], [8, '❤️'], [9, '🏁']];
-      extra.append(h('div', { class: 'chips' }, ...groups.map(([g, e]) => h('button', { class: 'chip' + (String(this.libGroup) === String(g) ? ' on' : ''), onclick: () => { this.libGroup = g; this.fillLib(grid, extra, more); } }, e))));
+      extra.append(h('div', { class: 'chips lib-chips' }, ...groups.map(([g, e]) => h('button', { class: 'chip' + (String(this.libGroup) === String(g) ? ' on' : ''), 'data-lib-group': String(g), onclick: () => { this.libGroup = g; this.fillLib(grid, extra, more); } }, e + ' ' + t('v2611.lg_' + g)))));
       let list = NYX_DATA.emoji;
       if (this.libGroup === 'recent') { const rec = Store.state.settings.recentEmoji || []; list = rec.map(c => list.find(x => x[0] === c)).filter(Boolean); }
       else if (this.libGroup !== 'all') list = list.filter(x => x[2] === this.libGroup);
@@ -96,6 +104,7 @@ const Panels = {
         const b = h('button', { class: 'react-cell', draggable: 'true', html: `<div class="reaction r-${v}" style="--rc:${c}"><span>${esc(txt)}</span></div>` });
         b.onclick = () => Features.addAtCenter(payload); b.ondragstart = (e) => e.dataTransfer.setData('nyx/item', JSON.stringify(payload)); grid.append(b);
       }
+      this.libCount(more, grid.children.length, grid.children.length);
       extra.append(h('button', { class: 'btn ghost sm', onclick: () => { const f = form([['text', LANG === 'el' ? t('panels.018') : 'Your text', 'text', '']]); this.modal(t('lib_reactions'), f.el, { ok: () => { const v = f.val().text.trim(); if (v) Features.addAtCenter({ type: 'reaction', text: v, variant: 1, color: '#ff3d6e', w: 240, h: 110 }); } }); } }, '+ ' + (LANG === 'el' ? t('panels.019') : 'Custom reaction')));
     } else if (tab === 'icons') {
       const packs = [['lucide', 'Lucide', 'assets/data/lucide.js'], ['tabler', 'Tabler', 'assets/data/tabler.js'], ['tablerFilled', 'Tabler Filled', 'assets/data/tablerFilled.js']];
@@ -115,7 +124,7 @@ const Panels = {
       extra.append(h('div', { class: 'row gap' }, h('button', { class: 'btn sm', onclick: () => Features.importMemes(false).then(() => this.fillLib(grid, extra, more)) }, iconSvg('image-plus', 15), ' ' + t('lib_import')), h('button', { class: 'btn ghost sm', onclick: () => Features.importMemes(true).then(() => this.fillLib(grid, extra, more)) }, iconSvg('folder-input', 15), ' ' + t('lib_import_folder'))),
         h('p', { class: 'muted small' }, LANG === 'el' ? t('panels.020') : 'Your own collection: add images/GIFs. Right-click = remove.'));
       let list = Store.state.library.memes; if (Q.length) list = list.filter(m => matchQ(Q, norm(m.name)));
-      if (!list.length) { grid.innerHTML = `<div class="empty">🖼️<br>${LANG === 'el' ? t('panels.021') : 'No memes yet'}</div>`; return; }
+      if (!list.length) { grid.innerHTML = `<div class="empty">🖼️<br>${LANG === 'el' ? t('panels.021') : 'No memes yet'}</div>`; this.libCount(more, 0, 0); return; }
       this.pagedGrid(grid, more, list.slice().reverse(), (m) => {
         const payload = { type: 'image', file: m.file, thumb: m.thumb, w: m.w || 320, h: m.h || 240, name: m.name };
         const b = h('button', { class: 'meme-cell', title: m.name, draggable: 'true', html: `<img loading="lazy" src="${esc(Store.media(m.thumb || m.file))}">` });
@@ -127,9 +136,15 @@ const Panels = {
   },
   pagedGrid(grid, more, list, cell, page) {
     grid.innerHTML = ''; let i = 0;
-    const add = () => { const frag = document.createDocumentFragment(); for (const end = Math.min(list.length, i + page); i < end; i++) frag.append(cell(list[i])); grid.append(frag); more.textContent = i < list.length ? `${i} / ${list.length}` : (list.length ? `${list.length}` : t('no_results')); };
+    const add = () => { const frag = document.createDocumentFragment(); for (const end = Math.min(list.length, i + page); i < end; i++) frag.append(cell(list[i])); grid.append(frag); this.libCount(more, i, list.length); };
     add();
     const body = $('#drawer-body'); body.onscroll = () => { if (i < list.length && body.scrollTop + body.clientHeight > body.scrollHeight - 300) add(); };
+  },
+  // v2.6.11: real counter — «shown of total» while more pages load on scroll, the exact total when all are shown
+  libCount(el, shown, total) {
+    if (!el) return; const nf = (n) => Number(n).toLocaleString(LANG === 'en' ? 'en-GB' : 'el-GR');
+    el.dataset.shown = String(shown); el.dataset.total = String(total);
+    el.textContent = !total ? t('no_results') : shown < total ? t('v2611.lib_shown', { v0: nf(shown), v1: nf(total) }) : t('v2611.lib_total', { v0: nf(total) });
   },
   recentEmoji(c) { const S = Store.state.settings; S.recentEmoji = [c, ...(S.recentEmoji || []).filter(x => x !== c)].slice(0, 48); Store.save(); },
 
@@ -192,6 +207,7 @@ const Panels = {
         grid.append(card);
       }
       body.append(grid);
+      if (typeof UIStyle !== 'undefined') body.append(UIStyle.section()); // v2.6.11: optional panel styles
       const G = S.custom ||= {}; const C = { ...((S.customs ||= {})[S.theme] || {}), font: G.font, icon: G.icon }; const cur = Theme.current;
       const set = (k, v) => { if (k === 'font' || k === 'icon') G[k] = v; else { const tc = S.customs[S.theme] ||= {}; tc[k] = v; } C[k] = v; Theme.apply(S); Store.save(); };
       const colorRow = (k, label) => { const inp = h('input', { type: 'color', value: toHex(C[k] || cur.vars[k === 'panel' ? 'panel-solid' : k]) }); inp.oninput = () => set(k, inp.value); return h('label', { class: 'cfield' }, inp, h('span', {}, label)); };

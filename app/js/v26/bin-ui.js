@@ -8,15 +8,18 @@ const Bin = {
   oldOnes() { return NyxBin.old(Store.state, Date.now()); },
   init() {
     if ($('#z-bin')) return;
-    const bar = $('#corner .zoombar'); if (!bar) return;
-    const b = h('button', { id: 'z-bin', class: 'z-bin', 'data-bin': '1', onclick: () => this.open() }, h('span', { html: iconSvg('trash-2', 15) }), h('span', { class: 'bin-n', hidden: true }));
-    bar.append(b); this.badge();
+    // v2.6.11: the Bin has its own corner (bottom left), no longer next to the zoom buttons
+    let home = $('#bin-corner');
+    if (!home) { home = h('div', { id: 'bin-corner', class: 'bin-corner' }); document.body.append(home); }
+    const b = h('button', { id: 'z-bin', class: 'z-bin', type: 'button', 'data-bin': '1', onclick: () => this.open() }, h('span', { html: iconSvg('trash-2', 17) }), h('span', { class: 'bin-n', hidden: true }));
+    home.append(b); this.badge();
   },
   badge() {
     const b = $('#z-bin'); if (!b) return; const n = ((Store.state && Store.state.bin) || []).length; const old = n ? this.oldOnes().length : 0;
     const c = b.querySelector('.bin-n'); c.hidden = !n; c.textContent = n > 99 ? '99+' : String(n); c.classList.toggle('old', old > 0);
     b.dataset.count = String(n); b.dataset.old = String(old);
     b.title = t('v2610.bin_tip', { n }) + (old ? ' · ' + t('v2610.bin_old_tip', { n: old, d: NyxBin.KEEP_DAYS }) : '');
+    b.setAttribute('aria-label', b.title);
     if (Panels.drawerKind === 'bin') this.render();
   },
   open() { Panels.openDrawer('bin', `${iconSvg('trash-2', 20)} ${t('v2610.bin')}`, (body) => { this.body = body; this.render(); }); },

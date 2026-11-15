@@ -108,10 +108,14 @@ function dismissToasts() { for (const e of [...($('#toasts')?.children || [])]) 
     clearTimeout(tm);
     if (!tgt) { tip.hidden = true; return; }
     tm = setTimeout(() => {
-      tip.textContent = t(tgt.dataset.tip); tip.hidden = false;
+      tip.textContent = t(tgt.dataset.tip);
+      // v2.6.11: flyout items 1–9 show their key only here, in the tooltip (data-fk)
+      if (tgt.dataset.fk) { const k = document.createElement('kbd'); k.className = 'tip-key'; k.textContent = tgt.dataset.fk; tip.append(' ', k); }
+      tip.hidden = false;
       const r = tgt.getBoundingClientRect(), tr = tip.getBoundingClientRect();
       let x = r.left + r.width / 2 - tr.width / 2, y = r.bottom + 8;
       if (tgt.closest('.dock')) { x = r.right + 10; y = r.top + r.height / 2 - tr.height / 2; }
+      else if (tgt.closest('.flyout')) { const fr = tgt.closest('.flyout').getBoundingClientRect(); x = fr.right + 8; y = r.top + r.height / 2 - tr.height / 2; if (x + tr.width > innerWidth - 4) x = fr.left - tr.width - 8; }
       if (y + tr.height > innerHeight - 4) y = r.top - tr.height - 8;
       tip.style.left = clamp(x, 4, innerWidth - tr.width - 4) + 'px'; tip.style.top = y + 'px';
     }, 380);

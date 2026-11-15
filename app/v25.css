@@ -148,7 +148,7 @@ label.consent{padding:8px;border-radius:var(--radius);background:rgba(255,176,32
 .subx-card .subx-bar{margin:0 0 6px}.subx-mini{font-size:11px;margin-bottom:8px}
 .subs-differ{display:flex;gap:8px;align-items:flex-start;margin:6px 0;font-size:13px}
 /* v2.6.10 — Κάδος (bin) corner button + drawer */
-.zoombar .z-bin{position:relative}
+.z-bin{position:relative}
 .zoombar .z-bin .bin-n{position:absolute;top:1px;right:1px;min-width:14px;height:14px;padding:0 3px;border-radius:7px;font-size:9.5px;line-height:14px;font-weight:600;background:color-mix(in srgb,var(--text) 22%,transparent);color:var(--text);pointer-events:none}
 .zoombar .z-bin .bin-n.old{background:#d97706;color:#fff}
 .bin-bar{margin:8px 0}
