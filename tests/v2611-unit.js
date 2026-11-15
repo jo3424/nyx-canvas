@@ -138,7 +138,7 @@ console.log('Static');
   const look = read('app/js/v26/look2611.js');
   ok(/delete S\.uiStyle/.test(look) && !/Store\.state\.(boards|subs|bin)\s*=/.test(look) && !/removeItems|splice\(/.test(look), 'look2611 only adds/removes its own setting; never touches boards, subscriptions or the bin');
   const pkg = JSON.parse(read('package.json'));
-  ok(['2.6.11', '2.6.11.1'].includes(pkg.version) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.11, Electron 45.2.3 exact');
+  ok(['2.6.11', '2.6.11.1', '2.6.12'].includes(pkg.version) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.11, Electron 45.2.3 exact');
   const cl = JSON.parse(read('CHANGELOG.json'));
   ok(cl['2.6.11'] && cl['2.6.11'].el.length === 5 && cl['2.6.11'].en.length === 5, 'CHANGELOG 2.6.11 el/en');
   const git = require('child_process').execSync('git ls-files', { cwd: R }).toString().split('\n');

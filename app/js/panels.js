@@ -64,28 +64,66 @@ const Panels = {
   libTab: 'emoji', libQ: '', libGroup: 'all', iconPack: 'lucide', iconColor: '#ffffff',
   library(tab) {
     if (tab) this.libTab = tab;
-    // v2.6.11: right drawer in the widgets-v1 look: tabs on one line (scroll, never wrap), labelled group chips,
-    // a footer counter that always says the real numbers (shown / total)
-    this.openDrawer('library', `${iconSvg('smile-plus', 20)} ${LANG === 'el' ? t('panels.017') : 'Library'} <kbd class="dh-kbd">Ctrl+E</kbd>`, (body) => {
-      const tabs = h('div', { class: 'seg lib-tabs', role: 'tablist' }, ...[['emoji', '😀'], ['stickers', '🌟'], ['reactions', '💥'], ['icons', '✦'], ['memes', '🖼️']].map(([k, e]) => h('button', { class: this.libTab === k ? 'on' : '', role: 'tab', 'aria-selected': this.libTab === k ? 'true' : 'false', 'data-lib-tab': k, title: t('lib_' + k), 'aria-label': t('lib_' + k), onclick: () => { this.libTab = k; this.drawerKind = null; this.library(); } }, h('span', { class: 'lt-e', 'aria-hidden': 'true' }, e), h('span', { class: 'lt-l' }, t('lib_' + k)))));
+    // v2.6.11: right drawer in the widgets-v1 look, real counter in the footer.
+    // v2.6.12 (mockup 05): tabs = outline icon + name, one line (horizontal scroll, never wrap); compact chips with outline
+    // icons; 8 columns; search with a «/» hint («/» focuses it); arrows move a visible selection, Enter inserts it;
+    // footer = real counter + «Enter εισαγωγή». No shortcut fires while you type in another field.
+    this.openDrawer('library', `${iconSvg('smile-plus', 18)} <span class="dh-t">${LANG === 'el' ? t('panels.017') : 'Library'}</span> <kbd class="dh-kbd">Ctrl+E</kbd>`, (body) => {
+      const TABS = [['emoji', 'smile'], ['stickers', 'sticky-note'], ['reactions', 'heart'], ['icons', 'star'], ['memes', 'image']];
+      const tabs = h('div', { class: 'seg lib-tabs lib-tabs2', role: 'tablist' }, ...TABS.map(([k, ic]) => h('button', { class: this.libTab === k ? 'on' : '', role: 'tab', 'aria-selected': this.libTab === k ? 'true' : 'false', 'data-lib-tab': k, title: t('lib_' + k), 'aria-label': t('lib_' + k), onclick: () => { this.libTab = k; this.libSel = 0; this.drawerKind = null; this.library(); } }, h('span', { class: 'lt-i', 'aria-hidden': 'true', html: iconSvg(ic, 14) }), h('span', { class: 'lt-l' }, t('lib_' + k)))));
       tabs.addEventListener('wheel', (e) => { if (tabs.scrollWidth > tabs.clientWidth) { e.preventDefault(); tabs.scrollLeft += (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY); } }, { passive: false });
-      const q = h('input', { class: 'inp search', placeholder: t('lib_search'), value: this.libQ });
-      const extra = h('div', { class: 'lib-extra' }); const grid = h('div', { class: 'lib-grid ' + this.libTab }); const more = h('div', { class: 'lib-more lib-foot', 'data-lib-count': '1' });
-      body.append(tabs, h('div', { class: 'lib-search' }, h('span', { html: iconSvg('search', 16) }), q), extra, grid, more);
-      // not enough room for every label on one line → the other tabs keep only their icon (name in the tooltip)
-      requestAnimationFrame(() => { tabs.classList.toggle('compact', tabs.scrollWidth > tabs.clientWidth + 1); tabs.querySelector('.on')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); });
-      q.oninput = debounce(() => { this.libQ = q.value; this.fillLib(grid, extra, more); }, 120);
+      const q = h('input', { class: 'inp search', placeholder: t('v2612.lib_search'), value: this.libQ, 'aria-label': t('lib_search'), 'aria-keyshortcuts': '/', 'aria-controls': 'lib-grid' });
+      const extra = h('div', { class: 'lib-extra' }); const grid = h('div', { class: 'lib-grid ' + this.libTab, id: 'lib-grid', role: 'grid', 'aria-label': t('lib_' + this.libTab) });
+      const more = h('span', { class: 'lib-count', 'data-lib-count': '1' });
+      const foot = h('div', { class: 'lib-more lib-foot' }, more, h('span', { class: 'lib-enter' }, h('kbd', {}, 'Enter'), ' ' + t('v2612.lib_enter')));
+      body.append(tabs, h('div', { class: 'lib-search' }, h('span', { html: iconSvg('search', 15) }), q, h('kbd', { class: 'lib-slash', title: t('v2612.lib_slash'), 'aria-hidden': 'true' }, '/')), extra, grid, foot);
+      requestAnimationFrame(() => { tabs.querySelector('.on')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); });
+      q.oninput = debounce(() => { this.libQ = q.value; this.libSel = 0; this.fillLib(grid, extra, more); }, 120);
+      q.addEventListener('keydown', (e) => this.libKey(e, grid, q));
+      grid.addEventListener('keydown', (e) => this.libKey(e, grid, q));
+      grid.addEventListener('focusin', (e) => { const c = e.target.closest('.lib-grid > button'); if (c) this.libSelect(grid, [...grid.children].indexOf(c), false); });
       setTimeout(() => q.focus(), 50);
       this.fillLib(grid, extra, more);
     });
+  },
+  // v2.6.12: keyboard in the Library — arrows move the selection (in the search field only ↑/↓/PgUp/PgDn, ←/→ stay in the
+  // text), Enter inserts the selected item, Home/End in the grid. Never acts for keys typed in another field.
+  libSel: 0,
+  libCols(grid) { const cs = getComputedStyle(grid).gridTemplateColumns; return Math.max(1, cs && cs !== 'none' ? cs.split(' ').length : 1); },
+  libSelect(grid, i, focus) {
+    const cells = [...grid.children].filter(c => c.tagName === 'BUTTON'); if (!cells.length) { this.libSel = -1; return; }
+    i = Math.min(Math.max(0, i), cells.length - 1); this.libSel = i;
+    cells.forEach((c, k) => { const on = k === i; c.classList.toggle('sel', on); c.setAttribute('aria-selected', on ? 'true' : 'false'); c.tabIndex = on ? 0 : -1; });
+    const c = cells[i]; if (focus) c.focus({ preventScroll: true }); c.scrollIntoView({ block: 'nearest' });
+  },
+  libKey(e, grid, q) {
+    const inSearch = e.target === q;
+    const act = NyxUI.libShortcut({ key: e.key, ctrlKey: e.ctrlKey, altKey: e.altKey, metaKey: e.metaKey, drawerOpen: true, inSearch, typingElsewhere: false });
+    if (!act || act === 'focus-search') return;
+    if (inSearch && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) return; // caret moves in the text
+    const cells = [...grid.children].filter(c => c.tagName === 'BUTTON'); if (!cells.length) return;
+    e.preventDefault(); e.stopPropagation();
+    if (act === 'insert') { const c = cells[Math.max(0, Math.min(this.libSel, cells.length - 1))]; c?.click(); return; }
+    const i = NyxUI.libGridMove(this.libSel, cells.length, this.libCols(grid), e.key, this.libCols(grid) * 4);
+    this.libSelect(grid, i, !inSearch);
+  },
+  // «/» focuses the Library search (drawer open, nobody typing in another field)
+  libSlash(e) {
+    if (this.drawerKind !== 'library' || $('#drawer').hidden) return false;
+    const q = $('#drawer .lib-search input'); if (!q) return false;
+    const tgt = e.target; const typing = NyxUI.isTyping(tgt) || NyxUI.isTyping(document.activeElement) || !!(typeof Canvas !== 'undefined' && Canvas.editing);
+    const act = NyxUI.libShortcut({ key: e.key, ctrlKey: e.ctrlKey, altKey: e.altKey, metaKey: e.metaKey, drawerOpen: true, inSearch: document.activeElement === q, typingElsewhere: typing && document.activeElement !== q });
+    if (act !== 'focus-search') return false;
+    e.preventDefault(); e.stopPropagation(); q.focus(); q.select(); return true;
   },
   async fillLib(grid, extra, more) {
     const tab = this.libTab; grid.innerHTML = '<div class="loading"></div>'; extra.innerHTML = ''; more.innerHTML = '';
     const Q = expandQuery(this.libQ);
     if (tab === 'emoji' || tab === 'stickers') {
       await loadScript('assets/data/emoji.js');
-      const groups = [['all', '✦'], ['recent', '🕘'], [0, '😀'], [1, '🧑'], [3, '🐶'], [4, '🍕'], [5, '✈️'], [6, '⚽'], [7, '💡'], [8, '❤️'], [9, '🏁']];
-      extra.append(h('div', { class: 'chips lib-chips' }, ...groups.map(([g, e]) => h('button', { class: 'chip' + (String(this.libGroup) === String(g) ? ' on' : ''), 'data-lib-group': String(g), onclick: () => { this.libGroup = g; this.fillLib(grid, extra, more); } }, e + ' ' + t('v2611.lg_' + g)))));
+      // v2.6.12: compact chips with outline icons (mockup 05)
+      const groups = [['all', 'layout-grid'], ['recent', 'clock'], [0, 'smile'], [1, 'user'], [3, 'paw-print'], [4, 'utensils'], [5, 'plane'], [6, 'trophy'], [7, 'lightbulb'], [8, 'heart'], [9, 'flag']];
+      extra.append(h('div', { class: 'chips lib-chips' }, ...groups.map(([g, ic]) => h('button', { class: 'chip' + (String(this.libGroup) === String(g) ? ' on' : ''), 'data-lib-group': String(g), onclick: () => { this.libGroup = g; this.libSel = 0; this.fillLib(grid, extra, more); } }, h('span', { class: 'lc-i', 'aria-hidden': 'true', html: iconSvg(ic, 12) }), t('v2611.lg_' + g)))));
       let list = NYX_DATA.emoji;
       if (this.libGroup === 'recent') { const rec = Store.state.settings.recentEmoji || []; list = rec.map(c => list.find(x => x[0] === c)).filter(Boolean); }
       else if (this.libGroup !== 'all') list = list.filter(x => x[2] === this.libGroup);
@@ -136,15 +174,18 @@ const Panels = {
   },
   pagedGrid(grid, more, list, cell, page) {
     grid.innerHTML = ''; let i = 0;
-    const add = () => { const frag = document.createDocumentFragment(); for (const end = Math.min(list.length, i + page); i < end; i++) frag.append(cell(list[i])); grid.append(frag); this.libCount(more, i, list.length); };
+    const add = () => { const frag = document.createDocumentFragment(); for (const end = Math.min(list.length, i + page); i < end; i++) { const c = cell(list[i]); c.setAttribute('role', 'gridcell'); c.tabIndex = -1; frag.append(c); } grid.append(frag); this.libCount(more, i, list.length); };
     add();
+    if (grid.closest('#drawer') && list.length) this.libSelect(grid, Math.min(this.libSel > 0 ? this.libSel : 0, grid.children.length - 1), false); // v2.6.12: a visible selected item
     const body = $('#drawer-body'); body.onscroll = () => { if (i < list.length && body.scrollTop + body.clientHeight > body.scrollHeight - 300) add(); };
   },
   // v2.6.11: real counter — «shown of total» while more pages load on scroll, the exact total when all are shown
   libCount(el, shown, total) {
     if (!el) return; const nf = (n) => Number(n).toLocaleString(LANG === 'en' ? 'en-GB' : 'el-GR');
     el.dataset.shown = String(shown); el.dataset.total = String(total);
-    el.textContent = !total ? t('no_results') : shown < total ? t('v2611.lib_shown', { v0: nf(shown), v1: nf(total) }) : t('v2611.lib_total', { v0: nf(total) });
+    // v2.6.12: compact «shown / total» like mockup 05 (real numbers), the full sentence in the tooltip
+    const full = !total ? t('no_results') : shown < total ? t('v2611.lib_shown', { v0: nf(shown), v1: nf(total) }) : t('v2611.lib_total', { v0: nf(total) });
+    el.textContent = !total ? t('no_results') : nf(shown) + ' / ' + nf(total); el.title = full; el.setAttribute('aria-label', full);
   },
   recentEmoji(c) { const S = Store.state.settings; S.recentEmoji = [c, ...(S.recentEmoji || []).filter(x => x !== c)].slice(0, 48); Store.save(); },
 

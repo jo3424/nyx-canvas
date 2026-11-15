@@ -26,7 +26,7 @@ const W = (n, w = 120) => Array.from({ length: n }, () => w);
   const old = U.tabLayout({ widths: W(40), avail: 900, active: 33 });
   ok(old.visible.includes(33), 'without anchor: 2.6.11 behaviour kept (tests of 2.6.11 still valid)');
   const look = read('app/js/v26/look2611.js');
-  ok(/anchor: 'end'/.test(look) && /if \(opts\.follow !== false\) this\.start = null;/.test(look), 'TabStrip uses anchor end and returns to the end on re-render');
+  ok(/anchor: 'start'/.test(look) && !/this\.start = null;/.test(look), '2.6.12: TabStrip uses anchor start (first tabs stay; re-renders keep the wheel position)');
   ok(/Store\.state\.boards\.push\(b\)/.test(read('app/js/app.js')), '«+» (App.newBoard) adds the board at the END of the list');
 }
 
@@ -59,8 +59,8 @@ const W = (n, w = 120) => Array.from({ length: n }, () => w);
   ok(U.flyoutDigit(k('0', 'Digit0'), true, 10) === 9 && U.flyoutDigit(k('9', 'Digit9'), true, 10) === 8 && U.flyoutDigit(k('1', 'Digit1'), true, 10) === 0, 'keys 1–9 unchanged next to 0');
   const tools = read('app/js/tools.js');
   ok(/const num = \(el, ten\) => \{ if \(fk < 9 \|\| \(ten && fk === 9\)\)/.test(tools) && /String\(fk % 10\)/.test(tools), 'num(): only callers that pass «ten» get a 10th item with data-fk «0»');
-  const tenCalls = (tools.match(/\), true\)\)\)\);/g) || []).length;
-  ok(tenCalls === 1 && /iconSvg\(ic, 18\)\), true\)\)\)\);/.test(tools), 'only the paper kinds pass «ten» (pen/shapes keep 1–9 / 1–8)');
+  const tenCalls = (tools.match(/\), true\)\)\)/g) || []).length; // 2.6.12: the paper grid lost its label span (one paren less)
+  ok(tenCalls === 1 && /iconSvg\(ic, 18\)\), true\)\)\)/.test(tools), 'only the paper kinds pass «ten» (pen/shapes keep 1–9 / 1–8)');
   const html = read('app/index.html'); const z = html.slice(html.indexOf('id="tabs-zone"'), html.indexOf('</div>', html.indexOf('id="tabs-zone"') + 200) + 400);
   const iT = z.indexOf('id="tabs"'), iA = z.indexOf('id="btn-add-tab"'), iM = z.indexOf('id="tabs-more"');
   ok(iT > 0 && iT < iA && iA < iM, 'title bar order like the mockup: tabs → «+» → «+N ▾»', { iT, iA, iM });
@@ -84,12 +84,12 @@ const W = (n, w = 120) => Array.from({ length: n }, () => w);
   ok(el.t_library === JSON.parse(cp.execSync('git show b271669:app/locales/el.json', { cwd: R }).toString()).t_library, 't_library unchanged (used by the insert menu)');
   ok(/MINZ: 0\.05, MAXZ: 8/.test(read('app/js/canvas.js')), 'zoom stays 5 %–800 %');
   const pkg = JSON.parse(read('package.json')); const lock = JSON.parse(read('package-lock.json'));
-  ok(pkg.version === '2.6.11.1' && pkg.devDependencies.electron === '45.2.3', 'version 2.6.11.1, Electron 45.2.3', pkg.version);
-  ok(lock.version === '2.6.11.1' && lock.packages[''].version === '2.6.11.1', 'package-lock version 2.6.11.1', [lock.version, lock.packages[''].version]);
+  ok(['2.6.11.1', '2.6.12'].includes(pkg.version) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.11.1, Electron 45.2.3', pkg.version);
+  ok(['2.6.11.1', '2.6.12'].includes(lock.version) && lock.packages[''].version === lock.version, 'package-lock version 2.6.11.1', [lock.version, lock.packages[''].version]);
   const lockDiff = cp.execSync('git diff b271669 -- package-lock.json', { cwd: R }).toString().split('\n').filter((l) => /^[+-]\s/.test(l));
-  ok(lockDiff.length <= 4 && lockDiff.every((l) => /"version": "2\.6\.(5\.1|11\.1)"/.test(l)), 'package-lock: only the version fields changed', lockDiff);
+  ok(lockDiff.length <= 4 && lockDiff.every((l) => /"version": "2\.6\.(5\.1|11\.1|12)"/.test(l)), 'package-lock: only the version fields changed', lockDiff);
   const CH = JSON.parse(read('CHANGELOG.json'));
-  ok(Object.keys(CH)[0] === '2.6.11.1' && CH['2.6.11.1'].el.length === 3 && CH['2.6.11.1'].en.length === 3 && CH['2.6.11'], 'CHANGELOG 2.6.11.1 first (3 items), 2.6.11 kept');
+  ok(['2.6.11.1', '2.6.12'].includes(Object.keys(CH)[0]) && CH['2.6.11.1'].el.length === 3 && CH['2.6.11.1'].en.length === 3 && CH['2.6.11'], 'CHANGELOG 2.6.11.1 first (3 items), 2.6.11 kept');
   const mainDiff = cp.execSync('git diff --name-only b271669 -- main main.js preload.js boot.js', { cwd: R }).toString().trim();
   ok(mainDiff === '', 'no change in main process / preload / IPC / permissions', mainDiff);
   ok(cp.execSync('git diff b271669 -- main/update-key.js', { cwd: R }).toString() === '', 'trusted update keys unchanged');

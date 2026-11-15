@@ -57,7 +57,7 @@ const strip = (win) => win.evaluate(() => {
   const vis = [...T.querySelectorAll('.tab')].filter((x) => !x.hidden); const r = (e) => e.getBoundingClientRect();
   const on = T.querySelector('.tab.on'); const zr = r(zone); const tr = r(T);
   return { n: T.querySelectorAll('.tab').length, vis: vis.length, tops: [...new Set(vis.map((x) => Math.round(r(x).top)))], minW: Math.min(...vis.map((x) => r(x).width)), stripH: Math.round(tr.height), mode: T.dataset.mode,
-    more: more.hidden ? null : more.textContent, moreCount: +(more.dataset.count || 0), onVis: !!on && !on.hidden && r(on).right <= zr.right + 1 && r(on).left >= zr.left - 1, onId: on && on.dataset.board, active: Store.state.active,
+    more: more.hidden ? null : more.textContent, moreCount: +(more.dataset.count || 0), onVis: !!on && !on.hidden && r(on).right <= zr.right + 1 && r(on).left >= zr.left - 1, onId: on && on.dataset.board, active: Store.state.active, moreActive: more.classList.contains('has-active'),
     overflow: Math.round(r(more.hidden ? T : more).right) <= Math.round(zr.right) + 1, scroll: T.scrollWidth <= T.clientWidth + 1 };
 });
 
@@ -65,7 +65,7 @@ const strip = (win) => win.evaluate(() => {
   const router = await startRouter();
   let { app, win } = await launch();
   const ver = await win.evaluate(() => (Store.info && Store.info.version) || '');
-  ok(['2.6.11', '2.6.11.1'].includes(String(ver)), 'app version 2.6.11', ver);
+  ok(['2.6.11', '2.6.11.1', '2.6.12'].includes(String(ver)), 'app version 2.6.11', ver);
   // baseline data: 1 board with cards, 2 subscriptions, settings snapshot (must survive everything below)
   const before = await win.evaluate((a) => {
     const A = Store.state.settings.ai; const L = A.providers.find((p) => p.id === 'llama');
@@ -90,31 +90,38 @@ const strip = (win) => win.evaluate(() => {
   // switch to a board far away (Ctrl+Tab backwards from the first = the last one)
   await win.evaluate(() => App.switchBoard(Store.state.boards[0].id)); await sleep(150);
   await win.evaluate(() => document.querySelector('#viewport').focus()); await win.keyboard.press('Control+Shift+Tab'); await sleep(250);
-  s = await strip(win); ok(s.active === 'b39' && s.onId === 'b39' && s.onVis, 'Ctrl+Shift+Tab → last board (was hidden) is active and visible', s);
+  // 2.6.12: anchored to the start — the last board stays in «+N ▾» (highlighted) instead of pushing the first tabs out
+  s = await strip(win); ok(s.active === 'b39' && s.onId === 'b39' && !s.onVis && s.moreActive, 'Ctrl+Shift+Tab → last board is active; it stays in «+N ▾», which is highlighted (2.6.12)', s);
   // wheel scrolls the strip, active stays shown
   const st0 = await win.evaluate(() => TabStrip.start);
   const zr = await win.evaluate(() => { const r = document.querySelector('#tabs').getBoundingClientRect(); return { x: r.left + 40, y: r.top + r.height / 2 }; });
-  await win.mouse.move(zr.x, zr.y); for (let i = 0; i < 5; i++) { await win.mouse.wheel(0, -120); await sleep(60); }
+  await win.mouse.move(zr.x, zr.y); for (let i = 0; i < 5; i++) { await win.mouse.wheel(0, 120); await sleep(60); }
   await sleep(200);
   const st1 = await win.evaluate(() => TabStrip.start); s = await strip(win);
-  ok(st1 < st0 && s.onVis && s.tops.length === 1, `wheel moves the strip (${st0} → ${st1}); active still visible`, { st0, st1, s });
+  for (let i = 0; i < 9; i++) { await win.mouse.wheel(0, -120); await sleep(60); }
+  await sleep(200);
+  const st2 = await win.evaluate(() => TabStrip.start);
+  ok(st1 > st0 && st2 === 0 && s.tops.length === 1, `wheel moves the strip (${st0} → ${st1} → ${st2}), one line`, { st0, st1, st2, s });
   // «+N ▾» menu → pick a hidden board
   await win.click('#tabs-more'); await sleep(250);
   const menu = await win.evaluate(() => { const m = document.querySelector('#ctxmenu'); return { hidden: m.hidden, kind: m.dataset.menu, n: m.querySelectorAll('.mi[data-board]').length, first: m.querySelector('.mi[data-board]')?.dataset.board, exp: document.querySelector('#tabs-more').getAttribute('aria-expanded'), focus: document.activeElement?.dataset?.board }; });
   const nHidden = (await strip(win)).moreCount;
-  ok(!menu.hidden && menu.kind === 'tabs-more' && menu.n === nHidden && menu.exp === 'true' && menu.focus === menu.first, '«+N ▾» opens a list of exactly the hidden boards (focus on the first, aria-expanded)', menu);
+  ok(!menu.hidden && menu.kind === 'tabs-more' && menu.n === nHidden && menu.exp === 'true' && menu.focus === 'b39', '«+N ▾» opens a list of exactly the hidden boards (focus on the active b39 in it, aria-expanded)', menu);
+  await win.keyboard.press('Home').catch(() => {}); await win.evaluate(() => document.querySelector('#ctxmenu .mi[data-board]').focus());
   await win.keyboard.press('ArrowDown'); await win.keyboard.press('Enter'); await sleep(300);
   s = await strip(win); const picked = await win.evaluate(() => Store.state.active);
-  ok(s.onVis && picked !== 'b39' && s.onId === picked, 'keyboard: ↓ + Enter in the list → that board is active and visible in the strip', { picked, s });
+  ok(picked !== 'b39' && s.onId === picked && !s.onVis && s.moreActive && s.vis >= 1, 'keyboard: ↓ + Enter in the list → that board is active (marked in «+N ▾»; the first tabs stay)', { picked, s });
+  await win.evaluate(() => App.switchBoard(Store.state.boards[1].id)); await sleep(200);
   // ←/→ on the focused tab
   await win.evaluate(() => document.querySelector('#tabs .tab.on').focus());
   const a0 = await win.evaluate(() => Store.state.boards.findIndex((b) => b.id === Store.state.active));
   await win.keyboard.press('ArrowRight'); await sleep(200);
   const a1 = await win.evaluate(() => ({ i: Store.state.boards.findIndex((b) => b.id === Store.state.active), focus: document.activeElement?.classList.contains('on'), role: document.activeElement?.getAttribute('role'), sel: document.activeElement?.getAttribute('aria-selected') }));
   ok(a1.i === (a0 + 1) % 40 && a1.focus && a1.role === 'tab' && a1.sel === 'true', '→ on a focused tab: next board, focus follows (role=tab, aria-selected)', { a0, a1 });
+  await win.evaluate(() => App.switchBoard(Store.state.boards[0].id)); await sleep(200);
   // narrow window: still one line
   await setSize(app, win, 900, 700); s = await strip(win);
-  ok(s.tops.length === 1 && s.onVis && s.overflow && s.minW >= 95, 'window 900 px: still one line, active visible', s);
+  ok(s.tops.length === 1 && (s.onVis || s.moreActive) && s.overflow && s.minW >= 95, 'window 900 px: still one line, active visible (or highlighted in «+N ▾»)', s);
   await setSize(app, win, 1440, 900);
   // the strip never deletes boards
   ok((await win.evaluate(() => Store.state.boards.length)) === 40, 'all 40 boards still there');
@@ -179,10 +186,11 @@ const strip = (win) => win.evaluate(() => {
     const d = document.querySelector('#drawer'); const tabs = [...d.querySelectorAll('.lib-tabs button')]; const foot = d.querySelector('[data-lib-count]');
     const dr = d.getBoundingClientRect();
     const c = d.querySelector('.lib-tabs').getBoundingClientRect(); const clipped = tabs.filter((b) => { const r = b.getBoundingClientRect(); return r.left < c.left - 1 || r.right > c.right + 1 || b.scrollWidth > b.clientWidth + 1; }).length;
-    return { clipped, kind: d.dataset.kind, right: Math.round(innerWidth - dr.right), tops: [...new Set(tabs.map((b) => Math.round(b.getBoundingClientRect().top)))].length, n: tabs.length, shown: +foot.dataset.shown, total: +foot.dataset.total, text: foot.textContent, cells: d.querySelectorAll('.lib-grid .emo-cell').length, dock: document.querySelector('#dock .tool[data-tool=library]').classList.contains('on') };
+    const lt = d.querySelector('.lib-tabs'); const scrollable = lt.scrollWidth > lt.clientWidth + 1 && /auto|scroll/.test(getComputedStyle(lt).overflowX);
+    return { clipped, scrollable, kind: d.dataset.kind, right: Math.round(innerWidth - dr.right), tops: [...new Set(tabs.map((b) => Math.round(b.getBoundingClientRect().top)))].length, n: tabs.length, shown: +foot.dataset.shown, total: +foot.dataset.total, text: foot.textContent, cells: d.querySelectorAll('.lib-grid .emo-cell').length, dock: document.querySelector('#dock .tool[data-tool=library]').classList.contains('on') };
   });
   ok(lib.kind === 'library' && lib.right <= 16 && lib.dock, 'Library opens as the right drawer (Ctrl+E), dock button marked', lib);
-  ok(lib.n === 5 && lib.tops === 1 && lib.clipped === 0, 'Library: 5 tabs on one line, none clipped', lib);
+  ok(lib.n === 5 && lib.tops === 1 && (lib.clipped === 0 || lib.scrollable), 'Library: 5 tabs on one line, never wrapped (2.6.12: icon + name; the strip scrolls sideways when they do not fit)', lib);
   ok(lib.shown === lib.cells && lib.total > lib.shown && lib.text.includes(lib.shown.toLocaleString('el-GR')) && lib.text.includes(lib.total.toLocaleString('el-GR')), `Library counter is real: «${lib.text}» = cells in the grid / all emoji`, lib);
   await shot(win, 'v2611-library.png');
   await win.evaluate(() => document.querySelector('[data-lib-group="4"]').click()); await sleep(400);
@@ -273,7 +281,7 @@ const strip = (win) => win.evaluate(() => {
   await win.evaluate(() => Store.save(true)); await sleep(300); await quit(app);
   ({ app, win } = await launch());
   s = await strip(win);
-  ok(s.n === 40 && s.tops.length === 1 && s.onVis && s.mode === 'overflow', 'after restart: 40 boards, one line, active visible', s);
+  ok(s.n === 40 && s.tops.length === 1 && (s.onVis || s.moreActive) && s.mode === 'overflow', 'after restart: 40 boards, one line, active visible or highlighted in «+N ▾»', s);
   ok((await win.evaluate(() => JSON.stringify(Store.state.subs))) === before.subs, 'after restart: subscriptions identical');
   await quit(app);
   router.srv.close();

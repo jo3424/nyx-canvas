@@ -15,7 +15,7 @@ let fails = 0, passes = 0;
 const ok = (c, m, x) => { console.log((c ? '  ✓ ' : '  ✗ ') + m + (!c && x !== undefined ? '  → ' + JSON.stringify(x).slice(0, 500) : '')); c ? passes++ : fails++; };
 
 console.log('version + changelog');
-ok(((pkg.version === '2.6.9' || (pkg.version.startsWith('2.6.9.') || pkg.version.startsWith('2.6.10') || pkg.version.startsWith('2.6.11'))) || pkg.version === '2.6.8' || pkg.version === '2.6.8.1' || pkg.version.startsWith('2.6.8')) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.8+, Electron 45.2.3', pkg.version);
+ok(((pkg.version === '2.6.9' || (pkg.version.startsWith('2.6.9.') || pkg.version.startsWith('2.6.10') || pkg.version.startsWith('2.6.11') || pkg.version.startsWith('2.6.12'))) || pkg.version === '2.6.8' || pkg.version === '2.6.8.1' || pkg.version.startsWith('2.6.8')) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.8+, Electron 45.2.3', pkg.version);
 const log = require(R + '/CHANGELOG.json')['2.6.8'];
 ok(log && log.el.length === log.en.length && log.el.length === 3, 'CHANGELOG 2.6.8 has 3 el+en deliverable groups', log && log.el.length);
 ok(/streaming/i.test(log.el[0] + log.en[0]), 'group 1 is streaming');

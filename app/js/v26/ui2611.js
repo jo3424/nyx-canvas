@@ -33,7 +33,7 @@
     const avail = Math.max(0, Math.floor(o.avail || 0));
     const nat = (o.widths || []).map((w) => Math.min(maxW, Math.max(minW, Math.ceil(w || 0))));
     const active = Math.min(Math.max(0, o.active | 0), Math.max(0, n - 1));
-    const out = { mode: 'fit', visible: [], hidden: [], width: {}, start: 0, maxStart: 0, k: n };
+    const out = { mode: 'fit', visible: [], hidden: [], width: {}, start: 0, maxStart: 0, k: n, activeHidden: false };
     if (!n) return out;
     let cap = capFor(nat, avail, gap);
     if (cap >= minW) { // A: everything fits, shrinking down to (not below) the minimum
@@ -44,8 +44,21 @@
     // B: k tabs at ≥ minW plus «+N ▾»
     const k = Math.max(1, Math.min(n - 1, Math.floor((avail - moreW - gap + gap) / (minW + gap))));
     const maxStart = n - k;
-    // v2.6.11.1: anchor 'end' (the app's default) → the window sits at the END (the last tabs, where «+» adds new boards);
-    // the active tab is pinned into it when it is further left, and the FIRST tabs go into «+N ▾». Without anchor: 2.6.11 behaviour.
+    // v2.6.12: anchor 'start' (the app's default) → the FIRST tabs stay in the bar and the LAST / new ones that do not fit go
+    // into «+N ▾». The active tab is NOT pinned (it never pushes the first tabs out): when it is hidden it is reachable and
+    // highlighted in «+N ▾» (out.activeHidden). The wheel moves the window (o.start).
+    if (o.anchor === 'start') {
+      const st = Math.min(Math.max(0, o.start == null ? 0 : o.start | 0), maxStart);
+      const vs = []; for (let i = st; i < st + k; i++) vs.push(i);
+      out.mode = 'overflow'; out.k = k; out.start = st; out.maxStart = maxStart; out.visible = vs;
+      for (let i = 0; i < n; i++) if (!vs.includes(i)) out.hidden.push(i);
+      out.activeHidden = !vs.includes(active);
+      cap = capFor(vs.map((i) => nat[i]), avail - moreW - gap, gap);
+      for (const i of vs) out.width[i] = Math.max(minW, Math.min(nat[i], cap));
+      return out;
+    }
+    // v2.6.11.1: anchor 'end' → the window sits at the END; the active tab is pinned into it (kept for the unit tests / API).
+    // Without anchor: 2.6.11 behaviour.
     const endAnchor = o.anchor === 'end' && o.start == null;
     let start = Math.min(Math.max(0, o.start == null ? (endAnchor ? maxStart : active - Math.floor(k / 2)) : o.start | 0), maxStart);
     if (!endAnchor && (o.start == null || o.follow)) { if (active < start) start = active; if (active >= start + k) start = active - k + 1; }

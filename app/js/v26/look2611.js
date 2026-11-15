@@ -1,7 +1,7 @@
 'use strict';
 // v2.6.11 — appearance only (no change to data, router, models, plugins or permissions):
 //  TabStrip: board tabs shrink, then «+N ▾»; wheel scrolls the strip; active tab always visible; ←/→/Home/End
-//            (v2.6.11.1: anchored to the end — the last tabs stay visible, the first ones go into «+N ▾»)
+//            (v2.6.12: anchored to the start — the first tabs stay visible, the last / new ones go into «+N ▾»)
 //  Flyout:   tool options touch their dock button, stay inside the window; keys 1–9 only while open and not typing
 //  UIStyle:  6 optional panel styles (Settings → Themes); the theme's own look stays the default; «Γυαλί» only ≥ 4.5:1
 //  HubHead:  Hub header «loaded / max · μέγιστο max · N στον φάκελο» from the router's real answers
@@ -19,20 +19,21 @@ const TabStrip = {
     const widths = tabs.map((x) => x.getBoundingClientRect().width);
     T.classList.remove('measuring');
     const avail = Math.max(0, zone.clientWidth - (add ? add.offsetWidth : 0) - 10);
-    // v2.6.11.1: anchored to the END — the last tabs + the active one stay visible, the FIRST tabs go into «+N ▾».
-    // A re-render that follows the active board (switch, new board, rename…) returns to the end; the wheel moves the window.
-    if (opts.follow !== false) this.start = null;
-    const L = NyxUI.tabLayout({ widths, avail, active, start: this.start, follow: opts.follow !== false, anchor: 'end' });
+    // v2.6.12: anchored to the START — the FIRST tabs stay in the bar, the LAST / new ones that do not fit go into «+N ▾».
+    // The active tab never pushes the first ones out: when it is hidden, «+N ▾» is highlighted and the board is marked in
+    // its list. Only the wheel moves the window (this.start); re-renders keep it.
+    const L = NyxUI.tabLayout({ widths, avail, active, start: this.start, anchor: 'start' });
     this.start = L.start; this.maxStart = L.maxStart; this.mode = L.mode;
     tabs.forEach((x, i) => {
       const vis = L.visible.includes(i); x.hidden = !vis;
       if (vis && L.mode !== 'fit') { x.style.width = L.width[i] + 'px'; x.classList.toggle('narrow', L.width[i] < 130); }
     });
     T.dataset.mode = L.mode; T.dataset.hidden = String(L.hidden.length);
-    const n = L.hidden.length; more.hidden = !n;
+    const n = L.hidden.length; more.hidden = !n; more.classList.toggle('has-active', !!(n && L.activeHidden));
     if (n) {
       more.innerHTML = ''; more.append(h('span', { class: 'tm-n' }, '+' + n), h('span', { class: 'tm-ch', html: iconSvg('chevron-down', 13) }));
-      more.dataset.count = String(n); more.setAttribute('aria-label', t('v2611.tabs_more', { v0: n })); more.title = t('v2611.tabs_more', { v0: n });
+      const lab = t('v2611.tabs_more', { v0: n }) + (L.activeHidden ? ' · ' + t('v2612.tabs_active_in_menu') : '');
+      more.dataset.count = String(n); more.setAttribute('aria-label', lab); more.title = lab;
     }
     this._hidden = L.hidden.map((i) => S.boards[i]).filter(Boolean);
     return L;
@@ -41,13 +42,16 @@ const TabStrip = {
   openMore() {
     const { more } = this.els(); if (!more || more.hidden) return;
     const r = more.getBoundingClientRect();
-    const rows = (this._hidden || []).map((b) => [`<span class="mi-emo">${esc(b.emoji || '•')}</span>`, b.name, () => { App.switchBoard(b.id); setTimeout(() => $('#tabs .tab.on')?.focus(), 30); }, 'tm-item', String(b.items.length)]);
-    Panels.menu(r.left, r.bottom + 4, rows);
+    const act = Store.state.active;
+    const rows = (this._hidden || []).map((b) => [`<span class="mi-emo">${esc(b.emoji || '•')}</span>`, b.name, () => { App.switchBoard(b.id); setTimeout(() => ($('#tabs .tab.on:not([hidden])') || $('#tabs-more'))?.focus(), 30); }, 'tm-item' + (b.id === act ? ' on' : ''), String(b.items.length)]);
+    Panels.menu(r.right, r.bottom + 4, rows);
     const m = $('#ctxmenu'); m.dataset.menu = 'tabs-more';
-    [...m.querySelectorAll('.mi')].forEach((x, i) => { x.dataset.board = this._hidden[i].id; x.setAttribute('role', 'menuitem'); });
+    // v2.6.12: one line per title (ellipsis) + the full name in a tooltip; the active board (if hidden) is highlighted
+    [...m.querySelectorAll('.mi')].forEach((x, i) => { const b = this._hidden[i]; x.dataset.board = b.id; x.setAttribute('role', 'menuitem'); x.title = b.name; if (b.id === act) x.setAttribute('aria-current', 'page'); });
+    const mr = m.getBoundingClientRect(); m.style.left = Math.max(8, Math.min(r.right - mr.width, innerWidth - mr.width - 8)) + 'px'; // right-aligned under «+N ▾»
     more.setAttribute('aria-expanded', 'true');
     const obs = new MutationObserver(() => { if (m.hidden) { more.setAttribute('aria-expanded', 'false'); obs.disconnect(); } }); obs.observe(m, { attributes: true, attributeFilter: ['hidden'] });
-    m.querySelector('.mi')?.focus();
+    (m.querySelector('.mi.on') || m.querySelector('.mi'))?.focus();
   },
   init() {
     const { T, zone, more } = this.els(); if (!T || !zone || !more) return;
@@ -58,16 +62,22 @@ const TabStrip = {
       const ns = NyxUI.wheelStart(this.start || 0, e.deltaY, e.deltaX, this.maxStart);
       if (ns !== this.start) { this.start = ns; this.layout({ follow: false }); }
     }, { passive: false });
-    T.addEventListener('keydown', (e) => {
-      const tab = e.target.closest && e.target.closest('.tab'); if (!tab) return;
-      const B = Store.state.boards; let i = B.findIndex((b) => b.id === tab.dataset.board); if (i < 0) return;
-      let j = null;
+    // ←/→/Home/End between boards. 2.6.12: an active board that sits in «+N ▾» hands the focus to «+N ▾», and the same
+    // keys keep working there (relative to the active board), so the keyboard never gets stuck.
+    const nav = (e, i, enter) => {
+      const B = Store.state.boards; let j = null;
       if (e.key === 'ArrowRight') j = (i + 1) % B.length; else if (e.key === 'ArrowLeft') j = (i - 1 + B.length) % B.length;
       else if (e.key === 'Home') j = 0; else if (e.key === 'End') j = B.length - 1;
-      else if (e.key === 'Enter' || e.key === ' ') j = i;
-      if (j == null) return;
+      else if (enter && (e.key === 'Enter' || e.key === ' ')) j = i;
+      if (j == null) return false;
       e.preventDefault(); e.stopPropagation();
-      App.switchBoard(B[j].id); setTimeout(() => $('#tabs .tab.on')?.focus(), 0);
+      App.switchBoard(B[j].id); setTimeout(() => ($('#tabs .tab.on:not([hidden])') || $('#tabs-more'))?.focus(), 0);
+      return true;
+    };
+    T.addEventListener('keydown', (e) => {
+      const tab = e.target.closest && e.target.closest('.tab'); if (!tab) return;
+      const i = Store.state.boards.findIndex((b) => b.id === tab.dataset.board); if (i < 0) return;
+      nav(e, i, true);
     });
     // the ctxmenu of «+N»: ↑/↓ move between boards
     $('#ctxmenu').addEventListener('keydown', (e) => {
@@ -75,7 +85,11 @@ const TabStrip = {
       const items = [...$('#ctxmenu').querySelectorAll('.mi')]; const k = items.indexOf(document.activeElement);
       e.preventDefault(); e.stopPropagation(); items[(k + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus();
     });
-    more.addEventListener('keydown', (e) => { if (e.key === 'ArrowDown') { e.preventDefault(); this.openMore(); } });
+    more.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown') { e.preventDefault(); this.openMore(); return; }
+      if (!more.classList.contains('has-active')) return;
+      const i = Store.state.boards.findIndex((b) => b.id === Store.state.active); if (i >= 0) nav(e, i, false);
+    });
     if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => this.soon()).observe(zone);
     addEventListener('resize', () => this.soon());
     this.layout({ follow: true });
@@ -174,6 +188,7 @@ function look2611MarkLibrary() { const d = $('#drawer'); const on = !!d && !d.hi
   const go = () => {
     if (typeof Store === 'undefined' || !Store.state || !$('#dock .tool')) return setTimeout(go, 60);
     TabStrip.init(); Flyout.init(); UIStyle.init();
+    addEventListener('keydown', (e) => { if (e.key === '/' && typeof Panels !== 'undefined' && Panels.libSlash) Panels.libSlash(e); }, true); // v2.6.12: «/» → Library search
     look2611PlaceBin(); addEventListener('resize', look2611PlaceBin);
     const d = $('#drawer'); if (d) new MutationObserver(look2611MarkLibrary).observe(d, { attributes: true, attributeFilter: ['hidden', 'data-kind'] });
     window.__nyxLook2611 = true;

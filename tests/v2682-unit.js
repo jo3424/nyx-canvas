@@ -90,7 +90,7 @@ const histChat = (tokens) => { const out = []; let n = 0; const r = rng(3); whil
 
 (async () => {
   console.log('version + changelog + electron');
-  ok((pkg.version === '2.6.8.2' || (pkg.version.startsWith('2.6.9') || pkg.version.startsWith('2.6.10') || pkg.version.startsWith('2.6.11'))) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.8.2, Electron 45.2.3', pkg.version);
+  ok((pkg.version === '2.6.8.2' || (pkg.version.startsWith('2.6.9') || pkg.version.startsWith('2.6.10') || pkg.version.startsWith('2.6.11') || pkg.version.startsWith('2.6.12'))) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.8.2, Electron 45.2.3', pkg.version);
   const log = require(R + '/CHANGELOG.json')['2.6.8.2'];
   ok(log && log.el.length === 3 && log.en.length === 3, 'CHANGELOG 2.6.8.2 has exactly 3 el+en groups');
   ok(/tokenize/.test(log.el[0]) && /θα σταλούν/.test(log.el[0]), 'group 1 = token counting / orange chip');

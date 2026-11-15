@@ -25,7 +25,7 @@ async function closeModal(win) { await win.evaluate(() => { if (!document.queryS
 (async () => {
   const { app, win } = await launch();
   const ver = await win.evaluate(() => (Store.info && Store.info.version) || '');
-  ok(['2.6.9.3', '2.6.10', '2.6.10.1', '2.6.11', '2.6.11.1'].includes(String(ver)), 'app version 2.6.9.3', ver);
+  ok(['2.6.9.3', '2.6.10', '2.6.10.1', '2.6.11', '2.6.11.1', '2.6.12'].includes(String(ver)), 'app version 2.6.9.3', ver);
   // start: 1 subscription (as on your PC: Netflix), an empty board
   await win.evaluate(() => {
     Store.state.subs = [{ id: 'keep0', name: 'Netflix', price: 13.99, currency: 'EUR', cycle: 'monthly', next: '2026-11-20', active: true, remindDays: 2, color: '#e50914', icon: '🎬' }];

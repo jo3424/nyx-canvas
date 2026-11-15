@@ -73,7 +73,7 @@ const touches = (f) => Math.abs(f.left - f.btnRight) <= 1 && f.top < f.btnBottom
   const router = await startRouter();
   let { app, win } = await launch();
   const ver = await win.evaluate(() => (Store.info && Store.info.version) || '');
-  ok(String(ver) === '2.6.11.1', 'app version 2.6.11.1', ver);
+  ok(['2.6.11.1', '2.6.12'].includes(String(ver)), 'app version 2.6.11.1', ver);
   const before = await win.evaluate((a) => {
     const A = Store.state.settings.ai; const L = A.providers.find((p) => p.id === 'llama');
     L.enabled = true; L.base = 'http://127.0.0.1:' + a.port + '/v1';
@@ -86,19 +86,20 @@ const touches = (f) => Math.abs(f.left - f.btnRight) <= 1 && f.top < f.btnBottom
   }, { port: router.port, QWEN });
   ok(before.recent === undefined && before.hlOp === undefined, 'no new setting is written before it is used (additive)', before);
 
-  // ---- a) tabs anchored to the end ----
+  // ---- a) tabs (2.6.12: anchored to the START — the first tabs stay, the last / new ones go into «+N ▾») ----
   await win.evaluate(() => { const B = Store.state.boards; for (let i = B.length; i < 40; i++) B.push({ id: 'b' + i, name: 'Πίνακας ' + (i + 1), emoji: '📁', color: '#7c8cff', view: null, items: [] }); Store.save(true); App.switchBoard(B[0].id); Panels.tabs(); });
   await sleep(400);
   let s = await strip(win);
-  const order = await win.evaluate(() => { const T = document.querySelector('#tabs'); const ids = Store.state.boards.map((b) => b.id); const vis = [...T.querySelectorAll('.tab')].filter((x) => !x.hidden).map((x) => ids.indexOf(x.dataset.board)); const hid = TabStrip._hidden.map((b) => ids.indexOf(b.id)); return { vis, hid }; });
-  const lastVisible = order.vis.includes(39) && order.vis.includes(38);
-  const firstHidden = order.hid.length > 0 && order.hid[0] === 1 && Math.max(...order.hid) < Math.min(...order.vis.filter((i) => i !== 0));
-  ok(s.mode === 'overflow' && s.tops.length === 1 && order.vis[0] === 0 && lastVisible && firstHidden, 'active = 1st board: it stays visible with the LAST tabs; the FIRST ones (2…) are in «+N ▾»', { s, order });
-  await shot(win, 'v26111-tabs-end.png');
-  // «+» adds at the end, visible next to «+»
+  const visOrder = () => win.evaluate(() => { const T = document.querySelector('#tabs'); const ids = Store.state.boards.map((b) => b.id); const vis = [...T.querySelectorAll('.tab')].filter((x) => !x.hidden).map((x) => ids.indexOf(x.dataset.board)); const hid = TabStrip._hidden.map((b) => ids.indexOf(b.id)); return { vis, hid, moreActive: document.querySelector('#tabs-more').classList.contains('has-active') }; });
+  const order = await visOrder();
+  const firstVisible = order.vis.every((v, i) => v === i) && order.hid[0] === order.vis.length && order.hid.every((v, i) => v === order.vis.length + i);
+  ok(s.mode === 'overflow' && s.tops.length === 1 && order.vis[0] === 0 && firstVisible && !order.moreActive, 'active = 1st board: the FIRST tabs are in the bar, the LAST ones in «+N ▾» (2.6.12)', { s, order });
+  await shot(win, 'v26111-tabs-start.png');
+  // «+» adds at the end → it goes into «+N ▾» (active, highlighted); the first tabs stay
   await win.click('#btn-add-tab'); await sleep(500); await win.keyboard.press('Escape'); await sleep(200);
-  const added = await win.evaluate(() => { const B = Store.state.boards; const last = B[B.length - 1]; const T = document.querySelector('#tabs'); const vis = [...T.querySelectorAll('.tab')].filter((x) => !x.hidden); return { n: B.length, lastActive: Store.state.active === last.id, lastTabIsLastVisible: vis[vis.length - 1].dataset.board === last.id }; });
-  ok(added.n === 41 && added.lastActive && added.lastTabIsLastVisible, '«+» adds the new board at the END (rightmost visible tab, active)', added);
+  const added = await win.evaluate(() => { const B = Store.state.boards; const last = B[B.length - 1]; return { n: B.length, lastActive: Store.state.active === last.id, lastHidden: TabStrip._hidden.some((b) => b.id === last.id) }; });
+  const order2 = await visOrder();
+  ok(added.n === 41 && added.lastActive && added.lastHidden && order2.moreActive && order2.vis.join() === order.vis.join(), '«+» adds the new board at the END: active, in «+N ▾» (highlighted), first tabs unchanged', { added, order2 });
   // order as in the mockup: tabs → «+» → «+N ▾» (DOM/focus order and on screen)
   const ord = await win.evaluate(() => {
     const T = document.querySelector('#tabs'); const add = document.querySelector('#btn-add-tab'); const more = document.querySelector('#tabs-more');
@@ -108,18 +109,21 @@ const touches = (f) => Math.abs(f.left - f.btnRight) <= 1 && f.top < f.btnBottom
     return { kids, moreShown: !more.hidden, lastR: Math.round(lastR), addL: Math.round(a.left), addR: Math.round(a.right), moreL: Math.round(m.left), moreR: Math.round(m.right), zoneR: Math.round(zr.right), sameRow: Math.abs(a.top - m.top) < 6 };
   });
   ok(ord.kids.join() === 'tabs,btn-add-tab,tabs-more' && ord.moreShown && ord.lastR <= ord.addL && ord.addR <= ord.moreL && ord.moreR <= ord.zoneR + 1 && ord.sameRow, 'order like the mockup: tabs → «+» → «+N ▾» (on screen and for Tab focus)', ord);
-  // pick a hidden first tab from «+N ▾»: it shows up pinned, the last tabs stay
+  // «+N ▾» list starts with the first hidden board; picking one keeps the first tabs
   await win.click('#tabs-more'); await sleep(250);
-  const menuFirst = await win.evaluate(() => ({ ids: [...document.querySelectorAll('#ctxmenu .mi')].map((x) => x.dataset.board).slice(0, 3), second: Store.state.boards[0].id }));
-  ok(menuFirst.ids[0] === menuFirst.second, '«+N ▾» list starts with the FIRST hidden boards', menuFirst);
+  const menuFirst = await win.evaluate(() => ({ ids: [...document.querySelectorAll('#ctxmenu .mi')].map((x) => x.dataset.board).slice(0, 3), firstHidden: TabStrip._hidden[0].id }));
+  ok(menuFirst.ids[0] === menuFirst.firstHidden, '«+N ▾» list starts with the first hidden board (in board order)', menuFirst);
   await win.evaluate(() => document.querySelectorAll('#ctxmenu .mi')[2].click()); await sleep(350);
   const pinned = await win.evaluate(() => { const B = Store.state.boards; const ids = B.map((b) => b.id); const T = document.querySelector('#tabs'); const vis = [...T.querySelectorAll('.tab')].filter((x) => !x.hidden).map((x) => ids.indexOf(x.dataset.board)); return { active: ids.indexOf(Store.state.active), vis }; });
-  ok(pinned.vis.includes(pinned.active) && pinned.vis.includes(40), 'a board picked from «+N»: visible together with the last tabs', pinned);
+  ok(!pinned.vis.includes(pinned.active) && pinned.vis[0] === 0, 'a board picked from «+N»: active, the first tabs stay in the bar (2.6.12)', pinned);
   // wheel moves the window; keyboard still works
+  await win.evaluate(() => App.switchBoard(Store.state.boards[0].id)); await sleep(200);
   const s0 = await win.evaluate(() => TabStrip.start);
-  await win.mouse.move(400, 15); await win.mouse.wheel(0, -120); await sleep(250);
+  await win.mouse.move(300, 15); await win.mouse.wheel(0, 120); await sleep(250);
   const s1 = await win.evaluate(() => TabStrip.start);
-  ok(s1 < s0, 'wheel up scrolls the strip towards the first tabs', { s0, s1 });
+  await win.mouse.wheel(0, -120); await sleep(250);
+  const s2 = await win.evaluate(() => TabStrip.start);
+  ok(s1 > s0 && s2 === s0, 'wheel down / up scrolls the strip (and back)', { s0, s1, s2 });
   await win.evaluate(() => document.querySelector('#tabs .tab.on').focus()); await win.keyboard.press('End'); await sleep(250);
   const endK = await win.evaluate(() => Store.state.active === Store.state.boards[Store.state.boards.length - 1].id);
   await win.keyboard.press('Home'); await sleep(250);
@@ -285,7 +289,7 @@ const touches = (f) => Math.abs(f.left - f.btnRight) <= 1 && f.top < f.btnBottom
   const re = await win.evaluate(() => ({ rec: (Store.state.settings.recentColors || {}).pen || [], op: Store.state.settings.penOpacity, subs: JSON.stringify(Store.state.subs), boards: Store.state.boards.length }));
   ok(re.rec.length === 4 && re.op === 50 && re.subs === before.subs && re.boards === 41, 'after restart: recent colours, opacity, subscriptions and boards kept', re);
   s = await strip(win);
-  ok(s.tops.length === 1 && s.onVis && s.mode === 'overflow', 'after restart: one line, active visible', s);
+  ok(s.tops.length === 1 && (s.onVis || (await win.evaluate(() => document.querySelector('#tabs-more').classList.contains('has-active')))) && s.mode === 'overflow', 'after restart: one line, active visible or highlighted in «+N ▾»', s);
   await quit(app);
   router.srv.close();
   console.log(`\nv2.6.11.1 UI: ${passes} passed, ${fails} failed`);

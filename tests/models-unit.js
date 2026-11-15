@@ -51,7 +51,7 @@ for (const [L, d] of [['el', el], ['en', en]]) {
   ok(L + ': HauhauCS is not called not-recommended', Object.values(d).filter(v => /hauhau/i.test(v)).every(v => !/(δεν είναι πια η σύσταση|no longer the pick|δεν προτείνεται)/.test(v)));
   ok(L + ': no leftover “raise ctx to 262144” nag in v267 strings', !Object.entries(d).filter(([k]) => k.startsWith('v267.')).some(([, v]) => /262144/.test(v) && /ανεβάσ|raise|προτεινόμενο ctx/i.test(v)));
 }
-ok('package.json version 2.6.7.x', /^2\.6\.(7|8|9|10$|10\.|11$|11\.)/.test(require(R + '/package.json').version));
+ok('package.json version 2.6.7.x', /^2\.6\.(7|8|9|10$|10\.|11$|11\.|12$|12\.)/.test(require(R + '/package.json').version));
 ok('CHANGELOG has 2.6.6 el+en', (() => { const c = require(R + '/CHANGELOG.json')['2.6.6']; return c && c.el.length && c.el.length === c.en.length; })());
 ok('CHANGELOG has 2.6.7 el+en', (() => { const c = require(R + '/CHANGELOG.json')['2.6.7']; return c && c.el.length && c.el.length === c.en.length; })());
 console.log(`models-unit: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

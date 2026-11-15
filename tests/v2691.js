@@ -75,7 +75,7 @@ const lastAssistant = (win) => win.evaluate(() => { const all = (Store.state.cha
   const router = await startRouter();
   const { app, win } = await launch();
   const ver = await win.evaluate(() => (Store.info && Store.info.version) || '');
-  ok(['2.6.9.1', '2.6.9.2', '2.6.9.3', '2.6.10', '2.6.10.1', '2.6.11', '2.6.11.1'].includes(String(ver)), 'app version 2.6.9.1(+)', ver);
+  ok(['2.6.9.1', '2.6.9.2', '2.6.9.3', '2.6.10', '2.6.10.1', '2.6.11', '2.6.11.1', '2.6.12'].includes(String(ver)), 'app version 2.6.9.1(+)', ver);
   await win.evaluate((a) => {
     Store.state.settings.theme = 'midnight'; Theme.apply(Store.state.settings);
     const A = Store.state.settings.ai; const L = A.providers.find((p) => p.id === 'llama');
@@ -140,7 +140,7 @@ const lastAssistant = (win) => win.evaluate(() => { const all = (Store.state.cha
   await win.waitForFunction(() => /φορτωμένα/.test(document.querySelector('[data-st=load-sub]')?.textContent || ''), null, { timeout: 10000 }).catch(() => {});
   await win.waitForFunction(() => document.querySelector('[data-st=vram-sub]')?.getAttribute('data-st-done') === '1', null, { timeout: 25000 }).catch(() => {});
   const st = await win.evaluate(() => ({ load: document.querySelector('[data-st=load]')?.textContent, sub: document.querySelector('[data-st=load-sub]')?.textContent, vram: document.querySelector('[data-st=vram-sub]')?.textContent, done: document.querySelector('[data-st=vram-sub]')?.getAttribute('data-st-done') }));
-  ok(st.load === '1 / 2' && /φορτωμένα \(μέγιστο --models-max 2\) · 2 στον φάκελο/.test(st.sub), 'status: «1 / 2 φορτωμένα (μέγιστο --models-max 2) · 2 στον φάκελο» (was «3 / 2 διαθέσιμα»)', st);
+  ok(st.load === '1 / 2' && /φορτωμένα · μέγιστο 2 · 2 στον φάκελο/.test(st.sub) && !/--models-max/.test(st.sub), 'status: «1 / 2 φορτωμένα · μέγιστο 2 · 2 στον φάκελο» (2.6.12: no «--models-max» text)', st);
   ok(st.done === '1' && !/1,2|μέτρηση VRAM…/.test(st.vram), 'VRAM line painted after the real snapshot finished (no GPU on this Linux box → says so, not a 1,2 s cut)', st);
   await win.evaluate(() => document.querySelector('[data-hub-tab=engines]')?.click());
   await win.waitForTimeout(800);
@@ -167,7 +167,7 @@ const lastAssistant = (win) => win.evaluate(() => { const all = (Store.state.cha
   ok(modeBefore === 'system', 'the TTS setting was not changed by opening the Hub');
   await win.evaluate(() => document.querySelector('[data-hub-tab=models]')?.click());
   await win.waitForFunction(() => !!document.querySelector('[data-disk]'), null, { timeout: 15000 }).catch(() => {});
-  const mdl = await win.evaluate(() => ({ disk: document.querySelector('[data-disk]')?.textContent, gb: document.querySelector('[data-disk]')?.getAttribute('data-disk-gb'), mm: document.querySelectorAll('.hub-mmproj-note').length, lic: [...document.querySelectorAll('[data-model]')].map((e) => e.parentElement.innerText) }));
+  const mdl = await win.evaluate(() => ({ disk: (() => { const d = document.querySelector('[data-disk]'); return d && (d.title || d.textContent); })(), gb: document.querySelector('[data-disk]')?.getAttribute('data-disk-gb'), mm: document.querySelectorAll('.hub-mmproj-note').length, lic: [...document.querySelectorAll('[data-model]')].map((e) => (e.closest('.hub-model') || e.parentElement).innerText) }));
   ok(mdl.gb === '2,0' && /δεκαδικά GB/.test(mdl.disk) && /\+/.test(mdl.disk), 'disk: 2,0 decimal GB = router models + OmniVoice models, unit stated', mdl.disk);
   ok(mdl.mm === 1, 'mmproj hint shown once', mdl.mm);
   ok(mdl.lic.some((x) => /Qwen3\.8-27B-UD-Q4_K_XL/.test(x) && /Apache-2\.0/.test(x)), 'Qwen3.8-27B-UD-Q4_K_XL → Apache-2.0', mdl.lic);

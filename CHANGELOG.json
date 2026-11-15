@@ -1,4 +1,16 @@
 {
+ "2.6.12": {
+  "el": [
+   "Καρτέλες πινάκων: οι ΠΡΩΤΕΣ μένουν στη μπάρα· οι τελευταίες και οι νέες που δεν χωράνε πάνε στο «+N ▾». Η ενεργή δεν διώχνει τις πρώτες: αν είναι στο μενού, το «+N ▾» και η γραμμή της τονίζονται. Τίτλοι μενού σε μία γραμμή με «…» και tooltip.",
+   "Παλέτα στυλού: διαλέγεις απόχρωση συνεχόμενα χωρίς να κλείνει η παλέτα ή το flyout (αιτία: κάθε αλλαγή ξανάχτιζε το flyout και αποσύνδεε το πεδίο χρώματος — τώρα όλα ενημερώνονται επί τόπου). Χαρτιά σημείωσης μόνο με εικονίδιο, όνομα στο tooltip.",
+   "Βιβλιοθήκη όπως το mockup 05 (καρτέλες με εικονίδιο χωρίς αναδίπλωση, chips, 8 στήλες, «/» για αναζήτηση, βελάκια + Enter, πραγματικός μετρητής). Hub: συμπαγείς κάρτες μοντέλων με chips (quant/GB/ctx/t/s/VRAM ή «—»), όραση (mmproj), κάρτα κλειδιού χωρίς να φαίνεται ποτέ το κλειδί, κάρτα θύρας, router log με απόκρυψη μυστικών."
+  ],
+  "en": [
+   "Board tabs: the FIRST tabs stay in the bar; the last and new ones that do not fit go into «+N ▾». The active tab never pushes the first ones out: when it is in the menu, «+N ▾» and its row are highlighted. Menu titles on one line with an ellipsis and a tooltip.",
+   "Pen palette: pick shades one after another without the palette or the flyout closing (cause: every change rebuilt the flyout and detached the colour input — everything now updates in place). Note paper kinds as icons only, name in the tooltip.",
+   "Library like mockup 05 (icon tabs that never wrap, chips, 8 columns, «/» to search, arrows + Enter, a real counter). Hub: compact model cards with chips (quant/GB/ctx/t/s/VRAM or «—»), vision (mmproj), a key card that never shows the key, a port card, a router log with secrets redacted."
+  ]
+ },
  "2.6.11.1": {
   "el": [
    "Καρτέλες πινάκων: όταν δεν χωράνε, φαίνονται οι τελευταίες (εκεί που το «+» βάζει τη νέα) και η ενεργή· οι πρώτες πάνε στο «+N ▾». Σειρά όπως το mockup: καρτέλες → «+» → «+N ▾». Ροδέλα και πληκτρολόγιο όπως πριν.",

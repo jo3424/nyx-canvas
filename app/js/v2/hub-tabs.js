@@ -46,6 +46,40 @@ Hub.paintHubTabs = function (panes, show) {
   const dot = (kind) => h('span', { class: 'hub-dot ' + (kind || 'x') });
   const pill = (txt, cls) => h('span', { class: 'hub-pill' + (cls ? ' ' + cls : '') }, txt);
   const row = (...kids) => h('div', { class: 'hub-row' }, ...kids);
+  // v2.6.12 (mockups 06–07): router key card + router port card. Shows only the STATE of the key (never the key or any
+  // part of it); «Αντιγραφή» asks main to copy it (proc:routerKeyCopy). The port is the configured router port.
+  const keyCard = (where) => {
+    const A = Store.state.settings.ai; const port = +(A.servers.llama.port || 8080);
+    const txt = h('span', { class: 'hk-txt', 'data-rk': 'state' }, t('v26101.key_active'));
+    const copy = h('button', { class: 'btn sm ghost hk-copy', 'data-rk': 'copy', 'aria-label': t('v2612.key_copy_aria'), onclick: async () => {
+      try { await API.inv('proc:routerKeyCopy'); toast(t('v26101.key_copied'), { ms: 6000 }); } catch (e) { toast('⚠️ ' + cleanErr(e), { kind: 'err', ms: 8000 }); }
+    } }, h('span', { html: iconSvg('copy', 13), 'aria-hidden': 'true' }), ' ' + t('v26101.copy'));
+    const keyBox = h('div', { class: 'hub-keycard', 'data-router-key-card': where, 'data-state': 'checking', title: t('v2612.key_never_shown') }, h('span', { class: 'hk-ic', html: iconSvg('key-round', 15), 'aria-hidden': 'true' }), txt, copy);
+    const portBox = h('div', { class: 'hub-portcard', 'data-router-port': String(port), title: t('v2612.port_tip') }, h('b', {}, ':' + port), h('span', {}, t('v2612.port_label')));
+    const wrap = h('div', { class: 'hub-keyrow' }, keyBox, portBox);
+    API.inv('proc:routerKey', port).then((r) => {
+      if (!r || !document.contains(wrap)) return;
+      const st = !r.active ? 'off' : r.state;
+      keyBox.dataset.state = st;
+      txt.textContent = st === 'off' ? t('v2612.key_off') : st === 'open' ? t('v2612.key_open') : st === 'mismatch' ? t('v2612.key_mismatch') : st === 'down' ? t('v2612.key_down') : t('v26101.key_active');
+      copy.disabled = !r.active;
+    }).catch(() => {});
+    return wrap;
+  };
+  // v2.6.12: router log (read only, last lines) with secrets removed — only when Nyx started the router (proc:status)
+  const routerLog = () => {
+    const pre = h('pre', { class: 'hub-rlog', 'data-st': 'router-log', tabindex: '0', 'aria-readonly': 'true', 'aria-label': t('v2612.router_log') }, '…');
+    const fill = async () => {
+      const r = await API.inv('proc:status', 'llama').catch(() => null);
+      if (!document.contains(pre) && pre.isConnected) return;
+      const lines = (r && Array.isArray(r.log) ? r.log : []).slice(-8);
+      if (!lines.length) { pre.textContent = t('v2612.router_log_none'); pre.dataset.empty = '1'; return; }
+      delete pre.dataset.empty; pre.textContent = NyxUI.redactLog(lines.join('\n'), t('v2612.redacted'));
+    };
+    fill(); const iv = setInterval(() => { if (!pre.isConnected) return clearInterval(iv); fill(); }, 4000);
+    return pre;
+  };
+  const infoDot = (text, attrs) => h('span', { class: 'hub-info', title: text, tabindex: '0', ...(attrs || {}) }, h('span', { html: iconSvg('info', 13), 'aria-hidden': 'true' }), h('span', { class: 'sr-only' }, text));
   const refill25 = (el) => {
     if (typeof Hub25 === 'undefined' || typeof Hub25.fill !== 'function') return;
     const root = (el && (el.closest('.drawer, .panel, #drawer') || el.parentElement)) || document;
@@ -121,10 +155,11 @@ Hub.paintHubTabs = function (panes, show) {
       ));
       if (large) lastBox.lastChild.querySelector('.hub-pill.warn')?.setAttribute('title', t('v267.large_prompt_tip', { v0: 25, v1: last.prompt_n, v2: last.n_ctx }));
     }
-    lastBox.append(h('p', { class: 'muted small' }, t('v267.status_note')));
+    // v2.6.12: the explanatory paragraph moved into the title's tooltip (mockup 06: no extra paragraphs)
+    lastBox.firstChild.title = t('v267.status_note'); lastBox.firstChild.append(' ', infoDot(t('v267.status_note')));
     const tools = h('div', { class: 'hub-tools-slot' });
     el.innerHTML = '';
-    el.append(stats, vramWarn, running, lastBox, h('div', { class: 'hub-h4' }, t('v267.tools_row')), tools);
+    el.append(stats, keyCard('status'), vramWarn, running, lastBox, h('div', { class: 'hub-h4' }, t('v2612.router_log')), routerLog(), h('div', { class: 'hub-h4' }, t('v2612.tools_v25')), tools);
     refill25(el);
     el._painted = true;
 
@@ -214,7 +249,9 @@ Hub.paintHubTabs = function (panes, show) {
   const paintModels = async (el) => {
     el.innerHTML = '';
     const A = Store.state.settings.ai;
-    el.append(h('div', { class: 'hub-h4' }, t('v267.task_only')));
+    // v2.6.12 (mockup 07): key + port card on top, a compact disk strip, short titles (the long texts are tooltips)
+    const diskStrip = h('div', { class: 'hub-strip', 'data-st': 'disk-strip' }, h('b', {}, t('v2612.disk')), h('span', { 'data-st': 'disk-val' }, '…'));
+    el.append(keyCard('models'), diskStrip, h('div', { class: 'hub-h4', title: t('v267.task_only') }, t('v2612.task_only')));
     const mainTasks = ['chat', 'commands', 'greek', 'private', 'vision'];
     const moreTasks = ['summarize', 'embed'];
     const tasks = h('div', { class: 'tasks' });
@@ -225,16 +262,20 @@ Hub.paintHubTabs = function (panes, show) {
         const ic = rowEl.querySelector('.ti');
         if (ic) ic.innerHTML = this.greekFlag(18, 12);
       }
+      // v2.6.12: notes as an ⓘ with tooltip next to the task name (no paragraphs under the list)
+      const lab = rowEl.querySelector('.task-name, .tl, b, strong') || rowEl.firstElementChild;
+      if (k === 'vision' && lab) lab.append(' ', infoDot(t('v268.mmproj_card'), { class: 'hub-info hub-mmproj-note', 'data-vision-hint': '1' }));
+      if (k === 'private' && lab) lab.append(' ', infoDot(t('v266.private_model_note') || ''));
       tasks.append(rowEl);
     }
-    el.append(tasks, h('p', { class: 'muted small hub-mmproj-note', 'data-vision-hint': '1' }, t('v268.mmproj_card')));
+    el.append(tasks);
     const more = h('details', { class: 'hub-more' }, h('summary', {}, t('v267.more_tasks')));
     for (const k of moreTasks) {
       const def = (AI_TASKS || []).find((x) => x[0] === k) || [k, k, 'box'];
       more.append(this.taskRow(k, def[1], def[2]));
     }
     el.append(more);
-    el.append(h('p', { class: 'muted small' }, t('v266.private_model_note') || ''), h('div', { class: 'hub-h4' }, t('v267.installed')));
+    el.append(h('div', { class: 'hub-h4', title: t('v267.installed') }, t('v2612.installed')));
     const inst = h('div', { 'data-zone': 'keep', class: 'zone' });
     let list = [], err = '';
     const llama = A.providers.find((p) => p.id === 'llama');
@@ -252,31 +293,60 @@ Hub.paintHubTabs = function (panes, show) {
     const dir = modelsDirOf(cfg);
     // v2.6.9.1: disk = model files (.gguf/.bin/.safetensors) in the router's models folder AND the OmniVoice models folder,
     // in decimal GB (10^9, like Explorer «size» in GB on the PC measure 37,9 GB). It was GVS\models only, in GiB (34,4).
-    let disk = null; const diskParts = [];
+    let disk = null; const diskParts = []; const files = [];
     const ttsDir = String(A.tts.model || '').replace(/[\\/][^\\/]*$/, '');
     const dirs = [...new Set([dir, ttsDir].filter(Boolean))].filter((d, i, arr) => !arr.some((o, j) => j !== i && d.toLowerCase().startsWith(o.toLowerCase() + '\\')));
     for (const d of dirs) {
       try {
         const r = await API.inv('models:listDir', d, ['gguf', 'bin', 'safetensors']);
-        if (r && r.files) { const b = r.files.reduce((a, f) => a + (f.size || 0), 0); diskParts.push({ dir: d, bytes: b }); disk = (disk || 0) + b; }
+        if (r && r.files) { const b = r.files.reduce((a, f) => a + (f.size || 0), 0); diskParts.push({ dir: d, bytes: b }); disk = (disk || 0) + b; if (d === dir) files.push(...r.files); }
       } catch (e) {}
     }
+    // v2.6.12 (mockup 07): card = name + Greek state, then chips quant / GB / ctx / t/s / VRAM / port from real data
+    // («—» when unknown, never invented), license, and «όραση» when an mmproj sits in the model's folder.
+    const last = AI.lastRequest || null;
+    const lastTps = last && last.predicted_n != null && last.predicted_ms > 0 ? last.predicted_n / (last.predicted_ms / 1000) : null;
+    const lastId = last && last.model ? String(last.model).split(/[\\/]/).pop() : '';
+    const norm = (x) => String(x || '').toLowerCase().replace(/\.gguf$/, '');
+    const dirOfFile = (f) => String(f.rel || '').split(/[\\/]/).slice(0, -1).join('/').toLowerCase();
+    const fileFor = (name) => files.find((f) => !/^mmproj/i.test(f.name) && (norm(f.name) === norm(name) || norm(f.name).startsWith(norm(name)) || dirOfFile(f).split('/').pop() === norm(name)));
+    const mmprojs = files.filter((f) => /^mmproj/i.test(f.name));
+    const vramChips = [];
     for (const m of list) {
       const id = String(m.id || '');
       const name = id.split(/[\\/]/).pop();
       const lic = licenseFor(id);
-      const size = (m.size || m.bytes) ? fmtGB(m.size || m.bytes) : '';
-      // v2.6.11: card per model with a Greek state (φορτωμένο / φορτώνει / στον δίσκο); long names wrap, never cut
       const ms = NyxUI.modelState(m);
-      const card = row(dot(ms === 'loaded' ? 'g' : ms === 'loading' ? 'y' : 'x'), h('span', { class: 'grow hub-mname', 'data-model': id }, name + (size ? ' · ' + size : '')), h('span', { class: 'hub-pills' }, pill(lic.license), pill(t('v267.zone_keep_pill'))), pill(t('v2611.m_' + ms), (ms === 'loaded' ? 'ok' : ms === 'loading' ? 'warn' : 'off') + ' hub-mstate'));
-      card.classList.add('hub-model'); card.setAttribute('data-mstate', ms); if (ms === 'loaded') card.classList.add('is-loaded');
+      const f = fileFor(name);
+      const hasVision = !!(f && mmprojs.some((x) => dirOfFile(x) && dirOfFile(x) === dirOfFile(f)));
+      const chips = NyxUI.modelChips({ id: name, bytes: m.size || m.bytes || (f && f.size) || 0, ctx: m.ctxArg || m.nCtx || 0, tps: lastId && norm(lastId) === norm(name) ? lastTps : 0, vramGB: 0, port: cfg.port || 8080, loaded: ms === 'loaded' }, LANG);
+      const chipEls = chips.map((c) => { const e = h('span', { class: 'hub-chip' + (c.known ? '' : ' off'), 'data-chip': c.k, title: t('v2612.chip_' + c.k) }, c.v); if (c.k === 'vram' && ms === 'loaded') vramChips.push(e); return e; });
+      if (hasVision) chipEls.push(h('span', { class: 'hub-chip vision', 'data-chip': 'vision', title: t('v2612.vision_tip') }, h('span', { html: iconSvg('eye', 11), 'aria-hidden': 'true' }), ' ' + t('v2612.vision')));
+      chipEls.push(h('span', { class: 'hub-chip lic', 'data-chip': 'license', title: lic.note || lic.license }, lic.license));
+      const card = h('div', { class: 'hub-row hub-model hub-mcard' },
+        h('div', { class: 'hm-top' }, dot(ms === 'loaded' ? 'g' : ms === 'loading' ? 'y' : 'x'), h('span', { class: 'grow hub-mname', 'data-model': id, title: id }, name), pill(t('v2611.m_' + ms), (ms === 'loaded' ? 'ok' : ms === 'loading' ? 'warn' : 'off') + ' hub-mstate')),
+        h('div', { class: 'hub-chips' }, ...chipEls));
+      card.setAttribute('data-mstate', ms); if (ms === 'loaded') card.classList.add('is-loaded');
       inst.append(card);
     }
+    // mmproj files (vision projectors) in the models folder: own card with «όραση» (they are not models of the router list)
+    for (const x of mmprojs) {
+      const chips = NyxUI.modelChips({ id: x.name, mmproj: true, bytes: x.size }, LANG);
+      inst.append(h('div', { class: 'hub-row hub-mcard hub-mmproj', 'data-mmproj': x.rel || x.name },
+        h('div', { class: 'hm-top' }, dot('x'), h('span', { class: 'grow hub-mname', title: x.rel || x.name }, x.name), pill(t('v2612.vision'), 'vision')),
+        h('div', { class: 'hub-chips' }, ...chips.map((c) => h('span', { class: 'hub-chip', 'data-chip': c.k, title: t('v2612.chip_' + c.k) }, c.v)))));
+    }
+    if (vramChips.length === 1) raceMs(API.inv('perf:snapshot'), 20000, null).then((pf) => {
+      const ad = pf && pf.gpu && pf.gpu.adapter; if (!ad || ad.used == null) return;
+      const e = vramChips[0]; e.textContent = 'VRAM ' + fmtNum(ad.used / 1073741824, 1); e.classList.remove('off'); e.title = t('v2612.chip_vram_total');
+    });
     // v2.6.9.1: the mmproj hint is shown once (under the tasks); it was repeated here.
     const budget = +cfg.diskBudgetGB || 70;
-    inst.append(disk != null
-      ? h('p', { class: 'muted small', 'data-disk': String(disk), 'data-disk-gb': fmtNum(disk / 1e9, 1) }, t('v2691.disk', { v0: fmtNum(disk / 1e9, 1), v1: budget, v2: diskParts.map((x) => x.dir.split(/[\\/]/).slice(-2).join('\\') + ' ' + fmtNum(x.bytes / 1e9, 1)).join(' + ') }))
-      : h('p', { class: 'muted small' }, t('v267.disk_unknown')));
+    // v2.6.12: the disk total goes into the compact strip at the top (the full sentence is its tooltip)
+    const diskTxt = disk != null ? t('v2691.disk', { v0: fmtNum(disk / 1e9, 1), v1: budget, v2: diskParts.map((x) => x.dir.split(/[\\/]/).slice(-2).join('\\') + ' ' + fmtNum(x.bytes / 1e9, 1)).join(' + ') }) : t('v267.disk_unknown');
+    diskStrip.title = diskTxt;
+    if (disk != null) { diskStrip.setAttribute('data-disk', String(disk)); diskStrip.setAttribute('data-disk-gb', fmtNum(disk / 1e9, 1)); }
+    diskStrip.querySelector('[data-st=disk-val]').textContent = disk != null ? fmtNum(disk / 1e9, 1) + ' / ' + budget + ' GB' : '—';
     el.append(inst);
     const zones = this.zonesBox();
     el.append(zones);
@@ -327,7 +397,7 @@ Hub.paintHubTabs = function (panes, show) {
           st.textContent = r.running ? t('hub.061', { pid: r.pid }) : (r.exit != null ? t('hub.062', { exit: r.exit }) : (opts.health ? routerDown(port) : t('hub.063')));
           if (opts.health && !r.running) st.className = 'srv-st err';
         }
-        log.textContent = (r.cmd ? '> ' + r.cmd + '\n' : '') + ((r.log || []).join('\n'));
+        log.textContent = NyxUI.redactLog((r.cmd ? '> ' + r.cmd + '\n' : '') + ((r.log || []).join('\n')), t('v2612.redacted')); // v2.6.12: no secrets in logs
       };
       API.inv('proc:status', startId || id).then(upd).catch(() => {});
       if (API.onProcStatus) API.onProcStatus((s) => { if (s.id === (startId || id)) upd(s); });

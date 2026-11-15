@@ -108,7 +108,7 @@ function dismissToasts() { for (const e of [...($('#toasts')?.children || [])]) 
     clearTimeout(tm);
     if (!tgt) { tip.hidden = true; return; }
     tm = setTimeout(() => {
-      tip.textContent = t(tgt.dataset.tip);
+      tip.textContent = (tgt.dataset.tipPre ? t(tgt.dataset.tipPre) + ': ' : '') + t(tgt.dataset.tip); // v2.6.12: optional prefix (paper kinds)
       // v2.6.11: flyout items 1–9 show their key only here, in the tooltip (data-fk)
       if (tgt.dataset.fk) { const k = document.createElement('kbd'); k.className = 'tip-key'; k.textContent = tgt.dataset.fk; tip.append(' ', k); }
       tip.hidden = false;

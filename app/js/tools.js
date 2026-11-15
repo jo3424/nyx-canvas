@@ -36,6 +36,7 @@ const Tools = {
   // Flyout.place). Same choices and settings as before; only the look changed. Items 1–9 (and 0 for the 10th paper kind, since 2.6.11.1) carry their key in the tooltip
   // (data-fk) and Flyout.key() picks them only while the flyout is open and nobody is typing.
   opts() {
+    if (this._picker) this.closePicker(); // v2.6.12: a rebuild (other tool) closes the palette
     const o = $('#toolopts'); const S = Store.state.settings; o.innerHTML = '';
     const cur = this.cur; let fk = 0;
     const num = (el, ten) => { if (fk < 9 || (ten && fk === 9)) { fk++; const k = String(fk % 10); el.dataset.fk = k; el.setAttribute('aria-keyshortcuts', k); } return el; }; // v2.6.11.1: ten → the 10th item gets «0» (note paper kinds only)
@@ -56,8 +57,10 @@ const Tools = {
       if (cur === 'sticky') {
         o.append(sec('fo-grid', ...STICKY.map(c => h('button', { class: 'sw' + ((S.stickyColor || STICKY[0]) === c ? ' on' : ''), style: { '--c': c }, 'data-tip': c.toUpperCase(), 'aria-label': c.toUpperCase(), onclick: () => { S.stickyColor = c; Store.save(); this.opts(); } }))));
         o.append(h('div', { class: 'sep' }));
-        o.append(h('span', { class: 'hint fo-label', 'data-tip': 'v2671.paper_hint' }, t('v23.paper_kind')));
-        o.append(sec('fo-grid', ...PAPER_KINDS.map(([k, ic]) => num(h('button', { class: 'ob' + ((S.stickyKind || '') === k ? ' on' : ''), 'data-tip': 'v23.pk_' + (k || 'classic'), 'aria-label': t('v23.pk_' + (k || 'classic')), 'data-pk': k || 'classic', onclick: () => { S.stickyKind = k; Store.save(); this.opts(); } }, iconSvg(ic, 18)), true))));
+        // v2.6.12 (mockup 04): icons only — the «Είδος χαρτιού» label moved into each tooltip («Είδος χαρτιού: Γυαλί [0]»)
+        const pk = sec('fo-grid fo-paper', ...PAPER_KINDS.map(([k, ic]) => num(h('button', { class: 'ob' + ((S.stickyKind || '') === k ? ' on' : ''), 'data-tip': 'v23.pk_' + (k || 'classic'), 'data-tip-pre': 'v23.paper_kind', 'aria-label': t('v23.paper_kind') + ': ' + t('v23.pk_' + (k || 'classic')), 'data-pk': k || 'classic', onclick: () => { S.stickyKind = k; Store.save(); this.opts(); } }, iconSvg(ic, 18)), true)));
+        pk.setAttribute('role', 'group'); pk.setAttribute('aria-label', t('v23.paper_kind')); pk.setAttribute('aria-description', t('v2671.paper_hint'));
+        o.append(pk);
       }
     }
     o.hidden = !o.childElementCount;
@@ -65,6 +68,11 @@ const Tools = {
   },
   // v2.6.11.1: pen / marker / highlighter flyout as in mockup 03 — colours (1–9), 4 sizes, hex + eyedropper, opacity %,
   // thickness 1–40 px, 4 recent colours (additive setting recentColors[tool]). The highlighter keeps its own colours and 38 %.
+  // v2.6.12: every change is applied IN PLACE (no this.opts()): until 2.6.11.1 the colour input's 'input' event went
+  // setColor → this.opts(), which rebuilt the flyout and detached the active <input type=color> — Chromium closes the
+  // colour chooser of a detached input, so the palette closed after every shade. The rainbow button now opens the Nyx
+  // palette (saturation/value square + hue slider) inside the flyout; it stays open for consecutive changes until Esc,
+  // its × or a click outside. Live changes set the colour; the recent list is updated once, when a change is finished.
   penOpts(o, head, sec, num) {
     const S = Store.state.settings; const cur = this.cur;
     const key = cur === 'pen' ? 'penColor' : cur === 'marker' ? 'markerColor' : 'hlColor';
@@ -73,17 +81,22 @@ const Tools = {
     S[sizeKey] ||= sizes[1];
     const opKey = cur + 'Opacity';
     const curHex = () => NyxUI.toHex(S[key]) || NyxUI.toHex(colors[0]);
-    const setColor = (c) => {
+    const isOn = (c) => NyxUI.toHex(c) === curHex();
+    let saveT = 0;
+    // opts.recent === false → live change (palette drag): colour set + saved (debounced), recent list untouched
+    const setColor = (c, opts = {}) => {
       const hx = NyxUI.toHex(c); if (!hx) return false;
       const fromPalette = colors.find(x => NyxUI.toHex(x) === hx);
       S[key] = fromPalette || hx;
-      S.recentColors = { ...(S.recentColors || {}), [cur]: NyxUI.pushRecent((S.recentColors || {})[cur], hx) };
-      Store.save(); this.opts(); return true;
+      if (opts.recent !== false) { S.recentColors = { ...(S.recentColors || {}), [cur]: NyxUI.pushRecent((S.recentColors || {})[cur], hx) }; clearTimeout(saveT); Store.save(); }
+      else { clearTimeout(saveT); saveT = setTimeout(() => Store.save(), 250); }
+      refresh(opts); return true;
     };
-    const isOn = (c) => NyxUI.toHex(c) === curHex();
-    o.append(head(), sec('fo-grid', ...colors.map(c => num(h('button', { class: 'sw' + (isOn(c) ? ' on' : ''), style: { '--c': c }, 'data-tip': c.toUpperCase(), 'aria-label': c.toUpperCase(), onclick: () => setColor(c) }))), colorInput(curHex(), (c) => setColor(c))));
+    const swatches = colors.map(c => num(h('button', { class: 'sw' + (isOn(c) ? ' on' : ''), style: { '--c': c }, 'data-c': NyxUI.toHex(c), 'data-tip': c.toUpperCase(), 'aria-label': c.toUpperCase(), onclick: () => setColor(c) })));
+    const rainbow = h('button', { class: 'sw custom', type: 'button', 'data-picker': '', 'aria-haspopup': 'dialog', 'aria-expanded': 'false', 'data-tip': 'v2612.palette', 'aria-label': t('v2612.palette'), html: iconSvg('pipette', 14), onclick: () => (this._picker ? this.closePicker() : this.openPicker(o, rainbow, curHex, setColor)) });
+    o.append(head(), sec('fo-grid', ...swatches, rainbow));
     // sizes: the dots are <i> (styles.css colours `.szb i`; until 2.6.11 they were <span> and stayed invisible)
-    const dots = sizes.map(sz => h('button', { class: 'szb' + (S[sizeKey] === sz ? ' on' : ''), 'data-size': String(sz), 'data-tip': sz + ' px', 'aria-label': sz + ' px', onclick: () => { S[sizeKey] = sz; Store.save(); this.opts(); } }, h('i', { style: { width: Math.min(22, sz + 2) + 'px', height: Math.min(22, sz + 2) + 'px' } })));
+    const dots = sizes.map(sz => h('button', { class: 'szb' + (S[sizeKey] === sz ? ' on' : ''), 'data-size': String(sz), 'data-tip': sz + ' px', 'aria-label': sz + ' px', onclick: () => { S[sizeKey] = sz; Store.save(); dots.forEach(d => d.classList.toggle('on', +d.dataset.size === sz)); const px = o.querySelector('.fo-px'); if (px) px.value = String(sz); } }, h('i', { style: { width: Math.min(22, sz + 2) + 'px', height: Math.min(22, sz + 2) + 'px' } })));
     o.append(h('div', { class: 'sep' }), sec('fo-col fo-sizes', ...dots));
     // hex + eyedropper
     const hex = h('input', { class: 'fo-inp fo-hex', type: 'text', value: curHex(), maxlength: '9', spellcheck: 'false', autocomplete: 'off', 'aria-label': t('v26111.hex'), 'data-tip': 'v26111.hex' });
@@ -102,8 +115,65 @@ const Tools = {
     const opF = field('fo-op', opNow, 1, 100, '%', 'v26111.opacity', (n) => { S[opKey] = n; Store.save(); });
     const pxF = field('fo-px', NyxUI.clampInt(S[sizeKey], NyxUI.PEN_PX_MIN, NyxUI.PEN_PX_MAX, sizes[1]), NyxUI.PEN_PX_MIN, NyxUI.PEN_PX_MAX, 'px', 'v26111.px', (n) => { S[sizeKey] = n; Store.save(); dots.forEach(d => d.classList.toggle('on', +d.dataset.size === n)); });
     o.append(sec('fo-fields', h('div', { class: 'fo-field fo-hexrow' }, drop, hex), opF, pxF));
-    const rec = ((S.recentColors || {})[cur] || []).map(NyxUI.toHex).filter(Boolean).slice(0, NyxUI.RECENT_MAX);
-    if (rec.length) o.append(sec('fo-grid fo-recent', ...rec.map(c => h('button', { class: 'sw recent' + (isOn(c) ? ' on' : ''), style: { '--c': c }, 'data-recent': c, 'data-tip': c, 'aria-label': t('v26111.recent') + ' ' + c, onclick: () => setColor(c) }))));
+    const recSec = sec('fo-grid fo-recent');
+    const fillRecent = () => {
+      const rec = ((S.recentColors || {})[cur] || []).map(NyxUI.toHex).filter(Boolean).slice(0, NyxUI.RECENT_MAX);
+      recSec.replaceChildren(...rec.map(c => h('button', { class: 'sw recent' + (isOn(c) ? ' on' : ''), style: { '--c': c }, 'data-recent': c, 'data-tip': c, 'aria-label': t('v26111.recent') + ' ' + c, onclick: () => setColor(c) })));
+      const was = recSec.hidden; recSec.hidden = !rec.length;
+      // the flyout was placed for its old height; re-place it when the recent row appears (in-place updates do not rebuild it)
+      if (was !== recSec.hidden && recSec.isConnected && typeof Flyout !== 'undefined' && Flyout.isOpen()) Flyout.place();
+    };
+    fillRecent(); o.append(recSec);
+    // in-place refresh: swatch rings, hex (unless the user is typing in it), the rainbow's preview, the recent row
+    const refresh = (opts = {}) => {
+      const hx = curHex();
+      swatches.forEach(b => b.classList.toggle('on', b.dataset.c === hx));
+      if (document.activeElement !== hex) hex.value = hx;
+      hex.classList.remove('bad'); rainbow.style.setProperty('--pick', hx);
+      if (opts.recent !== false) fillRecent(); else recSec.querySelectorAll('.sw.recent').forEach(b => b.classList.toggle('on', b.dataset.recent === hx));
+      if (this._picker && !opts.fromPicker) this._picker.sync(hx);
+    };
+    rainbow.style.setProperty('--pick', curHex());
+  },
+  // the Nyx palette: saturation/value square + hue slider + preview, next to the flyout (fixed position, inside the window)
+  openPicker(o, btn, curHex, setColor) {
+    this.closePicker();
+    let hsv = NyxUI.hexToHsv(curHex()) || { h: 0, s: 0, v: 1 };
+    const sv = h('div', { class: 'pk-sv', role: 'slider', tabindex: '0', 'aria-label': t('v2612.palette_sv') }, h('i', { class: 'pk-thumb' }));
+    const hue = h('input', { class: 'pk-hue', type: 'range', min: '0', max: '360', step: '1', value: String(Math.round(hsv.h)), 'aria-label': t('v2612.palette_hue') });
+    const prev = h('span', { class: 'pk-prev' }); const val = h('span', { class: 'pk-val' });
+    const close = h('button', { class: 'pk-x', type: 'button', 'aria-label': t('close'), html: iconSvg('x', 13), onclick: () => this.closePicker() });
+    const box = h('div', { class: 'fo-picker', role: 'dialog', 'aria-label': t('v2612.palette') }, h('div', { class: 'pk-top' }, h('span', { class: 'pk-title' }, t('v2612.palette')), close), sv, hue, h('div', { class: 'pk-row' }, prev, val));
+    const paint = () => {
+      const hx = NyxUI.hsvToHex(hsv.h, hsv.s, hsv.v);
+      sv.style.setProperty('--hue', NyxUI.hsvToHex(hsv.h, 1, 1)); sv.firstChild.style.left = (hsv.s * 100) + '%'; sv.firstChild.style.top = ((1 - hsv.v) * 100) + '%';
+      prev.style.background = hx; val.textContent = hx; return hx;
+    };
+    const live = (final) => { const hx = paint(); setColor(hx, { recent: final ? undefined : false, fromPicker: true }); };
+    const fromPoint = (e) => { const r = sv.getBoundingClientRect(); hsv.s = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)); hsv.v = 1 - Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)); };
+    sv.addEventListener('pointerdown', (e) => { e.preventDefault(); sv.setPointerCapture(e.pointerId); fromPoint(e); live(false); sv.focus(); });
+    sv.addEventListener('pointermove', (e) => { if (!sv.hasPointerCapture(e.pointerId)) return; fromPoint(e); live(false); });
+    sv.addEventListener('pointerup', (e) => { if (sv.hasPointerCapture(e.pointerId)) { sv.releasePointerCapture(e.pointerId); live(true); } });
+    sv.addEventListener('keydown', (e) => {
+      const st = e.shiftKey ? 0.1 : 0.02; const d = { ArrowLeft: [-st, 0], ArrowRight: [st, 0], ArrowUp: [0, st], ArrowDown: [0, -st] }[e.key];
+      if (!d) return; e.preventDefault(); e.stopPropagation(); hsv.s = Math.min(1, Math.max(0, hsv.s + d[0])); hsv.v = Math.min(1, Math.max(0, hsv.v + d[1])); live(true);
+    });
+    hue.addEventListener('input', () => { hsv.h = +hue.value; live(false); });
+    hue.addEventListener('change', () => { hsv.h = +hue.value; live(true); });
+    document.body.append(box);
+    const place = () => { const fr = o.getBoundingClientRect(); const bw = box.offsetWidth, bh = box.offsetHeight; const br = btn.getBoundingClientRect(); let left = fr.right + 6; if (left + bw > innerWidth - 8) left = Math.max(8, fr.left - 6 - bw); const top = Math.min(Math.max(($('#titlebar')?.getBoundingClientRect().bottom || 0) + 8, br.top + br.height / 2 - bh / 2), innerHeight - 8 - bh); box.style.left = Math.round(left) + 'px'; box.style.top = Math.round(top) + 'px'; };
+    const outside = (e) => { if (!box.contains(e.target) && !o.contains(e.target)) this.closePicker(); };
+    const esc = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); this.closePicker(); btn.focus?.(); } };
+    setTimeout(() => { if (this._picker && this._picker.box === box) { addEventListener('pointerdown', outside, true); addEventListener('keydown', esc, true); } }, 0);
+    addEventListener('resize', place);
+    btn.setAttribute('aria-expanded', 'true'); btn.classList.add('open');
+    this._picker = { box, btn, sync: (hx) => { const n = NyxUI.hexToHsv(hx); if (n) { hsv = n; hue.value = String(Math.round(n.h)); paint(); } }, off: () => { removeEventListener('pointerdown', outside, true); removeEventListener('keydown', esc, true); removeEventListener('resize', place); } };
+    paint(); place();
+    return box;
+  },
+  closePicker() {
+    const p = this._picker; if (!p) return; this._picker = null;
+    p.off(); p.box.remove(); if (p.btn.isConnected) { p.btn.setAttribute('aria-expanded', 'false'); p.btn.classList.remove('open'); }
   },
   // eyedropper: the browser's EyeDropper first (no permission, works inside the Nyx window); if it is missing, fails,
   // returns no colour or is cancelled → click on a card / stroke on the canvas to take its colour (read only)
