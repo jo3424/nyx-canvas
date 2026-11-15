@@ -1,0 +1,35 @@
+/* v2.6.12.1 — appearance only: «+N ▾» rows with × / right-click / drag, and «Διαχείριση πινάκων». Same tokens as the tab
+   strip (v2.css .tab-x, styles.css .tab.dragover) and the ctx menu; no new colours. */
+#ctxmenu[data-menu=tabs-more] .tm-row{display:flex;align-items:center;gap:2px;border-radius:calc(var(--radius) * .6);position:relative}
+#ctxmenu[data-menu=tabs-more] .tm-row > .mi{flex:1 1 auto;min-width:0}
+#ctxmenu[data-menu=tabs-more] .tm-row > .mi .mi-name{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#ctxmenu[data-menu=tabs-more] .tm-x{flex:none;width:22px;height:22px;margin-right:4px;border:0;border-radius:50%;background:none;color:var(--muted);opacity:.55;display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer}
+#ctxmenu[data-menu=tabs-more] .tm-row:hover .tm-x,#ctxmenu[data-menu=tabs-more] .tm-row:focus-within .tm-x{opacity:1;color:var(--text)}
+#ctxmenu[data-menu=tabs-more] .tm-x:hover{background:color-mix(in srgb,var(--text) 14%,transparent)}
+#ctxmenu[data-menu=tabs-more] .tm-row[draggable=true]{cursor:grab}
+#ctxmenu[data-menu=tabs-more] .tm-row.dragging,.bm-row.dragging{opacity:.45}
+#ctxmenu[data-menu=tabs-more] .tm-row.drop-before,.bm-row.drop-before{box-shadow:inset 0 2px 0 var(--accent)}
+#ctxmenu[data-menu=tabs-more] .tm-row.drop-after,.bm-row.drop-after{box-shadow:inset 0 -2px 0 var(--accent)}
+#ctxmenu[data-menu=tabs-more] .tm-manage{justify-content:flex-start;color:var(--muted)}
+#ctxmenu[data-menu=tabs-more] .tm-manage:hover,#ctxmenu[data-menu=tabs-more] .tm-manage:focus{color:var(--text)}
+.tabs-more.dragover{background:color-mix(in srgb,var(--accent) 22%,transparent);border-color:var(--accent)}
+body.tab-dragging #tabs .tab:not(.dragover){transition:none}
+
+/* «Διαχείριση πινάκων» (drawer) */
+.bm-hint{margin:0 0 10px}
+.bm-list{display:flex;flex-direction:column;gap:4px}
+.bm-row{display:flex;align-items:center;gap:6px;min-height:40px;padding:4px 6px 4px 2px;border:1px solid var(--border);border-radius:calc(var(--radius) * .7);background:color-mix(in srgb,var(--text) 3%,transparent);box-shadow:inset 3px 0 0 var(--tc)}
+.bm-row:hover{background:color-mix(in srgb,var(--text) 6%,transparent)}
+.bm-row:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.bm-row.on{border-color:color-mix(in srgb,var(--accent) 60%,var(--border));background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.bm-row.on.drop-before{box-shadow:inset 0 2px 0 var(--accent)}.bm-row.on.drop-after{box-shadow:inset 0 -2px 0 var(--accent)}
+.bm-grip{flex:none;display:inline-flex;align-items:center;justify-content:center;width:22px;height:30px;color:var(--muted);cursor:grab;border-radius:6px}
+.bm-grip:hover{color:var(--text);background:color-mix(in srgb,var(--text) 8%,transparent)}
+.bm-emo{flex:none;width:30px;height:30px;border:0;background:none;font-size:18px;cursor:pointer;border-radius:8px;padding:0}
+.bm-emo:hover{background:color-mix(in srgb,var(--text) 8%,transparent)}
+.bm-name{flex:1 1 auto;min-width:0;height:30px;padding:0 8px;border:1px solid transparent;border-radius:8px;background:none;color:var(--text);font:inherit;font-weight:600;text-overflow:ellipsis}
+.bm-name:hover{border-color:var(--border)}
+.bm-name:focus{outline:none;border-color:var(--accent);background:color-mix(in srgb,var(--panel-solid) 80%,transparent)}
+.bm-count{flex:none;white-space:nowrap;min-width:64px;text-align:right}
+.bm-row .icon-btn{flex:none;width:30px;height:30px}
+.bm-row .bm-del:hover{color:#ff6b6b}

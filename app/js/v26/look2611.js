@@ -39,20 +39,8 @@ const TabStrip = {
     return L;
   },
   soon() { cancelAnimationFrame(this._raf); this._raf = requestAnimationFrame(() => this.layout({ follow: false })); },
-  openMore() {
-    const { more } = this.els(); if (!more || more.hidden) return;
-    const r = more.getBoundingClientRect();
-    const act = Store.state.active;
-    const rows = (this._hidden || []).map((b) => [`<span class="mi-emo">${esc(b.emoji || '•')}</span>`, b.name, () => { App.switchBoard(b.id); setTimeout(() => ($('#tabs .tab.on:not([hidden])') || $('#tabs-more'))?.focus(), 30); }, 'tm-item' + (b.id === act ? ' on' : ''), String(b.items.length)]);
-    Panels.menu(r.right, r.bottom + 4, rows);
-    const m = $('#ctxmenu'); m.dataset.menu = 'tabs-more';
-    // v2.6.12: one line per title (ellipsis) + the full name in a tooltip; the active board (if hidden) is highlighted
-    [...m.querySelectorAll('.mi')].forEach((x, i) => { const b = this._hidden[i]; x.dataset.board = b.id; x.setAttribute('role', 'menuitem'); x.title = b.name; if (b.id === act) x.setAttribute('aria-current', 'page'); });
-    const mr = m.getBoundingClientRect(); m.style.left = Math.max(8, Math.min(r.right - mr.width, innerWidth - mr.width - 8)) + 'px'; // right-aligned under «+N ▾»
-    more.setAttribute('aria-expanded', 'true');
-    const obs = new MutationObserver(() => { if (m.hidden) { more.setAttribute('aria-expanded', 'false'); obs.disconnect(); } }); obs.observe(m, { attributes: true, attributeFilter: ['hidden'] });
-    (m.querySelector('.mi.on') || m.querySelector('.mi'))?.focus();
-  },
+  // v2.6.12.1: the «+N ▾» menu (rows with ×, right-click = the tab's menu, drag, «Διαχείριση πινάκων») is in tabs26121.js
+  openMore() { if (typeof BoardTabs !== 'undefined') BoardTabs.openMore(); },
   init() {
     const { T, zone, more } = this.els(); if (!T || !zone || !more) return;
     more.onclick = () => ($('#ctxmenu').hidden ? this.openMore() : Panels.closeMenu());
@@ -79,12 +67,7 @@ const TabStrip = {
       const i = Store.state.boards.findIndex((b) => b.id === tab.dataset.board); if (i < 0) return;
       nav(e, i, true);
     });
-    // the ctxmenu of «+N»: ↑/↓ move between boards
-    $('#ctxmenu').addEventListener('keydown', (e) => {
-      if ($('#ctxmenu').dataset.menu !== 'tabs-more' || !['ArrowDown', 'ArrowUp'].includes(e.key)) return;
-      const items = [...$('#ctxmenu').querySelectorAll('.mi')]; const k = items.indexOf(document.activeElement);
-      e.preventDefault(); e.stopPropagation(); items[(k + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus();
-    });
+    // the keys inside the «+N ▾» menu (↑/↓ Home/End, Delete, F2, Shift+F10, Alt+↑/↓): BoardTabs.menuKey (tabs26121.js)
     more.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowDown') { e.preventDefault(); this.openMore(); return; }
       if (!more.classList.contains('has-active')) return;
@@ -187,7 +170,7 @@ function look2611MarkLibrary() { const d = $('#drawer'); const on = !!d && !d.hi
 (function bootLook2611() {
   const go = () => {
     if (typeof Store === 'undefined' || !Store.state || !$('#dock .tool')) return setTimeout(go, 60);
-    TabStrip.init(); Flyout.init(); UIStyle.init();
+    TabStrip.init(); if (typeof BoardTabs !== 'undefined') BoardTabs.init(); Flyout.init(); UIStyle.init();
     addEventListener('keydown', (e) => { if (e.key === '/' && typeof Panels !== 'undefined' && Panels.libSlash) Panels.libSlash(e); }, true); // v2.6.12: «/» → Library search
     look2611PlaceBin(); addEventListener('resize', look2611PlaceBin);
     const d = $('#drawer'); if (d) new MutationObserver(look2611MarkLibrary).observe(d, { attributes: true, attributeFilter: ['hidden', 'data-kind'] });

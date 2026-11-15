@@ -2115,5 +2115,11 @@
  "v2612.chip_vram_total": "GPU VRAM (total, Windows measurement)",
  "v2612.chip_port": "Router port",
  "v2612.vision": "vision",
- "v2612.vision_tip": "An mmproj sits in the same folder: the model can see images"
+ "v2612.vision_tip": "An mmproj sits in the same folder: the model can see images",
+ "v26121.manage": "Manage boards",
+ "v26121.manage_hint": "{v0} boards · drag ⋮⋮ or Alt+↑/↓ to reorder · click a name to rename · Delete removes (cards go to the Bin)",
+ "v26121.drag": "Drag to reorder",
+ "v26121.items": "{v0} items",
+ "v26121.open": "Open board",
+ "v26121.menu": "Board menu"
 }

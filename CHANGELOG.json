@@ -1,4 +1,16 @@
 {
+ "2.6.12.1": {
+  "el": [
+    "Καρτέλες στο «+N ▾»: κάθε γραμμή έχει × και δεξί κλικ με το ίδιο μενού της καρτέλας (μετονομασία, διπλότυπο, χρώμα, διαγραφή). Η διαγραφή είναι η ίδια με της μπάρας: άδειος πίνακας σβήνεται αμέσως, με υλικό ρωτάει «Διαγραφή πίνακα με N στοιχεία;», οι κάρτες πάνε στον Κάδο και η «Αναίρεση» τον φέρνει πίσω.",
+    "Σύρσιμο καρτελών: αλλαγή σειράς μέσα στο μενού, από το μενού στη μπάρα και από τη μπάρα στο «+N ▾» (αν κρατήσεις πάνω του ανοίγει το μενού). Οι πρώτες μένουν στη μπάρα, οι τελευταίες στο μενού. Πληκτρολόγιο: Alt+↑/↓ για σειρά, Delete, F2, Shift+F10.",
+    "«Διαχείριση πινάκων» στο τέλος του μενού: όλοι οι πίνακες σε μία λίστα για σύρσιμο, μετονομασία και διαγραφή (ίδια διαγραφή και ερώτηση με τη μπάρα)."
+  ],
+  "en": [
+    "Tabs in «+N ▾»: every row has × and a right-click with the tab's own menu (rename, duplicate, colour, delete). Delete is the bar's: an empty board goes at once, a board with items asks first, its cards go to the Bin, «Undo» brings it back.",
+    "Drag tabs: reorder inside the menu, menu → bar and bar → «+N ▾» (hover opens the menu). The first tabs stay in the bar, the last ones overflow. Keys: Alt+↑/↓ to reorder, Delete, F2, Shift+F10.",
+    "«Manage boards» at the end of the menu: all boards in one list to drag, rename and delete (same delete and confirm as the bar)."
+  ]
+ },
  "2.6.12": {
   "el": [
    "Καρτέλες πινάκων: οι ΠΡΩΤΕΣ μένουν στη μπάρα· οι τελευταίες και οι νέες που δεν χωράνε πάνε στο «+N ▾». Η ενεργή δεν διώχνει τις πρώτες: αν είναι στο μενού, το «+N ▾» και η γραμμή της τονίζονται. Τίτλοι μενού σε μία γραμμή με «…» και tooltip.",

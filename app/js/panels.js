@@ -30,19 +30,25 @@ const Panels = {
       tab.onauxclick = (e) => { if (e.button === 1 && S.boards.length > 1) { e.preventDefault(); App.deleteBoard(b); } };
       tab.onclick = () => App.switchBoard(b.id);
       tab.ondblclick = () => this.renameBoard(b);
-      tab.oncontextmenu = (e) => { e.preventDefault(); this.menu(e.clientX, e.clientY, [
-        [iconSvg('pencil', 15), t('rename'), () => this.renameBoard(b)], [iconSvg('copy', 15), t('duplicate'), () => App.duplicateBoard(b)],
-        ['', '', null, h('div', { class: 'sw-row' }, ...PALETTE.slice(4).map(c => h('button', { class: 'sw', style: { '--c': c }, onclick: () => { b.color = c; Store.save(); this.tabs(); this.closeMenu(); } })))],
-        [iconSvg('trash-2', 15), t('del'), () => App.deleteBoard(b), 'danger']]); };
-      tab.ondragstart = (e) => { e.dataTransfer.setData('nyx/tab', b.id); };
+      tab.oncontextmenu = (e) => { e.preventDefault(); this.menu(e.clientX, e.clientY, this.tabMenuRows(b)); };
+      tab.ondragstart = (e) => { e.dataTransfer.setData('nyx/tab', b.id); e.dataTransfer.effectAllowed = 'move'; document.body.classList.add('tab-dragging'); };
+      tab.ondragend = () => document.body.classList.remove('tab-dragging');
       tab.ondragover = (e) => { if (e.dataTransfer.types.includes('nyx/tab')) { e.preventDefault(); tab.classList.add('dragover'); } };
       tab.ondragleave = () => tab.classList.remove('dragover');
-      tab.ondrop = (e) => { const id = e.dataTransfer.getData('nyx/tab'); tab.classList.remove('dragover'); if (!id || id === b.id) return; e.preventDefault(); const arr = S.boards; const from = arr.findIndex(x => x.id === id); const [m] = arr.splice(from, 1); arr.splice(arr.indexOf(b), 0, m); Store.save(); this.tabs(); };
+      tab.ondrop = (e) => { const id = e.dataTransfer.getData('nyx/tab'); tab.classList.remove('dragover'); if (!id || id === b.id) return; e.preventDefault(); const arr = S.boards; const from = arr.findIndex(x => x.id === id); const [m] = arr.splice(from, 1); arr.splice(arr.indexOf(b), 0, m); Store.save(); if ($('#ctxmenu').dataset.menu === 'tabs-more') this.closeMenu(); this.tabs(); };
       T.append(tab);
     }
     // v2.6.11: tabs shrink to a useful minimum, then «+N ▾» holds the rest; the active tab always stays visible (look2611.js)
     if (typeof TabStrip !== 'undefined') TabStrip.layout({ follow: true });
     else { const on = T.querySelector('.on'); on?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+    if (this.drawerKind === 'boards' && typeof BoardTabs !== 'undefined') BoardTabs.renderManage(); // v2.6.12.1: «Διαχείριση πινάκων» follows
+  },
+  // the tab's right-click menu — v2.6.12.1: ONE source, used by the bar, the «+N ▾» rows and «Διαχείριση πινάκων»
+  tabMenuRows(b) {
+    return [
+      [iconSvg('pencil', 15), t('rename'), () => this.renameBoard(b)], [iconSvg('copy', 15), t('duplicate'), () => App.duplicateBoard(b)],
+      ['', '', null, h('div', { class: 'sw-row' }, ...PALETTE.slice(4).map(c => h('button', { class: 'sw', style: { '--c': c }, onclick: () => { b.color = c; Store.save(); this.tabs(); this.closeMenu(); } })))],
+      [iconSvg('trash-2', 15), t('del'), () => App.deleteBoard(b), 'danger']];
   },
   renameBoard(b) {
     const f = form([['name', t('rename'), 'text', b.name], ['emoji', 'Emoji', 'text', b.emoji || '']]);
@@ -58,7 +64,7 @@ const Panels = {
     build(body);
   },
   closeDrawer() { const d = $('#drawer'); d.classList.remove('in'); this.drawerKind = null; document.body.classList.remove('drawer-open'); $$('.tb-btn.on').forEach(b => b.classList.remove('on')); setTimeout(() => { if (!this.drawerKind) d.hidden = true; }, 220); },
-  refreshDrawer() { const k = this.drawerKind; if (!k) return; this.drawerKind = null; ({ subs: () => this.subs(), reminders: () => this.reminders(), themes: () => this.themes(), settings: () => this.settings(), library: () => this.library(this.libTab), bin: () => Bin.open() })[k]?.(); },
+  refreshDrawer() { const k = this.drawerKind; if (!k) return; this.drawerKind = null; ({ subs: () => this.subs(), reminders: () => this.reminders(), themes: () => this.themes(), settings: () => this.settings(), library: () => this.library(this.libTab), bin: () => Bin.open(), boards: () => BoardTabs.manage() })[k]?.(); },
 
   // ---------- library (emoji / stickers / reactions / icons / memes) ----------
   libTab: 'emoji', libQ: '', libGroup: 'all', iconPack: 'lucide', iconColor: '#ffffff',
@@ -350,7 +356,7 @@ const Panels = {
   },
   // ---------- context menu ----------
   menu(x, y, rows) {
-    const m = $('#ctxmenu'); m.innerHTML = '';
+    const m = $('#ctxmenu'); m.innerHTML = ''; delete m.dataset.menu; m.removeAttribute('role'); // v2.6.12.1: a new menu never keeps the «+N ▾» look
     for (const r of rows) {
       if (r === '-') { m.append(h('div', { class: 'msep' })); continue; }
       const [ic, label, fn, cls] = r; if (r[3] && r[3].nodeType) { m.append(r[3]); continue; }
