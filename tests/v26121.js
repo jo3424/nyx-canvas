@@ -36,7 +36,7 @@ const vis = (win) => win.evaluate(() => {
 const firstRule = (v) => v.vis.every((x, i) => x === i) && v.hid.every((x, i) => x === v.vis.length + i) && v.vis.length + v.hid.length === v.n;
 const center = (win, sel) => win.evaluate((s) => { const e = document.querySelector(s); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, top: r.top, h: r.height, left: r.left, w: r.width }; }, sel);
 const openMenu = async (win) => { await win.evaluate(() => Panels.closeMenu()); await sleep(80); await win.click('#tabs-more'); await sleep(250); };
-const menuState = (win) => win.evaluate(() => { const m = document.querySelector('#ctxmenu'); return { open: !m.hidden, kind: m.dataset.menu || '', rows: [...m.querySelectorAll('.tm-row')].map((r) => ({ id: r.dataset.board, x: !!r.querySelector('.tm-x'), drag: r.getAttribute('draggable') })), manageLast: !!(m.lastElementChild && m.lastElementChild.classList.contains('tm-manage')), labels: [...m.querySelectorAll('.mi')].map((x) => x.textContent.trim()) }; });
+const menuState = (win) => win.evaluate(() => { const m = document.querySelector('#ctxmenu'); return { open: !m.hidden, kind: m.dataset.menu || '', rows: [...m.querySelectorAll('.tm-row')].map((r) => ({ id: r.dataset.board, x: !!r.querySelector('.tm-x'), drag: r.getAttribute('draggable') === 'true' || r.dataset.drag === 'menu' ? 'true' : 'false' })), manageLast: !!(m.lastElementChild && m.lastElementChild.classList.contains('tm-manage')), labels: [...m.querySelectorAll('.mi')].map((x) => x.textContent.trim()) }; });
 const ctxSig = (win) => win.evaluate(() => { const m = document.querySelector('#ctxmenu'); return { open: !m.hidden, kind: m.dataset.menu || '', labels: [...m.querySelectorAll('.mi')].map((x) => x.textContent.trim()), danger: [...m.querySelectorAll('.mi.danger')].map((x) => x.textContent.trim()), sw: [...m.querySelectorAll('.sw')].map((x) => x.style.getPropertyValue('--c')) }; });
 // a real mouse drag (Chromium drag & drop); hold = pause over a point first (spring-open «+N ▾»)
 async function drag(win, from, to, opts = {}) {
@@ -81,7 +81,7 @@ async function drag(win, from, to, opts = {}) {
   // ---- 2) rows: × + right-click = the tab's menu ----
   await openMenu(win);
   let ms = await menuState(win);
-  ok(ms.open && ms.kind === 'tabs-more' && ms.rows.length === v1.hid.length && ms.rows.every((r) => r.x && r.drag === 'true'), 'every «+N ▾» row has × and is draggable', ms);
+  ok(ms.open && ms.kind === 'tabs-more' && ms.rows.length === v1.hid.length && ms.rows.every((r) => r.x && r.drag === 'true'), 'every «+N ▾» row has × and is draggable (2.6.12.2: data-drag=menu, pointer events)', ms);
   ok(ms.manageLast && /Διαχείριση πινάκων/.test(ms.labels[ms.labels.length - 1]), '«Διαχείριση πινάκων» is the last entry of the menu', ms.labels.slice(-2));
   await shot(win, 'v26121-menu-x.png');
   const rowSel = (id) => `#ctxmenu .tm-row[data-board="${id}"]`;
