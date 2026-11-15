@@ -93,6 +93,7 @@ async function drag(win, from, to, opts = {}) {
   const tc = await center(win, `#tabs .tab[data-board="${v1.ids[1]}"]`);
   await win.mouse.click(tc.x, tc.y, { button: 'right' }); await sleep(250);
   const fromTab = await ctxSig(win);
+  await shot(win, 'v26121-tab-rightclick.png');
   await win.keyboard.press('Escape'); await sleep(150);
   ok(fromRow.open && fromRow.kind === '' && JSON.stringify(fromRow.labels) === JSON.stringify(fromTab.labels) && JSON.stringify(fromRow.sw) === JSON.stringify(fromTab.sw) && fromRow.danger.length === 1,
     'right-click on a menu row = the bar tab\'s menu (same entries, same order, same colours, no «+N» styling)', { fromRow, fromTab });
@@ -238,6 +239,7 @@ async function drag(win, from, to, opts = {}) {
   const smc = await win.evaluate(() => { const m = document.querySelector('#ctxmenu').getBoundingClientRect(); return { r: Math.round(m.right), b: Math.round(m.bottom), W: innerWidth, H: innerHeight }; });
   ok(smc.r <= smc.W && smc.b <= smc.H, '1024×700: the right-click menu inside the window', smc);
   await shot(win, 'v26121-small-row-rightclick.png'); await win.keyboard.press('Escape'); await sleep(150);
+  { const t1 = await center(win, '#tabs .tab:not([hidden]):nth-child(1)'); await win.mouse.click(t1.x, t1.y, { button: 'right' }); await sleep(250); await shot(win, 'v26121-small-tab-rightclick.png'); await win.keyboard.press('Escape'); await sleep(150); }
   await openMenu(win); const hs = (await vis(win)).hidIds; a = await center(win, rowSel(hs[hs.length - 1])); b = await center(win, rowSel(hs[0]));
   await drag(win, { x: a.x - 30, y: a.y }, { x: b.x - 30, y: b.top + 4 }, { shot: 'v26121-small-drag-in-menu.png' });
   ok((await vis(win)).hidIds[0] === hs[hs.length - 1], '1024×700: drag inside the menu works');
