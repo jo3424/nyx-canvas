@@ -2074,5 +2074,15 @@
  "v2611.st_space": "Stars / space",
  "v2611.glass_ok": "Contrast {v0}:1 on the worst background (≥ 4.5:1)",
  "v2611.glass_low": "Not available: contrast {v0}:1, needs ≥ 4.5:1 with this theme",
- "v2611.glass_fallback": "«Glass» is not applied with this theme (contrast {v0}:1 < 4.5:1); the default is shown. Your choice is kept."
+ "v2611.glass_fallback": "«Glass» is not applied with this theme (contrast {v0}:1 < 4.5:1); the default is shown. Your choice is kept.",
+ "v26111.lib_tip": "Library (Ctrl+E)",
+ "v26111.hex": "Colour in hex (e.g. #FF8800) · Enter",
+ "v26111.hex_bad": "Invalid hex: type e.g. #FF8800",
+ "v26111.drop_tip": "Eyedropper: pick a colour from the Nyx window",
+ "v26111.drop_fallback": "Click a card or stroke on the canvas to take its colour · Esc = cancel",
+ "v26111.drop_none": "No colour found at that spot",
+ "v26111.drop_cancel": "Eyedropper cancelled",
+ "v26111.opacity": "Opacity %",
+ "v26111.px": "Thickness in px (1–40)",
+ "v26111.recent": "Recent colour"
 }

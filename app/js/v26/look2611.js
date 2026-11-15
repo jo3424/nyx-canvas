@@ -1,6 +1,7 @@
 'use strict';
 // v2.6.11 — appearance only (no change to data, router, models, plugins or permissions):
 //  TabStrip: board tabs shrink, then «+N ▾»; wheel scrolls the strip; active tab always visible; ←/→/Home/End
+//            (v2.6.11.1: anchored to the end — the last tabs stay visible, the first ones go into «+N ▾»)
 //  Flyout:   tool options touch their dock button, stay inside the window; keys 1–9 only while open and not typing
 //  UIStyle:  6 optional panel styles (Settings → Themes); the theme's own look stays the default; «Γυαλί» only ≥ 4.5:1
 //  HubHead:  Hub header «loaded / max · μέγιστο max · N στον φάκελο» from the router's real answers
@@ -18,7 +19,10 @@ const TabStrip = {
     const widths = tabs.map((x) => x.getBoundingClientRect().width);
     T.classList.remove('measuring');
     const avail = Math.max(0, zone.clientWidth - (add ? add.offsetWidth : 0) - 10);
-    const L = NyxUI.tabLayout({ widths, avail, active, start: this.start, follow: opts.follow !== false });
+    // v2.6.11.1: anchored to the END — the last tabs + the active one stay visible, the FIRST tabs go into «+N ▾».
+    // A re-render that follows the active board (switch, new board, rename…) returns to the end; the wheel moves the window.
+    if (opts.follow !== false) this.start = null;
+    const L = NyxUI.tabLayout({ widths, avail, active, start: this.start, follow: opts.follow !== false, anchor: 'end' });
     this.start = L.start; this.maxStart = L.maxStart; this.mode = L.mode;
     tabs.forEach((x, i) => {
       const vis = L.visible.includes(i); x.hidden = !vis;
@@ -82,7 +86,7 @@ const Flyout = {
   isOpen() { const o = $('#toolopts'); return !!o && !o.hidden && o.classList.contains('flyout'); },
   place() {
     const o = $('#toolopts'); if (!o || o.hidden) return null;
-    const btn = $(`#dock .tool[data-tool="${Tools.cur}"]`); if (!btn) return null;
+    const btn = $(`#dock .tool[data-tool="${Tools.dockOf ? Tools.dockOf(Tools.cur) : Tools.cur}"]`); if (!btn) return null;
     o.style.maxHeight = 'none'; o.style.left = '0px'; o.style.top = '0px';
     const br = btn.getBoundingClientRect(); const fw = o.offsetWidth, fh = o.offsetHeight;
     const tb = $('#titlebar') ? $('#titlebar').getBoundingClientRect().bottom : 0;

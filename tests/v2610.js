@@ -33,7 +33,7 @@ async function greekKey(win, cdp, key, code, vk) { for (const type of ['rawKeyDo
 (async () => {
   let { app, win } = await launch();
   const ver = await win.evaluate(() => (Store.info && Store.info.version) || '');
-  ok((String(ver).startsWith('2.6.10') || String(ver) === '2.6.11'), 'app version 2.6.10', ver);
+  ok((String(ver).startsWith('2.6.10') || String(ver).startsWith('2.6.11')), 'app version 2.6.10', ver);
   await win.evaluate(() => {
     Store.state.subs = [{ id: 'keep0', name: 'Netflix', price: 13.99, currency: 'EUR', cycle: 'monthly', next: '2026-11-20', active: true, remindDays: 2, color: '#e50914', icon: '🎬' }];
     for (const b of Store.state.boards) b.items = [];

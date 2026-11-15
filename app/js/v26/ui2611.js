@@ -2,7 +2,7 @@
 // v2.6.11 — appearance only. Pure functions (no DOM) so they are unit-tested in node and used by the renderer:
 //  - tabLayout:   board tabs shrink to a useful minimum, then «+N ▾» holds the rest; the active tab is always visible
 //  - clampFlyout: a flyout touches its dock button and stays inside the window (flips / clamps at the edges)
-//  - flyoutDigit: keys 1–9 pick an item only while a flyout is open, never while typing, never with Ctrl/Alt/Meta
+//  - flyoutDigit: keys 1–9 (and 0 = 10th, since 2.6.11.1) pick an item only while a flyout is open, never while typing, never with Ctrl/Alt/Meta
 //  - hubCounts:   «loaded / max · μέγιστο max · N στον φάκελο» from real router data (no fixed numbers)
 //  - contrast:    WCAG 2.x contrast ratio; «Γυαλί» is offered only when every text colour reaches ≥ 4.5:1
 //  - UI_STYLES:   the 6 optional panel styles (the default look stays the default)
@@ -44,8 +44,11 @@
     // B: k tabs at ≥ minW plus «+N ▾»
     const k = Math.max(1, Math.min(n - 1, Math.floor((avail - moreW - gap + gap) / (minW + gap))));
     const maxStart = n - k;
-    let start = Math.min(Math.max(0, o.start == null ? active - Math.floor(k / 2) : o.start | 0), maxStart);
-    if (o.start == null || o.follow) { if (active < start) start = active; if (active >= start + k) start = active - k + 1; }
+    // v2.6.11.1: anchor 'end' (the app's default) → the window sits at the END (the last tabs, where «+» adds new boards);
+    // the active tab is pinned into it when it is further left, and the FIRST tabs go into «+N ▾». Without anchor: 2.6.11 behaviour.
+    const endAnchor = o.anchor === 'end' && o.start == null;
+    let start = Math.min(Math.max(0, o.start == null ? (endAnchor ? maxStart : active - Math.floor(k / 2)) : o.start | 0), maxStart);
+    if (!endAnchor && (o.start == null || o.follow)) { if (active < start) start = active; if (active >= start + k) start = active - k + 1; }
     start = Math.min(Math.max(0, start), maxStart);
     let vis = []; for (let i = start; i < start + k; i++) vis.push(i);
     if (!vis.includes(active)) { if (active < start) vis[0] = active; else vis[k - 1] = active; vis.sort((a, b) => a - b); } // pinned
@@ -87,8 +90,9 @@
   function flyoutDigit(e, open, count) {
     if (!open || !e || e.typing || e.ctrlKey || e.altKey || e.metaKey) return -1;
     let d = 0;
-    const m = /^(?:Digit|Numpad)([1-9])$/.exec(e.code || '');
-    if (m) d = +m[1]; else if (/^[1-9]$/.test(e.key || '')) d = +e.key;
+    const m = /^(?:Digit|Numpad)([0-9])$/.exec(e.code || '');
+    if (m) d = +m[1]; else if (/^[0-9]$/.test(e.key || '')) d = +e.key;
+    if ((m || /^[0-9]$/.test(e.key || '')) && d === 0) d = 10; // v2.6.11.1: «0» = 10th item (only flyouts that have one: note paper kinds)
     if (!d || e.shiftKey && !/^Numpad/.test(e.code || '')) return -1; // Shift+1 = «!» = fit to screen, untouched
     return d <= count ? d - 1 : -1;
   }
@@ -202,7 +206,48 @@
     return `${sel}{--panel:${s.panel};--panel-solid:${s.panel};--text:${s.text};--muted:${s.muted};--border:${s.border};--accent:${s.accent};color:${s.text};background:${s.panel}!important;backdrop-filter:none!important;border-color:${s.border}!important;${s.font ? 'font-family:' + s.font + ';' : ''}${s.radius ? 'border-radius:' + s.radius + ';' : ''}${s.glow ? 'box-shadow:' + s.glow + '!important;' : ''}}`;
   }
 
-  const api = { TAB_MIN, TAB_MAX, TAB_GAP, MORE_W, capFor, tabLayout, wheelStart, clampFlyout, flyoutDigit, isTyping, hubCounts, modelState, parseColor, over, luminance, contrast, MIN_CONTRAST, GLASS_ALPHA, glassVars, glassCheck, paletteCheck, UI_STYLES, styleCss };
+  // ---------------- v2.6.11.1: pen flyout (hex, eyedropper, opacity %, px, recent colours) ----------------
+  const PEN_PX_MIN = 1, PEN_PX_MAX = 40, RECENT_MAX = 4;
+  // '#abc' / '#aabbcc' / 'rgb(…)' / 'rgba(…)' → '#AABBCC'; null when invalid or fully transparent (EyeDropper on a blank capture)
+  function toHex(v) {
+    const s = String(v == null ? '' : v).trim();
+    let m = s.match(/^#([0-9a-f]{3})$/i); // 3 digits only with «#» (a word like «bad» is not a colour)
+    if (m) return ('#' + m[1].split('').map((c) => c + c).join('')).toUpperCase();
+    m = s.match(/^#?([0-9a-f]{6})$/i); if (m) return ('#' + m[1]).toUpperCase();
+    m = s.match(/^#([0-9a-f]{6})([0-9a-f]{2})$/i); if (m) return parseInt(m[2], 16) === 0 ? null : ('#' + m[1]).toUpperCase();
+    m = s.match(/^rgba?\(\s*(\d{1,3})[\s,]+(\d{1,3})[\s,]+(\d{1,3})(?:[\s,/]+([\d.]+%?))?\s*\)$/i);
+    if (m) {
+      if (m[4] != null) { const a = m[4].endsWith('%') ? parseFloat(m[4]) / 100 : parseFloat(m[4]); if (!(a > 0)) return null; }
+      const c = [m[1], m[2], m[3]].map(Number); if (c.some((x) => x > 255)) return null;
+      return '#' + c.map((x) => x.toString(16).padStart(2, '0')).join('').toUpperCase();
+    }
+    return null;
+  }
+  // newest first, no duplicates (case-insensitive), at most `max`
+  function pushRecent(list, color, max) {
+    const c = toHex(color); const arr = Array.isArray(list) ? list.map(toHex).filter(Boolean) : [];
+    if (!c) return arr.slice(0, max || RECENT_MAX);
+    return [c, ...arr.filter((x) => x !== c)].slice(0, max || RECENT_MAX);
+  }
+  function clampInt(v, lo, hi, def) { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : def; }
+  // opacity % of each drawing tool; the highlighter keeps its 38 % default (as before 2.6.11.1)
+  const INK_OPACITY_DEF = { pen: 100, marker: 100, highlighter: 38 };
+  function inkOpacity(kind, pct) { const d = INK_OPACITY_DEF[kind] || 100; return clampInt(pct == null || pct === '' ? d : pct, 1, 100, d) / 100; }
+  // colour of a card / stroke for the eyedropper fallback (click on the canvas) — read-only, nothing is changed
+  function itemColor(it) {
+    if (!it) return null;
+    const pick = (...xs) => { for (const x of xs) { const c = toHex(x); if (c) return c; } return null; };
+    switch (it.type) {
+      case 'ink': return pick(it.color);
+      case 'arrow': case 'line': return pick(it.stroke, '#7C8CFF');
+      case 'shape': return pick(it.fill, it.stroke);
+      case 'sticky': return pick(it.paper, it.color);
+      case 'frame': return pick(it.color);
+      default: return pick(it.color, it.fill, it.stroke, it.paper);
+    }
+  }
+
+  const api = { PEN_PX_MIN, PEN_PX_MAX, RECENT_MAX, toHex, pushRecent, clampInt, INK_OPACITY_DEF, inkOpacity, itemColor, TAB_MIN, TAB_MAX, TAB_GAP, MORE_W, capFor, tabLayout, wheelStart, clampFlyout, flyoutDigit, isTyping, hubCounts, modelState, parseColor, over, luminance, contrast, MIN_CONTRAST, GLASS_ALPHA, glassVars, glassCheck, paletteCheck, UI_STYLES, styleCss };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.NyxUI = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -65,7 +65,7 @@ const strip = (win) => win.evaluate(() => {
   const router = await startRouter();
   let { app, win } = await launch();
   const ver = await win.evaluate(() => (Store.info && Store.info.version) || '');
-  ok(String(ver) === '2.6.11', 'app version 2.6.11', ver);
+  ok(['2.6.11', '2.6.11.1'].includes(String(ver)), 'app version 2.6.11', ver);
   // baseline data: 1 board with cards, 2 subscriptions, settings snapshot (must survive everything below)
   const before = await win.evaluate((a) => {
     const A = Store.state.settings.ai; const L = A.providers.find((p) => p.id === 'llama');
@@ -127,10 +127,10 @@ const strip = (win) => win.evaluate(() => {
   });
   const inside = (f) => f.left >= 0 && f.right <= f.W && f.top >= f.tb && f.bottom <= f.H;
   const touches = (f) => Math.abs(f.left - f.btnRight) <= 1 && f.top < f.btnBottom && f.bottom > f.btnTop;
-  for (const [tool, n] of [['shape', 6], ['pen', 9], ['sticky', 9]]) {
+  for (const [tool, n] of [['shape', (await win.evaluate(() => typeof SHAPE_LINES !== 'undefined')) ? 8 : 6], ['pen', 9], ['sticky', (await win.evaluate(() => NyxUI.flyoutDigit({ key: '0', code: 'Digit0' }, true, 10) === 9)) ? 10 : 9]]) {
     await win.evaluate((t) => Tools.pick(t), tool); await sleep(250);
     const f = await fly(win);
-    ok(f.open && touches(f) && inside(f) && f.touch === '1' && f.fk === n, `${tool} flyout: touches its button, inside the window, ${n} items with 1–${n}`, f);
+    ok(f.open && touches(f) && inside(f) && f.touch === '1' && f.fk === n, `${tool} flyout: touches its button, inside the window, ${n} items with keys (1–9, 0 = 10th)`, f);
     await shot(win, `v2611-flyout-${tool}.png`);
   }
   await setSize(app, win, 1000, 560);

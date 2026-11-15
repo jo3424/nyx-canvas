@@ -1,4 +1,16 @@
 {
+ "2.6.11.1": {
+  "el": [
+   "Καρτέλες πινάκων: όταν δεν χωράνε, φαίνονται οι τελευταίες (εκεί που το «+» βάζει τη νέα) και η ενεργή· οι πρώτες πάνε στο «+N ▾». Σειρά όπως το mockup: καρτέλες → «+» → «+N ▾». Ροδέλα και πληκτρολόγιο όπως πριν.",
+   "Βέλος και γραμμή μέσα στο flyout των σχημάτων (θέσεις 7 και 8)· ίδια εργαλεία και ίδια πλήκτρα A / L, δύο κουμπιά λιγότερα στην εργαλειοθήκη. Στο flyout σημείωσης το 10ο είδος χαρτιού παίρνει το πλήκτρο 0. Tooltip «Βιβλιοθήκη (Ctrl+E)» στο 😊+.",
+   "Flyout στυλό όπως το mockup: hex με σταγονόμετρο (ή κλικ σε κάρτα/γραμμή), αδιαφάνεια %, πάχος 1–40 px, 4 πρόσφατα χρώματα, ορατά μεγέθη. Ο μαρκαδόρος υπογράμμισης κρατά τα χρώματά του και το 38 %."
+  ],
+  "en": [
+   "Board tabs: when they don't fit, the last tabs (where «+» adds the new one) and the active one stay visible; the first ones go into «+N ▾». Order as in the mockup: tabs → «+» → «+N ▾». Wheel and keyboard as before.",
+   "Arrow and line inside the shapes flyout (items 7 and 8); same tools and A / L keys, two fewer toolbar buttons. In the note flyout the 10th paper kind gets key 0. Tooltip «Library (Ctrl+E)» on 😊+.",
+   "Pen flyout as in the mockup: hex with eyedropper (or click a card/stroke), opacity %, thickness 1–40 px, 4 recent colours, visible sizes. The highlighter keeps its colours and 38 %."
+  ]
+ },
  "2.6.11": {
   "el": [
    "Καρτέλες πινάκων που δεν χάνονται: μικραίνουν μέχρι ένα χρήσιμο ελάχιστο πλάτος και μετά εμφανίζεται «+N ▾» με τους υπόλοιπους πίνακες. Η ροδέλα κυλά τη γραμμή, η ενεργή καρτέλα φαίνεται πάντα (και με ←/→/Home/End), η γραμμή δεν αναδιπλώνεται.",
