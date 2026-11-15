@@ -38,7 +38,7 @@ const zOrder = (win, a, b) => win.evaluate(([a, b]) => { const A = Items.el(Stor
   ok(hl && await zOrder(win, hl.id, sid), 'highlighter is drawn ABOVE the note (visible), not hidden under it');
   ok(await win.evaluate((id) => { const cs = getComputedStyle(Items.el(Store.get(id))); return cs.backgroundColor === 'rgba(0, 0, 0, 0)' && cs.backgroundImage === 'none' && (cs.boxShadow === 'none' || !cs.boxShadow); }, hl.id), 'no box/background around the highlighter stroke (only the stroke itself)');
   ok(await win.evaluate(([id, x, y]) => document.elementsFromPoint(x, y).some(e => e.closest?.('.item')?.dataset.id === id), [hl.id, sr.x + 160, sr.y + 62]), 'the stroke is really on screen over the note (hit-test)');
-  await win.evaluate(() => Tools.pick('select')); await win.mouse.click(40, 860);
+  await win.evaluate(() => Tools.pick('select')); await win.mouse.click(160, 860); // 2.6.11: the bottom-left corner (≈ 12–52 px) is now the Bin button
   await win.screenshot({ path: path.join(SHOTS, 'v24-highlighter-note.png') });
   await stroke(win, 'pen', [[sr.x + 40, sr.y + 150], [sr.x + 120, sr.y + 190], [sr.x + 220, sr.y + 150]]);
   const pen = await newest(win, 'ink');
@@ -58,7 +58,7 @@ const zOrder = (win, a, b) => win.evaluate(([a, b]) => { const A = Items.el(Stor
   ok(sc > 1.1 && Math.abs(w1.aw / w0.aw - sc) < 0.03 && Math.abs(w1.ax / (w0.ax || 1) - sc) < 0.05, 'resizing the note scales its strokes with it', { w0, w1 });
 
   console.log('Bare canvas highlighter + eraser + shapes on a note');
-  await win.mouse.click(40, 860);
+  await win.mouse.click(160, 860); // 2.6.11: Bin corner
   const other = await win.evaluate(() => { const it = Features.addAtCenter({ type: 'sticky', html: 'κάτω', w: 200, h: 160 }); Store.change(() => { it.x -= 700; it.y += 200; }); Items.mount(it); return it.id; });
   const free = await win.evaluate(() => { for (let y = innerHeight - 140; y > 200; y -= 40) for (let x = 140; x < innerWidth - 300; x += 40) { const ok = [0, 30, 60, 90].every(d => !document.elementsFromPoint(x + d, y).some(e => e.closest?.('.item, #dock, .floatbar, #minimap, .minimap, button'))); if (ok) return [x, y]; } return null; });
   await stroke(win, 'highlighter', [[free[0], free[1]], [free[0] + 90, free[1] + 2]]);
