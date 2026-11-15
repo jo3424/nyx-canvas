@@ -1,6 +1,7 @@
 // v2.6.12.1 — pure helpers (no DOM) for the board tabs in «+N ▾» and «Διαχείριση πινάκων»; unit-tested in
 // tests/v26121-unit.js, the renderer gets them on window.NyxUI.
 //  - boardMove:  the new board order after a drag (or Alt+↑/↓). Only the ORDER changes: the same ids, none lost or added.
+//  - menuDrop:   a drop on a «+N ▾» row; a board dragged from the bar lands IN the menu (the first menu board fills its slot)
 //  - dropWhere:  'before' / 'after' from the pointer position on a row (vertical list) or a tab (horizontal bar)
 //  - tabMenuKey: what a key does on a focused row of the «+N ▾» menu / the manage list (never while typing in a field)
 (function (root) {
@@ -14,6 +15,16 @@
     if (where === 'end') list.push(id);
     else { const at = list.indexOf(target); list.splice(where === 'after' ? at + 1 : at, 0, id); }
     return list;
+  }
+  // a drop on a row of the «+N ▾» menu. firstHidden: index of the first board in the menu. A board that comes from the BAR
+  // must end up IN the menu at that row's place: its empty bar slot is filled by the first menu board (the first-tabs rule),
+  // so the slot is counted before the removal. A board already in the menu: a plain boardMove.
+  function menuDrop(ids, id, target, where, firstHidden) {
+    const list = Array.isArray(ids) ? ids.slice() : []; const from = list.indexOf(id); const at = list.indexOf(target);
+    if (from < 0 || at < 0 || id === target) return list;
+    if (!(from < (firstHidden | 0))) return boardMove(list, id, target, where);
+    const slot = at + (where === 'after' ? 1 : 0); // in the order BEFORE the removal
+    list.splice(from, 1); list.splice(Math.min(slot, list.length), 0, id); return list;
   }
   // one step up / down (keyboard): -1 or +1, clamped; unchanged at the ends
   function boardStep(ids, id, dir) {
@@ -45,7 +56,7 @@
     if (e.key === 'Escape') return 'close';
     return null;
   }
-  const api = { boardMove, boardStep, dropWhere, tabMenuKey };
+  const api = { boardMove, menuDrop, boardStep, dropWhere, tabMenuKey };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root) root.NyxUI = Object.assign(root.NyxUI || {}, api);
 })(typeof window !== 'undefined' ? window : null);

@@ -12,6 +12,7 @@
 #ctxmenu[data-menu=tabs-more] .tm-row.drop-after,.bm-row.drop-after{box-shadow:inset 0 -2px 0 var(--accent)}
 #ctxmenu[data-menu=tabs-more] .tm-manage{justify-content:flex-start;color:var(--muted)}
 #ctxmenu[data-menu=tabs-more] .tm-manage:hover,#ctxmenu[data-menu=tabs-more] .tm-manage:focus{color:var(--text)}
+.tabs-more > *{pointer-events:none} /* drag over «+N ▾» = one target (no dragleave from its children) */
 .tabs-more.dragover{background:color-mix(in srgb,var(--accent) 22%,transparent);border-color:var(--accent)}
 body.tab-dragging #tabs .tab:not(.dragover){transition:none}
 

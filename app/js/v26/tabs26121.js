@@ -48,7 +48,9 @@ const BoardTabs = {
       if (!this.isTabDrag(e)) return; e.preventDefault(); e.stopPropagation();
       const id = e.dataTransfer.getData('nyx/tab'); const w = NyxUI.dropWhere(el.getBoundingClientRect(), { x: e.clientX, y: e.clientY }, 'y');
       this.clearDrop(); if (!id || id === b.id) return;
-      this.move(id, b.id, w); opts.after && opts.after(id);
+      if (opts.menu) { const hid = TabStrip._hidden || []; const fh = hid.length ? Store.state.boards.indexOf(hid[0]) : Store.state.boards.length; this.applyOrder(NyxUI.menuDrop(this.ids(), id, b.id, w, fh)); }
+      else this.move(id, b.id, w);
+      opts.after && opts.after(id);
     });
   },
   // ---------- «+N ▾» ----------
@@ -63,7 +65,7 @@ const BoardTabs = {
     r.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); this.ctxFor(b, e.clientX, e.clientY); };
     r.ondragstart = (e) => { e.dataTransfer.setData('nyx/tab', b.id); e.dataTransfer.effectAllowed = 'move'; r.classList.add('dragging'); document.body.classList.add('tab-dragging'); };
     r.ondragend = () => { r.classList.remove('dragging'); document.body.classList.remove('tab-dragging'); this.clearDrop(); };
-    this.dropRow(r, b, { after: (id) => this.reopen(id) });
+    this.dropRow(r, b, { menu: true, after: (id) => this.reopen(id) });
     return r;
   },
   openMore() {
@@ -99,11 +101,12 @@ const BoardTabs = {
   // drag from the bar onto «+N ▾»: hovering opens the menu (drop on a row), dropping on the button = to the end
   initMoreDrop() {
     const more = $('#tabs-more'); if (!more) return;
-    more.addEventListener('dragover', (e) => {
+    const over = (e) => {
       if (!this.isTabDrag(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; more.classList.add('dragover');
       if (!this._spring && $('#ctxmenu').hidden) this._spring = setTimeout(() => { this._spring = 0; if (more.classList.contains('dragover')) this.openMore(); }, 450);
-    });
-    more.addEventListener('dragleave', () => { more.classList.remove('dragover'); clearTimeout(this._spring); this._spring = 0; });
+    };
+    more.addEventListener('dragenter', over); more.addEventListener('dragover', over);
+    more.addEventListener('dragleave', (e) => { if (e.relatedTarget && more.contains(e.relatedTarget)) return; more.classList.remove('dragover'); clearTimeout(this._spring); this._spring = 0; });
     more.addEventListener('drop', (e) => {
       if (!this.isTabDrag(e)) return; e.preventDefault(); more.classList.remove('dragover'); clearTimeout(this._spring); this._spring = 0;
       const id = e.dataTransfer.getData('nyx/tab'); if (!id) return; Panels.closeMenu(); this.move(id, null, 'end');
