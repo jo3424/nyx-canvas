@@ -112,7 +112,7 @@ async function shotTab(win, theme, tab) {
     ok(md.models.includes('gemma-4-12b') && md.models.includes('krikri-8b'), 'Models tab dropdowns from /v1/models', md.models);
     ok(md.tasks.includes('chat') && md.tasks.includes('greek') && md.tasks.includes('private') && md.tasks.includes('vision'), 'task rows include greek + private + vision', md.tasks);
     ok(md.flag, 'Greek writing row uses the SVG flag');
-    ok(/Κρατάω|Keeping/.test(md.text) && /gemma-4-12b|krikri-8b/.test(md.text), 'installed list live from the router', md.text.slice(0, 400));
+    ok((/Κρατάω|Keeping/.test(md.text) || (await win.evaluate(() => document.querySelectorAll('.hub-model .hub-chips').length > 0))) && /gemma-4-12b|krikri-8b/.test(md.text), 'installed list live from the router (2.6.12: compact cards with chips instead of the «Κρατάω» pill)', md.text.slice(0, 400));
     ok(!/Υποψήφια για σύγκριση \(4\)|Candidates for comparison \(4\)/.test(md.text), 'no combined Υποψήφια (4) count', md.text.slice(0, 800));
     const cats = await win.evaluate(() => [...document.querySelectorAll('[data-hub-pane=models] [data-zone-cat]')].map((el) => ({ cat: el.getAttribute('data-zone-cat'), n: +el.getAttribute('data-count'), t: el.textContent })));
     ok(cats.length >= 2 && cats.every((c) => c.n <= 3) && cats.some((c) => c.cat === 'image' && c.n === 2 && /Εικόνα|Image/.test(c.t)) && cats.some((c) => c.cat === 'video' && c.n === 2 && /Βίντεο|Video/.test(c.t)), 'candidates grouped with a count per category, each ≤ 3', cats);
