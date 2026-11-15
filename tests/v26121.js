@@ -57,6 +57,7 @@ async function drag(win, from, to, opts = {}) {
     Store.state.subs = [{ id: 's1', name: 'Netflix', price: 13.99, currency: 'EUR', cycle: 'monthly', next: '2026-11-20', active: true, color: '#e50914', icon: '🎬' }];
     Store.save(true); return { settingsKeys: Object.keys(JSON.parse(JSON.stringify(Store.state.settings))).sort(), subs: JSON.stringify(Store.state.subs) };
   });
+  await win.evaluate(() => document.querySelectorAll('#toasts > *, .toast').forEach((t) => t.remove())); // the one-time «upgraded» notice (cleaner screenshots)
   // spy on the bar's delete: every path must end here
   await win.evaluate(() => { window.__del = []; const o = App.deleteBoard; App.deleteBoard = function (b) { window.__del.push(b.id); return o.call(this, b); }; });
 
