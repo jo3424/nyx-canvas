@@ -18,13 +18,12 @@
   }
   // a drop on a row of the «+N ▾» menu. firstHidden: index of the first board in the menu. A board that comes from the BAR
   // must end up IN the menu at that row's place: its empty bar slot is filled by the first menu board (the first-tabs rule),
-  // so the slot is counted before the removal. A board already in the menu: a plain boardMove.
+  // so if the plain move would leave it inside the bar part it goes to the first menu place instead.
   function menuDrop(ids, id, target, where, firstHidden) {
-    const list = Array.isArray(ids) ? ids.slice() : []; const from = list.indexOf(id); const at = list.indexOf(target);
-    if (from < 0 || at < 0 || id === target) return list;
-    if (!(from < (firstHidden | 0))) return boardMove(list, id, target, where);
-    const slot = at + (where === 'after' ? 1 : 0); // in the order BEFORE the removal
-    list.splice(from, 1); list.splice(Math.min(slot, list.length), 0, id); return list;
+    const from = (Array.isArray(ids) ? ids : []).indexOf(id); const fh = firstHidden | 0;
+    const list = boardMove(ids, id, target, where);
+    if (from < 0 || from >= fh || list.indexOf(id) >= fh) return list;
+    list.splice(list.indexOf(id), 1); list.splice(Math.min(fh, list.length), 0, id); return list;
   }
   // one step up / down (keyboard): -1 or +1, clamped; unchanged at the ends
   function boardStep(ids, id, dir) {

@@ -33,4 +33,4 @@ body.tab-dragging #tabs .tab:not(.dragover){transition:none}
 .bm-name:focus{outline:none;border-color:var(--accent);background:color-mix(in srgb,var(--panel-solid) 80%,transparent)}
 .bm-count{flex:none;white-space:nowrap;min-width:64px;text-align:right}
 .bm-row .icon-btn{flex:none;width:30px;height:30px}
-.bm-row .bm-del:hover{color:#ff6b6b}
+.bm-row .bm-del:hover{color:#ff6b81}

@@ -38,11 +38,12 @@ const BoardTabs = {
   isTabDrag(e) { return !!(e.dataTransfer && [...e.dataTransfer.types].includes('nyx/tab')); },
   // a row (menu or manage list) as a drop target: before / after by the pointer
   dropRow(el, b, opts = {}) {
-    el.addEventListener('dragover', (e) => {
+    const over = (e) => {
       if (!this.isTabDrag(e)) return; e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move';
       const w = NyxUI.dropWhere(el.getBoundingClientRect(), { x: e.clientX, y: e.clientY }, 'y'); this.clearDrop(el.parentNode);
       el.classList.add(w === 'after' ? 'drop-after' : 'drop-before');
-    });
+    };
+    el.addEventListener('dragenter', over); el.addEventListener('dragover', over);
     el.addEventListener('dragleave', (e) => { if (!el.contains(e.relatedTarget)) el.classList.remove('drop-before', 'drop-after'); });
     el.addEventListener('drop', (e) => {
       if (!this.isTabDrag(e)) return; e.preventDefault(); e.stopPropagation();

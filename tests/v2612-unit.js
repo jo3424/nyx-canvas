@@ -32,7 +32,9 @@ const W = (n, w = 120) => Array.from({ length: n }, () => w);
   ok(L.visible.includes(39) && L.visible[0] === 0, 'anchor «end» still available in the API (2.6.11.1 behaviour)', L.visible);
   const look = read('app/js/v26/look2611.js');
   ok(/anchor: 'start'/.test(look) && /has-active/.test(look) && /tabs_active_in_menu/.test(look), 'TabStrip: anchor start, «+N ▾» highlighted (has-active) + aria text when the active board is in it');
-  ok(/'tm-item' \+ \(b\.id === act \? ' on' : ''\)/.test(look) && /x\.title = b\.name/.test(look) && /aria-current/.test(look), 'menu: active row marked (.on, aria-current), full name in the tooltip');
+  // 2.6.12.1: the «+N ▾» rows moved to tabs26121.js (× / right-click / drag); the same marks are checked there
+  const tabs = fs.existsSync(path.join(R, 'app/js/v26/tabs26121.js')) ? read('app/js/v26/tabs26121.js') : look;
+  ok(/tm-item' \+ \(b\.id === act \? ' on' : ''\)/.test(tabs) && /title: b\.name/.test(tabs) && /aria-current/.test(tabs), 'menu: active row marked (.on, aria-current), full name in the tooltip');
   ok(/more\.addEventListener\('keydown'[\s\S]{0,260}has-active[\s\S]{0,200}nav\(e, i, false\)/.test(look), 'keyboard: ←/→/Home/End keep working on «+N ▾» when the active board is in it');
   const css = read('app/v2612.css');
   ok(/\.mi[^{]*\{[^}]*white-space:\s*nowrap[^}]*text-overflow:\s*ellipsis|text-overflow:\s*ellipsis[^}]*white-space:\s*nowrap/.test(css), 'menu titles: one line + ellipsis (CSS)');
@@ -120,10 +122,10 @@ const W = (n, w = 120) => Array.from({ length: n }, () => w);
 // ---- 6) versions / safety ----
 {
   const pkg = JSON.parse(read('package.json')); const lock = JSON.parse(read('package-lock.json'));
-  ok(pkg.version === '2.6.12' && pkg.devDependencies.electron === '45.2.3', 'version 2.6.12, Electron 45.2.3', pkg.version);
-  ok(lock.version === '2.6.12' && lock.packages[''].version === '2.6.12', 'package-lock version 2.6.12');
+  ok(['2.6.12', '2.6.12.1'].includes(pkg.version) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.12, Electron 45.2.3', pkg.version);
+  ok(['2.6.12', '2.6.12.1'].includes(lock.version) && lock.packages[''].version === lock.version, 'package-lock version 2.6.12');
   const CH = JSON.parse(read('CHANGELOG.json'));
-  ok(Object.keys(CH)[0] === '2.6.12' && CH['2.6.12'].el.length === 3 && CH['2.6.12'].en.length === 3 && CH['2.6.11.1'], 'CHANGELOG 2.6.12 first (3 items), 2.6.11.1 kept');
+  ok(['2.6.12', '2.6.12.1'].includes(Object.keys(CH)[0]) && CH['2.6.12'].el.length === 3 && CH['2.6.12'].en.length === 3 && CH['2.6.11.1'], 'CHANGELOG 2.6.12 first (3 items), 2.6.11.1 kept');
   let diff = '';
   try { diff = cp.execSync('git diff --name-only fd0e31f -- main/ preload.js app/preload.js 2>/dev/null', { cwd: R }).toString().trim(); } catch (e) { diff = 'ERR'; }
   ok(diff === '', 'no main-process / preload change (router & model behaviour untouched)', diff);
