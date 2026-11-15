@@ -50,7 +50,7 @@ async function drag(win, from, to, opts = {}) {
 (async () => {
   let { app, win } = await launch();
   const ver = await win.evaluate(() => (Store.info && Store.info.version) || '');
-  ok(String(ver) === '2.6.12.1', 'app version 2.6.12.1', ver);
+  ok(['2.6.12.1', '2.6.12.2'].includes(String(ver)), 'app version 2.6.12.1(+)', ver);
   ok(await win.evaluate(() => window.__nyxTabs26121 === true && typeof BoardTabs === 'object' && typeof NyxUI.boardMove === 'function'), 'tabs26121 loaded');
   const before = await win.evaluate(() => {
     const A = Store.state.settings.ai; Object.assign(A.servers.llama, { ctx: 32768, extra: '--models-max 1' });

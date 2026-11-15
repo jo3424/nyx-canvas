@@ -73,7 +73,7 @@ const touches = (f) => Math.abs(f.left - f.btnRight) <= 1 && f.top < f.btnBottom
   const router = await startRouter();
   let { app, win } = await launch();
   const ver = await win.evaluate(() => (Store.info && Store.info.version) || '');
-  ok(['2.6.11.1', '2.6.12', '2.6.12.1'].includes(String(ver)), 'app version 2.6.11.1', ver);
+  ok(['2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2'].includes(String(ver)), 'app version 2.6.11.1', ver);
   const before = await win.evaluate((a) => {
     const A = Store.state.settings.ai; const L = A.providers.find((p) => p.id === 'llama');
     L.enabled = true; L.base = 'http://127.0.0.1:' + a.port + '/v1';

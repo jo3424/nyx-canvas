@@ -35,7 +35,7 @@ async function quit(app) { const done = new Promise((r) => app.process().once('e
   const port = await freePort();
   let { app, win } = await launch();
   const ver = await win.evaluate(() => (Store.info && Store.info.version) || '');
-  ok(['2.6.10.1', '2.6.11', '2.6.11.1', '2.6.12', '2.6.12.1'].includes(String(ver)), 'app version 2.6.10.1', ver);
+  ok(['2.6.10.1', '2.6.11', '2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2'].includes(String(ver)), 'app version 2.6.10.1', ver);
   const cfg = { exe, modelsDir: mdir, port, ngl: '', fa: false, np: 1, ctx: 512, extra: '' };
   await win.evaluate(([cfg, port]) => {
     const A = Store.state.settings.ai; Object.assign(A.servers.llama, cfg);

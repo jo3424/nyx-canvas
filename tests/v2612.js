@@ -69,7 +69,7 @@ const vis = (win) => win.evaluate(() => {
   const router = await startRouter();
   let { app, win } = await launch();
   const ver = await win.evaluate(() => (Store.info && Store.info.version) || '');
-  ok(['2.6.12', '2.6.12.1'].includes(String(ver)), 'app version 2.6.12', ver);
+  ok(['2.6.12', '2.6.12.1', '2.6.12.2'].includes(String(ver)), 'app version 2.6.12', ver);
   const before = await win.evaluate((a) => {
     const A = Store.state.settings.ai; const L = A.providers.find((p) => p.id === 'llama');
     L.enabled = true; L.base = 'http://127.0.0.1:' + a.port + '/v1';

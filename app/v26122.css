@@ -1,0 +1,13 @@
+/* v2.6.12.2 — pointer-event dragging of board tabs (tabdrag26122.js): the whole «+N ▾» row / bar tab / manage row is the
+   handle; a floating copy follows the pointer. Same tokens as 2.6.12.1; no new colours. */
+#ctxmenu[data-menu=tabs-more] .tm-row,#tabs .tab,.bm-row{-webkit-user-drag:none;user-select:none;touch-action:none}
+#ctxmenu[data-menu=tabs-more] .tm-row,#ctxmenu[data-menu=tabs-more] .tm-row > .mi,.bm-row{cursor:grab}
+.bm-row .bm-name{cursor:text;user-select:text}.bm-row button{cursor:pointer}
+body.tab-dragging,body.tab-dragging *{cursor:grabbing !important}
+#tabs .tab.drop-after{box-shadow:inset -3px 0 0 var(--accent)}
+.tab-ghost{position:fixed;left:0;top:0;z-index:200;pointer-events:none;margin:0;opacity:.92;box-sizing:border-box;
+  background:var(--panel-solid);border:1px solid var(--accent);border-radius:calc(var(--radius) * .6);
+  box-shadow:0 8px 24px rgba(0,0,0,.35);display:flex;align-items:center;gap:6px;overflow:hidden;color:var(--text)}
+.tab-ghost .tm-x,.tab-ghost .tab-x,.tab-ghost .bm-more,.tab-ghost .bm-del{visibility:hidden}
+.tab-ghost .mi{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:8px;background:none;border:0;color:inherit;font:inherit;padding:0 10px}
+.tab-ghost .mi-name{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

@@ -4,6 +4,7 @@
 //    × / Delete / the menu's «Διαγραφή» all call App.deleteBoard — the bar's own delete: an empty board goes at once, a
 //    board with items asks «Διαγραφή πίνακα με N στοιχεία;», its cards go to the Bin, the toast's «Αναίρεση» brings it back
 //  - drag: reorder inside the menu, menu → bar, bar → menu (drop on «+N ▾» = to the end, or on a row once it opens).
+//    v2.6.12.2: with pointer events (tabdrag26122.js) instead of HTML5 drag & drop — see ΑΛΛΑΓΕΣ-v2.6.12.2 for why.
 //    Only Store.state.boards' ORDER changes (the same board objects); the first tabs stay in the bar, the last overflow.
 //  - «Διαχείριση πινάκων» at the end of the menu: every board in one list (drag / Alt+↑↓, rename, ⋯ menu, delete)
 //  - keys on a row: ↑/↓ Home/End, Enter, Delete, F2 rename, Shift+F10 / ContextMenu = the tab's menu, Alt+↑/↓ = move
@@ -35,24 +36,12 @@ const BoardTabs = {
   },
   ctxFor(b, x, y) { Panels.menu(x, y, Panels.tabMenuRows(b)); $('#ctxmenu .mi')?.focus(); },
   clearDrop(root) { (root || document).querySelectorAll('.drop-before,.drop-after').forEach((x) => x.classList.remove('drop-before', 'drop-after')); },
-  isTabDrag(e) { return !!(e.dataTransfer && [...e.dataTransfer.types].includes('nyx/tab')); },
-  // a row (menu or manage list) as a drop target: before / after by the pointer
-  dropRow(el, b, opts = {}) {
-    const over = (e) => {
-      if (!this.isTabDrag(e)) return; e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move';
-      const w = NyxUI.dropWhere(el.getBoundingClientRect(), { x: e.clientX, y: e.clientY }, 'y'); this.clearDrop(el.parentNode);
-      el.classList.add(w === 'after' ? 'drop-after' : 'drop-before');
-    };
-    el.addEventListener('dragenter', over); el.addEventListener('dragover', over);
-    el.addEventListener('dragleave', (e) => { if (!el.contains(e.relatedTarget)) el.classList.remove('drop-before', 'drop-after'); });
-    el.addEventListener('drop', (e) => {
-      if (!this.isTabDrag(e)) return; e.preventDefault(); e.stopPropagation();
-      const id = e.dataTransfer.getData('nyx/tab'); const w = NyxUI.dropWhere(el.getBoundingClientRect(), { x: e.clientX, y: e.clientY }, 'y');
-      this.clearDrop(); if (!id || id === b.id) return;
-      if (opts.menu) { const hid = TabStrip._hidden || []; const fh = hid.length ? Store.state.boards.indexOf(hid[0]) : Store.state.boards.length; this.applyOrder(NyxUI.menuDrop(this.ids(), id, b.id, w, fh)); }
-      else this.move(id, b.id, w);
-      opts.after && opts.after(id);
-    });
+  // v2.6.12.2: dragging is done with pointer events (TabDrag, tabdrag26122.js) — no HTML5 drag & drop any more.
+  // Drop on a «+N ▾» row: a board that comes from the bar lands IN the menu (NyxUI.menuDrop); other lists: a plain move.
+  dropOnRow(id, b, w, menu) {
+    if (!id || id === b.id) return false;
+    if (menu) { const hid = TabStrip._hidden || []; const fh = hid.length ? Store.state.boards.indexOf(hid[0]) : Store.state.boards.length; return this.applyOrder(NyxUI.menuDrop(this.ids(), id, b.id, w, fh)); }
+    return this.move(id, b.id, w);
   },
   // ---------- «+N ▾» ----------
   row(b, act) {
@@ -62,11 +51,10 @@ const BoardTabs = {
     h('span', { class: 'mi-emo' }, b.emoji || '•'), h('span', { class: 'mi-name' }, b.name), h('kbd', {}, String(b.items.length)));
     const x = many ? h('button', { class: 'tm-x', tabindex: '-1', title: t('del'), 'aria-label': t('del') + ' · ' + b.name, 'data-del': b.id, html: iconSvg('x', 12),
       onpointerdown: (e) => e.stopPropagation(), onclick: (e) => { e.stopPropagation(); this.del(b, 'menu'); } }) : null;
-    const r = h('div', { class: 'tm-row', 'data-board': b.id, draggable: 'true', style: { '--tc': b.color || 'var(--accent)' } }, mi, x);
+    // v2.6.12.2: the WHOLE row drags (emoji, name, count) with pointer events; draggable=false so Chromium never starts
+    // a native drag; the button inside keeps click / Enter / focus
+    const r = h('div', { class: 'tm-row', 'data-board': b.id, 'data-drag': 'menu', draggable: 'false', style: { '--tc': b.color || 'var(--accent)' } }, mi, x);
     r.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); this.ctxFor(b, e.clientX, e.clientY); };
-    r.ondragstart = (e) => { e.dataTransfer.setData('nyx/tab', b.id); e.dataTransfer.effectAllowed = 'move'; r.classList.add('dragging'); document.body.classList.add('tab-dragging'); };
-    r.ondragend = () => { r.classList.remove('dragging'); document.body.classList.remove('tab-dragging'); this.clearDrop(); };
-    this.dropRow(r, b, { menu: true, after: (id) => this.reopen(id) });
     return r;
   },
   openMore() {
@@ -99,20 +87,6 @@ const BoardTabs = {
     if (a === 'menu') { const rr = document.activeElement.getBoundingClientRect(); return this.ctxFor(b, rr.left + 24, rr.bottom - 4); }
     if (a === 'move-up' || a === 'move-down') { if (this.step(b.id, a === 'move-up' ? -1 : 1)) this.reopen(b.id); }
   },
-  // drag from the bar onto «+N ▾»: hovering opens the menu (drop on a row), dropping on the button = to the end
-  initMoreDrop() {
-    const more = $('#tabs-more'); if (!more) return;
-    const over = (e) => {
-      if (!this.isTabDrag(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; more.classList.add('dragover');
-      if (!this._spring && $('#ctxmenu').hidden) this._spring = setTimeout(() => { this._spring = 0; if (more.classList.contains('dragover')) this.openMore(); }, 450);
-    };
-    more.addEventListener('dragenter', over); more.addEventListener('dragover', over);
-    more.addEventListener('dragleave', (e) => { if (e.relatedTarget && more.contains(e.relatedTarget)) return; more.classList.remove('dragover'); clearTimeout(this._spring); this._spring = 0; });
-    more.addEventListener('drop', (e) => {
-      if (!this.isTabDrag(e)) return; e.preventDefault(); more.classList.remove('dragover'); clearTimeout(this._spring); this._spring = 0;
-      const id = e.dataTransfer.getData('nyx/tab'); if (!id) return; Panels.closeMenu(); this.move(id, null, 'end');
-    });
-  },
   // ---------- «Διαχείριση πινάκων» ----------
   manage() { Panels.openDrawer('boards', '📋 ' + esc(t('v26121.manage')), (body) => this.renderManage(body)); },
   renderManage(body) {
@@ -126,8 +100,8 @@ const BoardTabs = {
       const commit = () => { const v = name.value.trim(); if (!v) { name.value = b.name; return; } if (v === b.name) return; b.name = v; Store.save(); Panels.tabs(); };
       name.onkeydown = (e) => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); commit(); name.blur(); } if (e.key === 'Escape') { e.preventDefault(); name.value = b.name; name.blur(); } };
       name.onchange = commit; name.onblur = commit;
-      const grip = h('span', { class: 'bm-grip', draggable: 'true', title: t('v26121.drag'), html: iconSvg('grip-vertical', 15) });
-      const row = h('div', { class: 'bm-row' + (b.id === S.active ? ' on' : ''), role: 'listitem', tabindex: '0', 'data-board': b.id, style: { '--tc': b.color || 'var(--accent)' }, 'aria-label': b.name + ' · ' + t('v26121.items', { v0: b.items.length }) },
+      const grip = h('span', { class: 'bm-grip', title: t('v26121.drag'), html: iconSvg('grip-vertical', 15) });
+      const row = h('div', { class: 'bm-row' + (b.id === S.active ? ' on' : ''), role: 'listitem', tabindex: '0', 'data-board': b.id, 'data-drag': 'manage', draggable: 'false', style: { '--tc': b.color || 'var(--accent)' }, 'aria-label': b.name + ' · ' + t('v26121.items', { v0: b.items.length }) },
         grip, h('button', { class: 'bm-emo', title: t('v26121.open'), onclick: () => App.switchBoard(b.id) }, b.emoji || '•'), name,
         h('span', { class: 'bm-count muted small' }, t('v26121.items', { v0: b.items.length })),
         h('button', { class: 'icon-btn bm-more', title: t('v26121.menu'), 'aria-label': t('v26121.menu') + ' · ' + b.name, html: iconSvg('ellipsis', 15),
@@ -146,9 +120,6 @@ const BoardTabs = {
         if (a === 'menu') { const rr = row.getBoundingClientRect(); return this.ctxFor(b, rr.left + 40, rr.bottom - 4); }
         if (a === 'move-up' || a === 'move-down') { this.step(b.id, a === 'move-up' ? -1 : 1); $(`#drawer-body .bm-row[data-board="${CSS.escape(b.id)}"]`)?.focus(); }
       };
-      grip.ondragstart = (e) => { e.dataTransfer.setData('nyx/tab', b.id); e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setDragImage(row, 20, 18); } catch (err) {} row.classList.add('dragging'); document.body.classList.add('tab-dragging'); };
-      grip.ondragend = () => { row.classList.remove('dragging'); document.body.classList.remove('tab-dragging'); this.clearDrop(); };
-      this.dropRow(row, b);
       ul.append(row);
     });
     body.append(ul);
@@ -157,7 +128,7 @@ const BoardTabs = {
   init() { // called by bootLook2611 right after TabStrip.init()
     if (this._init) return; this._init = true;
     $('#ctxmenu').addEventListener('keydown', (e) => this.menuKey(e), true);
-    this.initMoreDrop();
+    if (typeof TabDrag !== 'undefined') TabDrag.init(); // v2.6.12.2: pointer-event dragging (bar, «+N ▾», «Διαχείριση πινάκων»)
     window.__nyxTabs26121 = true;
   },
 };

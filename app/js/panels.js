@@ -24,18 +24,14 @@ const Panels = {
     const T = $('#tabs'); T.innerHTML = ''; const S = Store.state;
     for (const b of S.boards) {
       // v2.6.11: role=tab + roving tabindex (the active tab is the one reachable with Tab; ←/→ Home/End move between boards)
-      const tab = h('div', { class: 'tab' + (b.id === S.active ? ' on' : ''), draggable: 'true', style: { '--tc': b.color || 'var(--accent)' }, title: b.name, role: 'tab', 'aria-selected': b.id === S.active ? 'true' : 'false', tabindex: b.id === S.active ? '0' : '-1', 'data-board': b.id },
+      const tab = h('div', { class: 'tab' + (b.id === S.active ? ' on' : ''), draggable: 'false', 'data-drag': 'bar', style: { '--tc': b.color || 'var(--accent)' }, title: b.name, role: 'tab', 'aria-selected': b.id === S.active ? 'true' : 'false', tabindex: b.id === S.active ? '0' : '-1', 'data-board': b.id },
         h('span', { class: 'tab-emo' }, b.emoji || '•'), h('span', { class: 'tab-name' }, b.name), h('span', { class: 'tab-count' }, String(b.items.length || '')),
         S.boards.length > 1 ? h('button', { class: 'tab-x', title: t('del'), html: iconSvg('x', 11), onpointerdown: (e) => e.stopPropagation(), onclick: (e) => { e.stopPropagation(); App.deleteBoard(b); } }) : null);
       tab.onauxclick = (e) => { if (e.button === 1 && S.boards.length > 1) { e.preventDefault(); App.deleteBoard(b); } };
       tab.onclick = () => App.switchBoard(b.id);
       tab.ondblclick = () => this.renameBoard(b);
       tab.oncontextmenu = (e) => { e.preventDefault(); this.menu(e.clientX, e.clientY, this.tabMenuRows(b)); };
-      tab.ondragstart = (e) => { e.dataTransfer.setData('nyx/tab', b.id); e.dataTransfer.effectAllowed = 'move'; document.body.classList.add('tab-dragging'); };
-      tab.ondragend = () => document.body.classList.remove('tab-dragging');
-      tab.ondragover = (e) => { if (e.dataTransfer.types.includes('nyx/tab')) { e.preventDefault(); tab.classList.add('dragover'); } };
-      tab.ondragleave = () => tab.classList.remove('dragover');
-      tab.ondrop = (e) => { const id = e.dataTransfer.getData('nyx/tab'); tab.classList.remove('dragover'); if (!id || id === b.id) return; e.preventDefault(); const arr = S.boards; const from = arr.findIndex(x => x.id === id); const [m] = arr.splice(from, 1); arr.splice(arr.indexOf(b), 0, m); Store.save(); if ($('#ctxmenu').dataset.menu === 'tabs-more') this.closeMenu(); this.tabs(); };
+      // v2.6.12.2: drag / reorder with pointer events in TabDrag (tabdrag26122.js) — the same order rule as before (drop = before that tab)
       T.append(tab);
     }
     // v2.6.11: tabs shrink to a useful minimum, then «+N ▾» holds the rest; the active tab always stays visible (look2611.js)
