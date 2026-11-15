@@ -96,7 +96,7 @@ MCowBQYDK2VwAyEA0BpU/HCp14nIU6nzueOwMEDg0y4HIvfraHwlrXvoRwo=
 - Τύπος: ed25519, **δημόσιο** (SPKI).
 - Fingerprint (sha256 του SPKI DER): `26a93d3f3e2b3c0a31ed6071818f9521fe2dc3876007b172f43f72ae3511dcb6`.
 - Ελέγχθηκε στις 15/11: είναι ίδιο με το `LEGACY` του `main/update-key.js` και αντιστοιχεί στο ιδιωτικό κλειδί υπογραφής, που **δεν** περιλαμβάνεται πουθενά.
-- Το δεύτερο έμπιστο κλειδί της εφαρμογής, `CURRENT`, ήρθε από την 2.6.0 του άλλου λογαριασμού (fingerprint `68027240f3b9210542ac342d94b4c5430e3846fa8f94a3df7a9a13387e207ca6`). Το ιδιωτικό του δεν υπάρχει εδώ.
+- Το δεύτερο έμπιστο κλειδί της εφαρμογής, `CURRENT`, ήρθε από την 2.6.0 του άλλου λογαριασμού (fingerprint `68027240f3b9210542ac342d94b4c5430e3846fa8f94a3df7a9a13387e207ca6`). Το ιδιωτικό του δεν υπήρχε εδώ ως την 2.6.10.1· για την 2.6.11 δες §4β.
 
 Επαλήθευση ενός patch με το χέρι:
 ```bash
@@ -109,6 +109,27 @@ openssl pkeyutl -verify -pubin -inkey nyx-update-LEGACY-public.pem -rawin -in ma
 ```bash
 openssl pkeyutl -verify -pubin -inkey nyx-update-LEGACY-public.pem -rawin -in nyx-full-2.6.10.1.zip -sigfile nyx-full-2.6.10.1.zip.sig
 ```
+
+## 4β. 2.6.11: υπογραφή με το CURRENT (15/11/2026)
+
+Το patch `nyx-2.6.10.1-to-2.6.11.zip` υπογράφεται με το **CURRENT**, όχι με το LEGACY (με οδηγία του χρήστη, 15/11).
+- Το ιδιωτικό κλειδί LEGACY δεν βρέθηκε στο box της 2.6.11. Το ιδιωτικό CURRENT βρίσκεται **εκτός repo** και δεν μπαίνει ποτέ στο repo ή στο zip.
+- Πριν από την υπογραφή ελέγχθηκε ότι το δημόσιο που βγαίνει από το ιδιωτικό είναι **ακριβώς** το `CURRENT` του `main/update-key.js` στο `b530ab4`, με fingerprint `68027240f3b9210542ac342d94b4c5430e3846fa8f94a3df7a9a13387e207ca6`.
+- Η λίστα έμπιστων κλειδιών **δεν άλλαξε** (`TRUSTED = [LEGACY, CURRENT]`). Η 2.6.10.1 το δέχεται ήδη: το `verifySig` δέχεται οποιοδήποτε κλειδί της λίστας.
+- Δημόσιο CURRENT (δίπλα στο zip ως `nyx-update-CURRENT-public.pem`):
+```
+-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEA7bfsGpt4U8DsKLVQ861AQ7UdCiXT8W2YQhS86Zse6Bc=
+-----END PUBLIC KEY-----
+```
+Επαλήθευση με το χέρι (ίδια βήματα με το §4, με το CURRENT):
+```bash
+unzip -o nyx-2.6.10.1-to-2.6.11.zip manifest.json manifest.sig
+base64 -d manifest.sig > manifest.sig.bin
+openssl pkeyutl -verify -pubin -inkey nyx-update-CURRENT-public.pem -rawin -in manifest.json -sigfile manifest.sig.bin
+openssl pkeyutl -verify -pubin -inkey nyx-update-CURRENT-public.pem -rawin -in nyx-2.6.10.1-to-2.6.11.zip -sigfile nyx-2.6.10.1-to-2.6.11.zip.sig
+```
+Με το LEGACY η επαλήθευση **αποτυγχάνει** (αναμενόμενο: δεν υπογράφηκε με αυτό).
 
 ## 5. ΠΡΟΤΑΣΗ (δεν υλοποιήθηκε): ο Hermes υπογράφει δικά του patch
 
