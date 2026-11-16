@@ -116,7 +116,7 @@ const DUMMY = fxJson[0].voice.rvq.b64, REF = fxJson[0].voice.refText;
   const html = read('app/index.html'); ok(html.indexOf('js/v26/voice2613.js') > 0 && html.indexOf('js/v26/voice2613.js') < html.indexOf('js/v2/core.js') && /v2613\.css/.test(html) && /voicehub2613\.js/.test(html), 'index.html loads voice2613.js (before core.js), voicehub2613.js, v2613.css');
   const pkg = JSON.parse(read('package.json')), lock = JSON.parse(read('package-lock.json')); const CH = JSON.parse(read('CHANGELOG.json'));
   ok(pkg.version === '2.6.13' && lock.version === '2.6.13' && lock.packages[''].version === '2.6.13', 'version 2.6.13 (package.json + package-lock)');
-  ok(Object.keys(CH)[0] === '2.6.13' && CH['2.6.13'].el.length === 1 && CH['2.6.12.2'], 'CHANGELOG 2.6.13 first, 2.6.12.2 kept');
+  ok(Object.keys(CH)[0] === '2.6.13' && CH['2.6.13'].el.length === 3 && CH['2.6.13'].en.length === 3 && CH['2.6.12.2'], 'CHANGELOG 2.6.13 first (3 items: voice, engine, tab auto-scroll), 2.6.12.2 kept');
   ok(pkg.devDependencies.electron === '45.2.3', 'Electron 45.2.3');
   // ---- (ε) tab-bar auto-scroll while dragging ----
   { const AS = require(path.join(R, 'app/js/v26/autoscroll2613.js')); const bar = { left: 100, right: 900, top: 10, bottom: 46 }; const y = 28;

@@ -1,10 +1,14 @@
 {
  "2.6.13": {
   "el": [
-    "Φωνή απάντησης: το τοπικό LLM μιλάει με persona του Voice Studio (προεπιλογή «ster», κλώνος) ή με τη «Γενική γυναικεία» — μόνο αν τη διαλέξεις. Πρόταση-πρόταση: η 1η παίζει όσο ετοιμάζεται η 2η. Πρώτα δοκιμάζει το OmniVoice του Hermes (127.0.0.1:7802)· αλλιώς ξεκινά ο δικός σου vs-engine. Αν λείπει η persona ή το personas.json, βλέπεις μήνυμα· καμία σιωπηλή αλλαγή φωνής."
+   "Φωνή απάντησης: το τοπικό LLM μιλάει με persona του Voice Studio (προεπιλογή «ster», κλώνος) ή με τη «Γενική γυναικεία» — μόνο αν τη διαλέξεις. Πρόταση-πρόταση: η 1η παίζει όσο ετοιμάζεται η 2η. Αν λείπει η persona ή το personas.json, βλέπεις μήνυμα· καμία σιωπηλή αλλαγή φωνής.",
+   "Μηχανή φωνής: πρώτα το OmniVoice του Hermes (127.0.0.1:7802). Λάθος token → μήνυμα «λάθος token OmniVoice», χωρίς δεύτερη μηχανή στη GPU. Δικός σου vs-engine μόνο όταν δεν απαντά τίποτα στο 7802. Το token διαβάζεται από μεταβλητή περιβάλλοντος ή αρχείο, ποτέ από τις ρυθμίσεις.",
+   "Καρτέλες: όταν σέρνεις μια καρτέλα κοντά στην αριστερή ή δεξιά άκρη της μπάρας, η μπάρα κυλά (πιο γρήγορα όσο πιο κοντά στην άκρη), για να την αφήσεις ανάμεσα σε κρυμμένες καρτέλες. Σταματά όταν αφήσεις ή πατήσεις Esc."
   ],
   "en": [
-    "Answer voice: the local LLM speaks with a Voice Studio persona (default «ster», a clone) or «Generic female» — only if you pick it. Sentence by sentence: the 1st plays while the 2nd is prepared. Hermes's OmniVoice (127.0.0.1:7802) is tried first; otherwise your own vs-engine starts. A missing persona or personas.json shows a message; never a silent voice change."
+   "Answer voice: the local LLM speaks with a Voice Studio persona (default «ster», a clone) or «Generic female» — only if you pick it. Sentence by sentence: the 1st plays while the 2nd is prepared. A missing persona or personas.json shows a message; never a silent voice change.",
+   "Voice engine: Hermes's OmniVoice (127.0.0.1:7802) first. Wrong token → «wrong OmniVoice token» message, no second engine on the GPU. Your own vs-engine only when nothing answers on 7802. The token comes from an environment variable or a file, never from settings.",
+   "Tabs: dragging a tab near the left or right edge of the bar scrolls the bar (faster the closer to the edge), so you can drop it between hidden tabs. Stops on release or Esc."
   ]
  },
  "2.6.12.2": {
