@@ -1,0 +1,53 @@
+[
+ {
+  "id": "91456a431e6f",
+  "name": "ster",
+  "created": "2026-10-02T18:20:00Z",
+  "voice": {
+   "type": "clone",
+   "refFile": "C:\\Users\\Administrator\\AppData\\Roaming\\GPU Voice Studio\\refs\\ster.wav",
+   "refText": "DUMMY-REF-TEXT Καλησπέρα, είμαι η φωνή δοκιμής.",
+   "rvq": {
+    "b64": "TllYLVRFU1QtRFVNTVktUlZRLQABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8=",
+    "frames": 123
+   }
+  },
+  "tts": {
+   "steps": 48,
+   "guidance_scale": 2.5
+  }
+ },
+ {
+  "id": "a1b2c3",
+  "name": "Νίκος",
+  "voice": {
+   "type": "clone",
+   "refText": "DUMMY-REF-2",
+   "rvq": {
+    "b64": "TllYLVRFU1QtRFVNTVktUlZRLQABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8="
+   }
+  },
+  "tts": {}
+ },
+ {
+  "id": "d4e5f6",
+  "name": "Αφηγητής",
+  "voice": {
+   "type": "design",
+   "prompt": "male, calm"
+  },
+  "tts": {
+   "steps": 32
+  }
+ },
+ {
+  "id": "g7h8",
+  "name": "μισό",
+  "voice": {
+   "type": "clone",
+   "rvq": {
+    "b64": "TllYLVRFU1QtRFVNTVktUlZRLQABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8="
+   }
+  }
+ }
+]
