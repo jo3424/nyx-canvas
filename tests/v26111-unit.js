@@ -91,7 +91,8 @@ const W = (n, w = 120) => Array.from({ length: n }, () => w);
   const CH = JSON.parse(read('CHANGELOG.json'));
   ok(['2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13'].includes(Object.keys(CH)[0]) && CH['2.6.11.1'].el.length === 3 && CH['2.6.11.1'].en.length === 3 && CH['2.6.11'], 'CHANGELOG 2.6.11.1 first (3 items), 2.6.11 kept');
   const mainDiff = cp.execSync('git diff --name-only b271669 -- main main.js preload.js boot.js', { cwd: R }).toString().trim();
-  ok(mainDiff === '', 'no change in main process / preload / IPC / permissions', mainDiff);
+  const V2613 = ['main/voice2613.js', 'main/v2.js', 'main/ipc-guard.js']; // 2.6.13 answer voice: own test (v2613-unit) checks these are additive
+  ok(mainDiff.split('\n').filter((f) => f && !V2613.includes(f)).length === 0, 'no change in main process / preload / IPC / permissions (2.6.13 voice files excepted)', mainDiff);
   ok(cp.execSync('git diff b271669 -- main/update-key.js', { cwd: R }).toString() === '', 'trusted update keys unchanged');
   let pk = ''; try { pk = cp.execSync('git grep -l -I -E "BEGIN [A-Z ]*PRIVATE KEY" -- . ":!tests"', { cwd: R }).toString().trim(); } catch (e) { pk = ''; }
   ok(pk === '', 'no private key in the repo', pk);

@@ -105,6 +105,10 @@ const DUMMY = fxJson[0].voice.rvq.b64, REF = fxJson[0].voice.refText;
   const guard = read('main/ipc-guard.js');
   ok(/'tts:voiceList2613': \['o\?'\], 'tts:voiceBegin2613': \['o\?', 's\?'\], 'tts:voiceSpeak2613': \['n', 's', 's\?'\], 'tts:voiceCancel2613': \[\]/.test(guard), 'IPC channels validated in ipc-guard like the others');
   ok(/require\('\.\/vsengine'\)/.test(read('main/v2.js')) && read('main/vsengine.js') === require('child_process').execSync('git show c79c15e:main/vsengine.js', { cwd: R }).toString(), 'main/vsengine.js unchanged (start, port, token as before)');
+  { const cpx = require('child_process'); const names = cpx.execSync('git diff --name-only c79c15e -- main main.js preload.js app/preload.js boot.js', { cwd: R }).toString().trim().split('\n').filter(Boolean);
+    ok(names.sort().join(',') === 'main/ipc-guard.js,main/v2.js,main/voice2613.js', 'main-process change limited to voice2613.js + v2.js + ipc-guard.js (preload / router / models untouched)', names);
+    const rem = cpx.execSync('git diff -U0 c79c15e -- main/v2.js main/ipc-guard.js', { cwd: R }).toString().split('\n').filter((l) => /^-[^-]/.test(l));
+    ok(rem.length === 0, 'v2.js / ipc-guard.js: lines only added (existing IPC and handlers kept)', rem); }
   ok(/if \(T\.mode === 'vsserver'\) return this\.speakVoice\(text, T\)/.test(core) && /tts:voiceCancel2613/.test(core), 'Speech: vs-engine mode speaks with the chosen voice; stop / a new answer cancels the queue');
   const html = read('app/index.html'); ok(html.indexOf('js/v26/voice2613.js') > 0 && html.indexOf('js/v26/voice2613.js') < html.indexOf('js/v2/core.js') && /v2613\.css/.test(html) && /voicehub2613\.js/.test(html), 'index.html loads voice2613.js (before core.js), voicehub2613.js, v2613.css');
   const pkg = JSON.parse(read('package.json')), lock = JSON.parse(read('package-lock.json')); const CH = JSON.parse(read('CHANGELOG.json'));
