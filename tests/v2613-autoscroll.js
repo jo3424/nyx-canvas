@@ -8,6 +8,7 @@
 //  2b) a quick pass over the edge zone (< 250 ms) does not scroll
 //  3) release → scrolling stops at once;  4) Esc while scrolling → stops, nothing moved
 //  5) LEFT edge → scrolls back and stops at the first tab;  6) mid-drag screenshots 1440×900 and 1024×700
+//  7) dragging inside the open «+N ▾» menu never scrolls;  8) a menu row held at the bar's edge scrolls it
 const { _electron } = require('playwright-core');
 const path = require('path'), fs = require('fs'), os = require('os'), cp = require('child_process');
 const ROOT = process.env.NYX_ROOT || path.join(__dirname, '..');
@@ -104,6 +105,23 @@ async function pass(name, real, w, h, shotTag) {
   // pointer in the middle of the bar → no scroll
   await reset(); const v6 = (await st()).vis; await grab(v6[1]); await go((B.left + B.right) / 2, B.y, 6); await sleep(700);
   ok((await st()).start === 0, `${name}: pointer in the middle of the bar → no scroll`); await P.esc(); await P.up();
+  // 7) inside the open «+N ▾» menu (it lies under the bar's right end): never scrolls
+  await reset(); await win.evaluate(() => Panels.closeMenu()); await sleep(150);
+  const openMenu = async () => { const mp = await win.evaluate(() => { const r = document.querySelector('#tabs-more').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }); await go(mp.x, mp.y, 2); await P.down(); await P.up(); await sleep(400); };
+  await openMenu();
+  const rowPt = (k, fy = 0.5) => win.evaluate(([k, fy]) => { const e = document.querySelectorAll('#ctxmenu[data-menu=tabs-more] .tm-row')[k]; if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left + Math.min(60, r.width / 3), y: r.top + r.height * fy }; }, [k, fy]);
+  { const r1 = await rowPt(1), r0 = await rowPt(0, 0.15);
+    const mb = await win.evaluate(() => { const r = document.querySelector('#ctxmenu').getBoundingClientRect(); return { top: r.top, bottom: r.bottom, ih: innerHeight }; });
+    ok(!!r1 && !!r0 && mb.top >= 0 && mb.bottom <= mb.ih, `${name}: «+N ▾» menu with ${s0.max} hidden boards is inside the window (fix: it used to open above it)`, mb);
+    await go(r1.x, r1.y, 2); await P.down(); await go(r1.x + 12, r1.y - 8, 4); await go(r0.x, r0.y, 6); await sleep(700);
+    const m = await st(); const dragOn = await win.evaluate(() => !!(TabDrag.d && TabDrag.d.on)); await P.esc(); await P.up(); await sleep(300);
+    ok(dragOn && m.start === 0, `${name}: holding a menu row at the top of the open menu (under the bar's edge) does not scroll the bar`, m.start); }
+  // 8) a «+N ▾» row dragged to the bar's right edge scrolls the bar too
+  await reset(); await win.evaluate(() => Panels.closeMenu()); await sleep(150); await openMenu();
+  { const r2 = await rowPt(2); await go(r2.x, r2.y, 2); await P.down(); await go(r2.x + 12, r2.y + 6, 4); await go(B.right - 4, B.y, 10);
+    t = Date.now(); let m = await st(); while (m.start < 3 && Date.now() - t < 3000) { await sleep(60); m = await st(); }
+    await go((B.left + B.right) / 2, B.y, 4); await P.esc(); await P.up(); await sleep(300);
+    ok(m.start >= 3, `${name}: a «+N ▾» row held at the bar's right edge scrolls the bar (start → ${m.start})`, m); }
   await quit(app);
 }
 (async () => {

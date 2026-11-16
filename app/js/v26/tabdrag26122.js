@@ -56,6 +56,7 @@ const TabDrag = {
     const T = $('#tabs'); let v = 0;
     if (T && typeof TabStrip !== 'undefined' && TabStrip.mode === 'overflow' && typeof NyxAutoScroll !== 'undefined') {
       v = NyxAutoScroll.speed(x, y, d.bar || T.getBoundingClientRect());
+      const over = v && document.elementFromPoint(x, y); if (over && over.closest('#ctxmenu, #drawer, .drawer, .tab-ghost')) v = 0; // the open «+N ▾» menu / a drawer lies over the bar's edge: never scroll from there
       if (v < 0 && !((TabStrip.start || 0) > 0)) v = 0;
       if (v > 0 && !((TabStrip.start || 0) < TabStrip.maxStart)) v = 0;
     }

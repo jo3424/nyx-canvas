@@ -4,10 +4,10 @@
 //    The edge zone is EDGE px wide; the closer the pointer is to the edge, the faster: from VMIN at the inner border of the
 //    zone to VMAX at the edge (linear). Left: also up to EDGE px OUTSIDE the bar (the pointer can overshoot the edge).
 //    Right: only INSIDE the bar — just past it sits «+N ▾», whose own hover (open the menu) must keep working.
-//    Vertically: the bar's height ± VPAD px; elsewhere 0. Scrolling starts after DWELL ms in the zone.
+//    Vertically: the bar's height ± VPAD px; elsewhere 0 (TabDrag also ignores the pointer over the open menu / a drawer). Scrolling starts after DWELL ms in the zone.
 //  - step(acc, v, dt): integrates the speed over dt ms; returns whole tabs to move now and the remainder.
 (function (root) {
-  const EDGE = 40, VMIN = 1.5, VMAX = 12, VPAD = 18, DWELL = 250; // DWELL ms in the zone before it starts (a quick drop on the first / last tab never scrolls)
+  const EDGE = 40, VMIN = 1.5, VMAX = 12, VPAD = 12, DWELL = 250; // DWELL ms in the zone before it starts (a quick drop on the first / last tab never scrolls)
   function speed(x, y, bar, opts) {
     const o = opts || {}; const e = o.edge || EDGE; const vmin = o.vmin != null ? o.vmin : VMIN; const vmax = o.vmax || VMAX; const pad = o.vpad != null ? o.vpad : VPAD;
     if (!bar || !(bar.right > bar.left) || !Number.isFinite(x) || !Number.isFinite(y)) return 0;

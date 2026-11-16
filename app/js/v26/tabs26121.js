@@ -65,6 +65,9 @@ const BoardTabs = {
     Panels.menu(r.right, r.bottom + 4, [...hidden.map((b) => ['', '', null, this.row(b, act)]), '-', ['', '', null, manage]]);
     const m = $('#ctxmenu'); m.dataset.menu = 'tabs-more'; m.setAttribute('role', 'menu');
     const mr = m.getBoundingClientRect(); m.style.left = Math.max(8, Math.min(r.right - mr.width, innerWidth - mr.width - 8)) + 'px'; // right-aligned under «+N ▾»
+    // v2.6.13 fix: Panels.menu measured the menu BEFORE its max-height (data-menu) applied, so with many hidden boards it was placed
+    // above the window (negative top) and could not be seen. Measure again now and keep it under «+N ▾», inside the window.
+    m.style.top = Math.max(8, Math.min(r.bottom + 4, innerHeight - mr.height - 8)) + 'px';
     more.setAttribute('aria-expanded', 'true');
     const obs = new MutationObserver(() => { if (m.hidden || m.dataset.menu !== 'tabs-more') { more.setAttribute('aria-expanded', 'false'); obs.disconnect(); } });
     obs.observe(m, { attributes: true, attributeFilter: ['hidden', 'data-menu'] });
