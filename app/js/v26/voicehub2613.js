@@ -7,6 +7,7 @@ const VoiceHub = {
     const err = h('div', { class: 'v2613-err', role: 'alert', hidden: true });
     const src = h('p', { class: 'muted small v2613-src' });
     const eng = h('p', { class: 'small v2613-engine' });
+    const logPre = h('pre', { class: 'v2613-logtxt small' }); const logBox = h('details', { class: 'v2613-log' }, h('summary', { class: 'small muted' }, t('v2613.log')), logPre);
     const fill = async () => {
       sel.disabled = true; let r;
       try { r = await API.inv('tts:voiceList2613', {}); } catch (e) { r = { ok: false, error: { code: 'personas_read' }, personas: [] }; }
@@ -29,6 +30,7 @@ const VoiceHub = {
       err.hidden = !msg; err.innerHTML = ''; if (msg) err.append(h('b', {}, '⚠️ ' + t('v2613.err_title')), h('p', { class: 'small' }, msg), h('p', { class: 'small muted' }, t('v2613.no_fallback')));
       src.textContent = t('v2613.source', { v0: r.file || '—' });
       VoiceHub.engineText(eng, r.engine, r.hermes);
+      logPre.textContent = (r.log || []).join('\n') || '—'; // already redacted in main
     };
     sel.onchange = () => { T.vsVoice = sel.value; Store.save(); fill(); };
     const onEng = (e) => { if (eng.isConnected) VoiceHub.engineText(eng, e.detail, null); else removeEventListener('nyx:voice-engine', onEng); };
@@ -36,7 +38,7 @@ const VoiceHub = {
     fill();
     return [h('div', { class: 'v2613-box' },
       h('label', { class: 'sfield v2613-field' }, h('span', {}, t('v2613.voice')), h('div', { class: 'row gap' }, sel, h('button', { class: 'btn sm ghost v2613-refresh', title: t('hub.083'), onclick: fill }, iconSvg('refresh-cw', 14)))),
-      err, src, eng, h('p', { class: 'muted small' }, t('v2613.hint')))];
+      err, src, eng, h('p', { class: 'muted small' }, t('v2613.hint')), logBox)];
   },
   engineText(el, e, hermes) {
     const now = e ? (e.kind === 'hermes' ? t('v2613.engine_hermes') : t('v2613.engine_own', { v0: e.port })) : t('v2613.engine_none');

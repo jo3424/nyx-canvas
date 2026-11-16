@@ -71,6 +71,8 @@ const toasts = (win) => win.evaluate(() => [...document.querySelectorAll('.toast
   ok(r && r.via === 'vsserver' && /ster · OmniVoice του Hermes \(7802\)/.test(r.voice) && r.parts === 3, 'result: ster · OmniVoice του Hermes (7802)', r);
   { const vs = await win.evaluate(() => API.inv('tts:vsStatus')); ok(vs && vs.running === false && !vs.port, 'no own vs-engine started (tts:vsStatus: not running, no port; none configured, so a start would have failed the answer)', vs); }
   await openSpeech(win); b = await box(win); ok(/Μηχανή: OmniVoice του Hermes \(7802\)/.test(b.eng), 'Hub shows the engine in use: «OmniVoice του Hermes (7802)»', b.eng);
+  { const lg = await win.evaluate(() => document.querySelector('.v2613-logtxt')?.textContent || '');
+    ok(/7802 OK \(200\): Hermes OmniVoice in use/.test(lg) && !lg.includes(HT) && !lg.includes(fx[0].voice.rvq.b64) && !lg.includes('DUMMY-REF'), 'voice log in the setting: «7802 OK (200) …», no token / voice code / reference text', lg); }
   // stop during an answer
   F.synth.length = 0;
   await win.evaluate(() => { window.__sp = Speech.speak('Πρώτη πρόταση. Δεύτερη πρόταση. Τρίτη πρόταση. Τέταρτη πρόταση.'); }); await sleep(200);

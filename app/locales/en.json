@@ -2154,5 +2154,6 @@
  "v2613.probe_down": "no answer → my own vs-engine",
  "v2613.probe_other": "answered {v0} → my own vs-engine",
  "v2613.probe_no_token": "OMNIVOICE_HERMES_TOKEN is not set → my own vs-engine",
- "v2613.hint": "Speaks sentence by sentence: the 1st plays while the 2nd is prepared. The engine is chosen at the start of every answer."
+ "v2613.hint": "Speaks sentence by sentence: the 1st plays while the 2nd is prepared. The engine is chosen at the start of every answer.",
+ "v2613.log": "Voice log (no token / voice code)"
 }

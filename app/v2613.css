@@ -9,3 +9,4 @@
 .v2613-err p{margin:0;line-height:1.45}
 .v2613-src{margin:0;word-break:break-all}
 .v2613-engine{margin:0;line-height:1.5}
+.v2613-log summary{cursor:pointer}.v2613-logtxt{max-height:140px;overflow:auto;white-space:pre-wrap;word-break:break-all;margin:4px 0 0;padding:6px 8px;border-radius:8px;background:color-mix(in srgb,var(--bg) 55%,transparent);border:1px solid var(--border)}
