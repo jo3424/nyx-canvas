@@ -10,3 +10,5 @@
 .v2613-src{margin:0;word-break:break-all}
 .v2613-engine{margin:0;line-height:1.5}
 .v2613-log summary{cursor:pointer}.v2613-logtxt{max-height:140px;overflow:auto;white-space:pre-wrap;word-break:break-all;margin:4px 0 0;padding:6px 8px;border-radius:8px;background:color-mix(in srgb,var(--bg) 55%,transparent);border:1px solid var(--border)}
+/* v2.6.13: the tab bar scrolls while a tab is held near its edge — a soft accent glow on that edge */
+#tabs.as-left{box-shadow:inset 30px 0 20px -20px color-mix(in srgb,var(--accent) 75%,transparent)}#tabs.as-right{box-shadow:inset -30px 0 20px -20px color-mix(in srgb,var(--accent) 75%,transparent)}
