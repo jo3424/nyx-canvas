@@ -3,7 +3,7 @@
 // the chosen persona is missing. The list comes from main (names / ids / ready only — never the voice code or a token).
 const VoiceHub = {
   rows(T) {
-    const sel = h('select', { class: 'v2613-voice', 'aria-label': t('v2613.voice') });
+    const sel = h('select', { class: 'inp v2613-voice', 'aria-label': t('v2613.voice') });
     const err = h('div', { class: 'v2613-err', role: 'alert', hidden: true });
     const src = h('p', { class: 'muted small v2613-src' });
     const eng = h('p', { class: 'small v2613-engine' });
