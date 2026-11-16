@@ -122,10 +122,10 @@ const W = (n, w = 120) => Array.from({ length: n }, () => w);
 // ---- 6) versions / safety ----
 {
   const pkg = JSON.parse(read('package.json')); const lock = JSON.parse(read('package-lock.json'));
-  ok(['2.6.12', '2.6.12.1', '2.6.12.2'].includes(pkg.version) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.12, Electron 45.2.3', pkg.version);
-  ok(['2.6.12', '2.6.12.1', '2.6.12.2'].includes(lock.version) && lock.packages[''].version === lock.version, 'package-lock version 2.6.12');
+  ok(['2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13'].includes(pkg.version) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.12, Electron 45.2.3', pkg.version);
+  ok(['2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13'].includes(lock.version) && lock.packages[''].version === lock.version, 'package-lock version 2.6.12');
   const CH = JSON.parse(read('CHANGELOG.json'));
-  ok(['2.6.12', '2.6.12.1', '2.6.12.2'].includes(Object.keys(CH)[0]) && CH['2.6.12'].el.length === 3 && CH['2.6.12'].en.length === 3 && CH['2.6.11.1'], 'CHANGELOG 2.6.12 first (3 items), 2.6.11.1 kept');
+  ok(['2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13'].includes(Object.keys(CH)[0]) && CH['2.6.12'].el.length === 3 && CH['2.6.12'].en.length === 3 && CH['2.6.11.1'], 'CHANGELOG 2.6.12 first (3 items), 2.6.11.1 kept');
   let diff = '';
   try { diff = cp.execSync('git diff --name-only fd0e31f -- main/ preload.js app/preload.js 2>/dev/null', { cwd: R }).toString().trim(); } catch (e) { diff = 'ERR'; }
   ok(diff === '', 'no main-process / preload change (router & model behaviour untouched)', diff);

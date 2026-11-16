@@ -506,7 +506,7 @@ const Speech = {
     this.stopSpeak();
     const play = async (file, via, voice) => { const a = this._audio = new Audio(Store.media(file)); await a.play(); return { via, voice }; };
     if (T.mode === 'command') { try { const f = await API.inv('tts:run', T, text); return await play(f, 'command', ''); } catch (e) { toast('⚠️ TTS: ' + cleanErr(e), { kind: 'err' }); return null; } }
-    if (T.mode === 'vsserver') { try { const r = await API.inv('tts:vsSpeak', T, text); return await play(r.file, 'vsserver', r.endpoint || ''); } catch (e) { toast('⚠️ vs-engine: ' + cleanErr(e), { kind: 'err', ms: 9000, action: { label: t('v23.open_ai'), fn: () => Hub.open() } }); return null; } }
+    if (T.mode === 'vsserver') return this.speakVoice(text, T); // v2.6.13: «Φωνή απάντησης» (Voice Studio persona / generic), sentence by sentence
     const win = async (why) => {
       try {
         const o = want.startsWith('sapi:') || want.startsWith('onecore:') ? { voice: want.slice(want.indexOf(':') + 1), src: want.split(':')[0], pitch } : { pitch };
@@ -537,7 +537,46 @@ const Speech = {
     const w = await API.inv('tts:voices', fresh).catch(() => []);
     return web.concat(w.map(v => ({ id: v.src + ':' + v.name, name: v.name, lang: v.lang, src: v.src })));
   },
-  stopSpeak() { try { speechSynthesis.cancel(); } catch (e) {} try { this._audio?.pause(); } catch (e) {} this._audio = null; API.inv('tts:sapiStop').catch(() => {}); },
+  stopSpeak() {
+    try { speechSynthesis.cancel(); } catch (e) {} try { this._audio?.pause(); } catch (e) {} this._audio = null; API.inv('tts:sapiStop').catch(() => {});
+    // v2.6.13: stop / a new answer cancels the sentence queue (and the request in flight)
+    this._vgen = (this._vgen || 0) + 1; const end = this._endPlay; this._endPlay = null; end && end(); API.inv('tts:voiceCancel2613').catch(() => {});
+  },
+  // v2.6.13 «φωνή ster»: the chosen voice is checked first (no silent change, no fallback to another voice), the engine is
+  // chosen per answer in main (Hermes's OmniVoice on 127.0.0.1:7802, otherwise our own vs-engine); sentence N plays while
+  // N+1 is synthesised, one request at a time; a dead engine ends this answer with a message
+  async speakVoice(text, T) {
+    const gen = this._vgen = (this._vgen || 0) + 1; const lang = this.textLang(text);
+    let b; try { b = await API.inv('tts:voiceBegin2613', T, T.vsVoice || ''); } catch (e) { b = { ok: false, code: 'engine_start', error: cleanErr(e) }; }
+    if (gen !== this._vgen) return null;
+    if (!b || !b.ok) { this.voiceError(b || {}); return null; }
+    this.voiceEngine = b.engine; window.dispatchEvent(new CustomEvent('nyx:voice-engine', { detail: b.engine }));
+    const parts = NyxVoice.splitSentences(text);
+    const res = await NyxVoice.pipeline(parts, {
+      isCancelled: () => gen !== this._vgen,
+      synth: (i, s) => API.inv('tts:voiceSpeak2613', b.msg, s, lang).catch((e) => ({ ok: false, code: 'error', error: cleanErr(e) })),
+      play: (file) => new Promise((done) => {
+        if (gen !== this._vgen) return done(); const a = this._audio = new Audio(Store.media(file)); this._endPlay = done;
+        a.onended = () => done(); a.onerror = () => done(); a.play().catch(() => done());
+      }),
+      onError: (i, r) => { if (gen === this._vgen) this.voiceError(r, i, parts.length); },
+    });
+    return { via: 'vsserver', voice: (b.voice?.name || t('v2613.generic')) + ' · ' + this.engineLabel(b.engine), parts: parts.length, ...res };
+  },
+  engineLabel(e) { return !e ? '—' : e.kind === 'hermes' ? t('v2613.engine_hermes') : t('v2613.engine_own', { v0: e.port }); },
+  voiceErrorText(r, i, n) {
+    const c = r.code || 'error'; const v = r.voice || 'ster';
+    if (c === 'personas_missing') return t('v2613.err_file');
+    if (c === 'personas_schema' || c === 'personas_read') return t('v2613.err_schema');
+    if (c === 'persona_missing') return t('v2613.err_missing', { v0: v });
+    if (c === 'persona_not_ready') return t('v2613.err_not_ready', { v0: v });
+    if (c === 'engine_start') return t('v2613.err_start', { v0: r.error || '' });
+    if (c === 'engine_down') return t('v2613.err_down', { v0: (i || 0) + 1, v1: n || 1 });
+    if (c === 'engine_token') return t('v2613.err_token');
+    if (c === 'bad_reference') return t('v2613.err_bad_ref');
+    return t('v2613.err_sentence', { v0: (i || 0) + 1, v1: r.status || r.code || '' });
+  },
+  voiceError(r, i, n) { toast('⚠️ ' + this.voiceErrorText(r, i, n), { kind: 'err', ms: 12000, action: { label: t('v23.open_ai'), fn: () => Hub.open() } }); },
 };
 function encodeWav(samples, sr) {
   const b = new ArrayBuffer(44 + samples.length * 2); const d = new DataView(b); const w = (o, s) => { for (let i = 0; i < s.length; i++) d.setUint8(o + i, s.charCodeAt(i)); };

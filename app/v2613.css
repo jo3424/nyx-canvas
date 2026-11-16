@@ -1,0 +1,11 @@
+/* v2.6.13 «φωνή ster» — Hub → Ομιλία → vs-engine: «Φωνή απάντησης». No mockup: the same look as the existing Hub fields,
+   the «no Greek voice» hint box (v2.css .voice-hint) and the error colour of .pstat.err. No new colours. */
+.v2613-box{display:flex;flex-direction:column;gap:6px;padding-bottom:8px;margin-bottom:6px;border-bottom:1px solid var(--border)}
+.v2613-field .row{align-items:center}
+.v2613-field select{flex:1 1 auto;min-width:0}
+.v2613-voice option.missing{color:#ff6b81}
+.v2613-err{border:1px solid rgba(255,107,129,.5);background:rgba(255,107,129,.10);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:4px}
+.v2613-err b{color:#ff6b81}
+.v2613-err p{margin:0;line-height:1.45}
+.v2613-src{margin:0;word-break:break-all}
+.v2613-engine{margin:0;line-height:1.5}

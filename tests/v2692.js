@@ -72,7 +72,7 @@ async function addImage(win, file) {
   const router = await startRouter();
   const { app, win } = await launch();
   const ver = await win.evaluate(() => (Store.info && Store.info.version) || '');
-  ok(['2.6.9.2', '2.6.9.3', '2.6.10', '2.6.10.1', '2.6.11', '2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2'].includes(String(ver)), 'app version 2.6.9.2(+)', ver);
+  ok(['2.6.9.2', '2.6.9.3', '2.6.10', '2.6.10.1', '2.6.11', '2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13'].includes(String(ver)), 'app version 2.6.9.2(+)', ver);
   await win.evaluate((a) => {
     const A = Store.state.settings.ai; const L = A.providers.find((p) => p.id === 'llama');
     L.enabled = true; L.base = 'http://127.0.0.1:' + a.port + '/v1';

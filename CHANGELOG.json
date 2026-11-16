@@ -1,4 +1,12 @@
 {
+ "2.6.13": {
+  "el": [
+    "Φωνή απάντησης: το τοπικό LLM μιλάει με persona του Voice Studio (προεπιλογή «ster», κλώνος) ή με τη «Γενική γυναικεία» — μόνο αν τη διαλέξεις. Πρόταση-πρόταση: η 1η παίζει όσο ετοιμάζεται η 2η. Πρώτα δοκιμάζει το OmniVoice του Hermes (127.0.0.1:7802)· αλλιώς ξεκινά ο δικός σου vs-engine. Αν λείπει η persona ή το personas.json, βλέπεις μήνυμα· καμία σιωπηλή αλλαγή φωνής."
+  ],
+  "en": [
+    "Answer voice: the local LLM speaks with a Voice Studio persona (default «ster», a clone) or «Generic female» — only if you pick it. Sentence by sentence: the 1st plays while the 2nd is prepared. Hermes's OmniVoice (127.0.0.1:7802) is tried first; otherwise your own vs-engine starts. A missing persona or personas.json shows a message; never a silent voice change."
+  ]
+ },
  "2.6.12.2": {
   "el": [
     "Καρτέλες στο «+N ▾»: οι γραμμές σέρνονται πια με πραγματικό ποντίκι, από όλη τη γραμμή (emoji, όνομα, αριθμός): μέσα στο μενού, από το μενού στη μπάρα, από τη μπάρα στο μενού και στη «Διαχείριση πινάκων». Το μενού μένει ανοιχτό όσο σέρνεις· Esc ακυρώνει. Κλικ, ×, δεξί κλικ και πλήκτρα όπως πριν."

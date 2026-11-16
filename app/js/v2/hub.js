@@ -457,6 +457,7 @@ const Hub = {
     const help = async () => { const r = await API.inv('tts:help', T.exe).catch(e => ({ ok: false, error: cleanErr(e) })); Panels.modal('vs-engine --help', h('pre', { class: 'srv-log tall' }, r.ok ? (r.out || t('v22.no_output')) : '✗ ' + r.error), { wide: true }); };
     if (!T.device) T.device = 'Vulkan0';
     return [
+      ...(typeof VoiceHub !== 'undefined' ? VoiceHub.rows(T) : []), // v2.6.13: «Φωνή απάντησης» + engine in use
       h('p', { class: 'muted small' }, t('v24.vs_intro')),
       this.pathRow(T, 'exe', t('v22.tts_exe'), 'file', { kind: 'exe', names: ['vs-engine.exe'] }),
       this.pathRow(T, 'model', '--model (gguf)', 'file', { kind: 'tts-model', names: ['omnivoice-base-Q8_0.gguf'] }),

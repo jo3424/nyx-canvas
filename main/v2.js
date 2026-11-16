@@ -6,6 +6,7 @@ const { app, BrowserWindow, ipcMain, dialog, shell, session, webContents, native
 const fs = require('fs'), fsp = fs.promises, path = require('path'), os = require('os'), crypto = require('crypto');
 const { pathToFileURL } = require('url');
 const vsengine = require('./vsengine');
+const voice2613 = require('./voice2613'); let voice = null; // v2.6.13 «φωνή ster»
 const dnd = require('./dnd');
 const { isInside, writeFileAtomic } = require('./fsutil');
 const secure = require('./secure');
@@ -235,6 +236,13 @@ function wire(ctx) {
     const n = C.uniqueName('vs.wav'); const r = await vsengine.speak(cfg, secrets, text || t('v22.tts_sample'), path.join(C.MEDIA_DIR(), n), { report: true });
     return { ...r, stage: 'speak', file: r.ok ? n : null, probe: pr, cmd: st.cmd, log: vsengine.status().log, ms: Date.now() - t0 };
   });
+  // v2.6.13: the answer voice (GPU Voice Studio persona or the generic voice) — personas.json read only; rvq / reference
+  // text / tokens never leave the main process; Hermes's OmniVoice (127.0.0.1:7802) first, otherwise our own vs-engine
+  const V = () => voice || (voice = voice2613.create({ vsengine, secrets, log: (s) => console.log('[voice] ' + s) }));
+  H('tts:voiceList2613', async (o) => V().list({ probe: !(o && o.probe === false) }));
+  H('tts:voiceBegin2613', async (cfg, want) => V().begin(cfg, want));
+  H('tts:voiceSpeak2613', async (msg, text, lang) => { const n = C.uniqueName('voice.wav'); const r = await V().speak(msg, text, lang, path.join(C.MEDIA_DIR(), n)); return r.ok ? { ...r, file: n } : r; });
+  H('tts:voiceCancel2613', () => V().cancel());
   H('sys:winSettings', (k) => { const u = ({ speech: 'ms-settings:speech', lang: 'ms-settings:regionlanguage' })[k]; if (u && process.platform === 'win32') shell.openExternal(u); return !!u; });
   H('tts:sapiStop', () => { try { sapiProc?.kill(); } catch (e) {} sapiProc = null; return true; });
   H('ai:lmsFind', () => ai.findLms());

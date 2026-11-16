@@ -90,6 +90,7 @@ const SCHEMA = {
   'stt:buffer': ['o?', 'buf', 's?', 'o?'], 'stt:media': ['o?', 'media', 'o?'],
   'tts:run': ['o?', 's'], 'tts:test': ['o?', 's?'], 'tts:help': ['s'], 'tts:voices': ['p'], 'tts:sapi': ['s', 'p', 'p', 'o?'], 'tts:sapiStop': [],
   'tts:vsStart': ['o?'], 'tts:vsStop': [], 'tts:vsStatus': [], 'tts:vsProbe': [], 'tts:vsSpeak': ['o?', 's'], 'tts:vsTest': ['o?', 's?'],
+  'tts:voiceList2613': ['o?'], 'tts:voiceBegin2613': ['o?', 's?'], 'tts:voiceSpeak2613': ['n', 's', 's?'], 'tts:voiceCancel2613': [],
   'sys:winSettings': ['s'], 'sys:findFiles': ['o?'], 'sys:launch': ['path', 's?'], 'sys:exists': ['strs'], 'sys:ocr': ['media', 's?'],
   'sys:reveal': ['path'], 'sys:pickExe': ['s?', 'a?', 's?'], 'sys:pickDir': ['s?'], 'sys:info': [], 'sys:migrateAiPaths': ['o?'], 'sys:detect': ['o?', 'p'],
   'sys:scan': ['o?'], 'sys:scanCancel': [], 'sys:scanState': [], 'sys:openFolder': ['path'],
