@@ -1,8 +1,9 @@
 'use strict';
 // v2.6.13 «φωνή ster» — engine choice + sentence queue against FAKE HTTP servers (Node http on 127.0.0.1):
 //  A) 7802 /v1/status = 200 → Hermes's OmniVoice is used, the own vs-engine is NOT started (spy)
-//  B) 7802 = 401 → own vs-engine on ANOTHER port, log «7802 refused (401); starting own vs-engine on port N» (no token)
-//  C) nothing on 7802 → own vs-engine
+//  B) 7802 = 401 → message «λάθος token OmniVoice», NO own vs-engine (VRAM); other answer / no token → message, no spawn
+//  C) nothing on 7802 (connection refused / timeout) → own vs-engine on another port
+//  T) the token from a file (OMNIVOICE_HERMES_TOKEN_FILE) works; the IPC list names the source, never the token
 //  D) Hermes dies in the middle of an answer → error for that sentence, the rest skipped, nothing started during the
 //     answer; the probe runs again at the next answer
 //  E) requests reach the server ONE at a time; sentence N plays while N+1 is synthesised
@@ -29,7 +30,7 @@ function fake(port, o = {}) {
   const srv = http.createServer((q, res) => {
     let body = ''; q.on('data', (d) => { body += d; }); q.on('end', async () => {
       const auth = q.headers.authorization || '';
-      if (q.method === 'GET' && q.url === '/v1/status') { S.status++; if (o.statusCode) { res.writeHead(o.statusCode); return res.end('{}'); } if (auth !== 'Bearer ' + o.token) { res.writeHead(401); return res.end('{"error":"unauthorized"}'); } res.writeHead(200, { 'content-type': 'application/json' }); return res.end('{"ok":true}'); }
+      if (q.method === 'GET' && q.url === '/v1/status') { S.status++; if (o.hang) return; /* never answers → timeout */ if (o.statusCode) { res.writeHead(o.statusCode); return res.end('{}'); } if (auth !== 'Bearer ' + o.token) { res.writeHead(401); return res.end('{"error":"unauthorized"}'); } res.writeHead(200, { 'content-type': 'application/json' }); return res.end('{"ok":true}'); }
       if (q.method === 'POST' && q.url === '/v1/synthesize') {
         if (auth !== 'Bearer ' + o.token) { res.writeHead(401); return res.end('{"error":"unauthorized"}'); }
         let j = {}; try { j = JSON.parse(body); } catch (e) {}
@@ -60,7 +61,8 @@ function vsStub(o = {}) {
   return st;
 }
 const lines = [];
-const mk = (vs, env = { OMNIVOICE_HERMES_TOKEN: HT }) => VM.create({ vsengine: vs.api, secrets: {}, env, log: (s) => { lines.push(s); console.log('[voice] ' + s); } });
+const NOFILE = path.join(require('os').tmpdir(), 'nyx2613-no-such-token-file');
+const mk = (vs, env = { OMNIVOICE_HERMES_TOKEN: HT, OMNIVOICE_HERMES_TOKEN_FILE: NOFILE }) => VM.create({ vsengine: vs.api, secrets: {}, env, log: (s) => { lines.push(s); console.log('[voice] ' + s); } });
 const tmpOut = (n) => path.join(require('os').tmpdir(), 'nyx2613e-' + process.pid + '-' + n + '.wav');
 let outN = 0;
 const opts = { file: FX };
@@ -112,24 +114,51 @@ async function answer(eng, cfg, voice, parts, playMs = 120) {
   const b4 = await slowEng.begin({}, 'ster', opts); const tc = Date.now(); const pr = slowEng.speak(b4.msg, 'Αργή πρόταση.', 'el', tmpOut(outN++)); await sleep(150); slowEng.cancel(); const rc = await pr;
   ok(rc.code === 'cancelled' && Date.now() - tc < 1000, 'F) stop cancels the request in flight (no wait for the GPU)', { rc, ms: Date.now() - tc });
   await H.close();
-  // ---- B) 401 → own engine on another port ----
+  // ---- B) 401 → message, NO own engine ----
   H = await fake(7802, { token: 'SOMETHING-ELSE-not-our-token' });
   vs = vsStub(); eng = mk(vs); lines.length = 0;
   let B = await answer(eng, { port: '7802' }, 'ster', ['Πρώτη.', 'Δεύτερη.']);
-  ok(B.b.ok && B.b.engine.kind === 'own' && B.b.engine.port !== 7802 && vs.starts === 1, 'B) 7802 → 401 → own vs-engine started once, on another port', { e: B.b.engine, starts: vs.starts });
-  ok(vs.cfgPorts[0] === '', 'B) a configured --port 7802 is not used (Hermes owns it) → automatic port', vs.cfgPorts);
-  const refl = lines.find((l) => /^7802 refused \(401\); starting own vs-engine on port \d+$/.test(l));
-  ok(!!refl && refl.endsWith(String(B.b.engine.port)), 'B) log: «7802 refused (401); starting own vs-engine on port N»', lines);
-  ok(H.synth.length === 0 && vs.own.synth.length === 2 && B.r.played === 2, 'B) synthesis went to the own engine (with its own token), not to 7802');
+  ok(!B.b.ok && B.b.code === 'hermes_token' && B.b.status === 401, 'B) 7802 → 401 → code hermes_token (UI: «λάθος token OmniVoice»)', B.b);
+  ok(vs.starts === 0, 'B) 401 → own vs-engine NOT started (spawn spy = 0; 24 GB VRAM)', vs.starts);
+  ok(H.synth.length === 0 && !B.r, 'B) 401 → nothing synthesised, no other voice', H.synth.length);
+  ok(lines.some((l) => /^7802 refused \(401\): wrong OmniVoice token; own vs-engine NOT started \(VRAM\)$/.test(l)), 'B) log: «7802 refused (401): wrong OmniVoice token; own vs-engine NOT started (VRAM)»', lines);
+  { const el = JSON.parse(fs.readFileSync(path.join(R, 'app/locales/el.json'), 'utf8'));
+    ok(/λάθος token OmniVoice/i.test(el['v2613.err_hermes_token']) && /λάθος token OmniVoice/i.test(el['v2613.probe_refused']), 'B) UI text says «λάθος token OmniVoice» (toast + setting)'); }
   await H.close();
-  // ---- C) down → own engine ----
+  H = await fake(7802, { token: HT, statusCode: 500 }); vs = vsStub(); eng = mk(vs); lines.length = 0;
+  const B2 = await eng.begin({}, 'ster', opts);
+  ok(!B2.ok && B2.code === 'hermes_http' && B2.status === 500 && vs.starts === 0, 'B) 7802 answers 500 → message, no own vs-engine (something is on 7802)', B2);
+  await H.close();
+  H = await fake(7802, { token: HT }); vs = vsStub(); eng = mk(vs, { OMNIVOICE_HERMES_TOKEN_FILE: NOFILE }); lines.length = 0;
+  const B3 = await eng.begin({}, 'ster', opts);
+  ok(!B3.ok && B3.code === 'hermes_no_token' && B3.file === NOFILE && vs.starts === 0 && H.status === 1, 'B) no token but 7802 answers → «no token» message (names the file), no own vs-engine', B3);
+  await H.close();
+  // ---- C) nothing on 7802 → own engine ----
   vs = vsStub(); eng = mk(vs); lines.length = 0;
-  let C = await answer(eng, {}, 'ster', ['Μία πρόταση.']);
-  ok(C.b.ok && C.b.engine.kind === 'own' && vs.starts === 1 && C.r.played === 1, 'C) nothing on 7802 → own vs-engine (as before)', C.b);
+  let C = await answer(eng, { port: '7802' }, 'ster', ['Μία πρόταση.', 'Δεύτερη πρόταση.']);
+  ok(C.b.ok && C.b.engine.kind === 'own' && C.b.engine.port !== 7802 && vs.starts === 1 && C.r.played === 2, 'C) connection refused on 7802 → own vs-engine spawned once, on another port', C.b);
+  ok(vs.cfgPorts[0] === '', 'C) a configured --port 7802 is not used (Hermes owns it) → automatic port', vs.cfgPorts);
+  ok(vs.own.synth.length === 2, 'C) synthesis went to the own engine (with its own token)');
   ok(lines.some((l) => /^7802 no answer \(.+\); starting own vs-engine on port \d+$/.test(l)), 'C) log: «7802 no answer (…); starting own vs-engine on port N»', lines);
-  vs = vsStub(); eng = mk(vs, {}); lines.length = 0;
+  H = await fake(7802, { token: HT, hang: true }); vs = vsStub(); eng = mk(vs); lines.length = 0;
+  const tt = Date.now(); const C3 = await eng.begin({}, 'ster', opts); const tms = Date.now() - tt;
+  ok(C3.ok && C3.engine.kind === 'own' && vs.starts === 1 && C3.probe.state === 'down' && tms >= 1400 && tms < 4000, 'C) 7802 accepts but never answers → timeout (1.5 s) → own vs-engine', { C3, tms });
+  await H.close();
+  vs = vsStub(); eng = mk(vs, { OMNIVOICE_HERMES_TOKEN_FILE: NOFILE }); lines.length = 0;
   const C2 = await eng.begin({}, 'ster', opts);
-  ok(C2.ok && C2.engine.kind === 'own' && lines.some((l) => /OMNIVOICE_HERMES_TOKEN not set/.test(l)), 'C) no OMNIVOICE_HERMES_TOKEN → own vs-engine, logged');
+  ok(C2.ok && C2.engine.kind === 'own' && vs.starts === 1, 'C) no token and nothing on 7802 → own vs-engine', C2);
+  // ---- T) token from a file ----
+  { const tf = path.join(require('os').tmpdir(), 'nyx2613-token-' + process.pid + '.token'); fs.writeFileSync(tf, '\uFEFF' + HT + '\r\nsecond line ignored\n');
+    H = await fake(7802, { token: HT }); vs = vsStub(); eng = mk(vs, { OMNIVOICE_HERMES_TOKEN_FILE: tf }); lines.length = 0;
+    const T1 = await eng.begin({}, 'ster', opts);
+    ok(T1.ok && T1.engine.kind === 'hermes' && vs.starts === 0, 'T) token read from the file in OMNIVOICE_HERMES_TOKEN_FILE (first line, BOM stripped) → 7802 200', T1);
+    const L1 = await eng.list(opts);
+    ok(L1.token && L1.token.source === 'file' && L1.token.file === tf && !JSON.stringify(L1).includes(HT), 'T) the IPC list says «from file <path>», never the token', L1.token);
+    const envFirst = mk(vsStub(), { OMNIVOICE_HERMES_TOKEN: HT, OMNIVOICE_HERMES_TOKEN_FILE: tf }); const L2 = await envFirst.list(opts);
+    ok(L2.token.source === 'env', 'T) the environment variable wins over the file', L2.token);
+    const tfile = VM.tokenFile({ env: { APPDATA: 'C:\\Users\\jo\\AppData\\Roaming' }, platform: 'win32' });
+    ok(tfile === 'C:\\Users\\jo\\AppData\\Roaming\\OmniVoice\\hermes.token', 'T) default file: %APPDATA%\\OmniVoice\\hermes.token', tfile);
+    await H.close(); fs.unlinkSync(tf); }
   // ---- D) Hermes dies in the middle of an answer ----
   H = await fake(7802, { token: HT, delay: 60, onSynth: (S, rec, res) => { if (S.synth.length === 2) { res.socket.destroy(); S.close(); } } });
   vs = vsStub(); eng = mk(vs); lines.length = 0;
@@ -140,7 +169,7 @@ async function answer(eng, cfg, voice, parts, playMs = 120) {
   ok(vs.starts === 0, 'D) no own vs-engine started during that answer (spawn spy = 0), no retry on another engine', vs.starts);
   ok(lines.some((l) => /stopped answering during an answer/.test(l)), 'D) logged', lines);
   const before = H.status; const D2 = await eng.begin({}, 'ster', opts);
-  ok(D2.ok && D2.probe.state === 'down' && D2.engine.kind === 'own' && vs.starts === 1, 'D) next answer: the probe runs again (7802 down now) → own vs-engine', D2);
+  ok(D2.ok && D2.probe.state === 'down' && D2.engine.kind === 'own' && vs.starts === 1, 'D) next answer: the probe runs again (7802 down now: connection refused) → own vs-engine', D2);
   // ---- G) error codes from the engine ----
   vs = vsStub({ badRef: true }); eng = mk(vs);
   const G = await answer(eng, {}, 'ster', ['Α.']); ok(G.errors[0] && G.errors[0].code === 'bad_reference', 'G) 400 bad_reference → code bad_reference', G.errors);
@@ -149,7 +178,7 @@ async function answer(eng, cfg, voice, parts, playMs = 120) {
   ok(g3.code === 'engine_token', 'G) 401 on /v1/synthesize → engine_token', g3); await H.close();
   // ---- H) secrets never in logs ----
   tap(false);
-  const all = lines.concat(consoleOut, JSON.stringify(out), JSON.stringify([A, B, C, D, G, g3].map((x) => x && (x.b || x))));
+  const all = lines.concat(consoleOut, JSON.stringify(out), JSON.stringify([A, B, B2, B3, C, C2, C3, D, G, g3].map((x) => x && (x.b || x))));
   const leak = SECRETS.filter((s) => all.some((l) => String(l).includes(s)));
   ok(leak.length === 0, `H) no token / voice code / reference text in ${all.length} log lines, console output, results`, leak.map((s) => s.slice(0, 6) + '…'));
   ok(consoleOut.some((l) => l.startsWith('[voice] 7802 refused (401)')), 'H) the main log really has the engine lines (so the check above is not empty)');

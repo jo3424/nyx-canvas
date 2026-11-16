@@ -5,7 +5,9 @@
 //  2) Speech.speak → sentence by sentence to 7802 with ster's ref fields, one request at a time, no own vs-engine
 //  3) ster missing from personas.json → error box + «ster — λείπει»; speaking shows the error, sends NOTHING (no fallback)
 //  4) personas.json missing → error box; «Γενική γυναικεία» chosen → request without ref fields
-//  5) screenshots: normal 1440×900 and small 1024×700, also of the error state
+//  5) 7802 answers 401 → «λάθος token OmniVoice», nothing spoken, no own vs-engine
+//  6) the OmniVoice token (env, then from a FILE in a second run) never reaches an export, a backup, a snapshot or the data folder
+//  7) screenshots: normal 1440×900 and small 1024×700, also of the error states
 const { _electron } = require('playwright-core');
 const http = require('http'), path = require('path'), fs = require('fs'), os = require('os');
 const ROOT = process.env.NYX_ROOT || path.join(__dirname, '..');
@@ -19,14 +21,15 @@ let fails = 0, passes = 0;
 const T0 = Date.now(); const ok = (c, m, x) => { console.log(((Date.now() - T0) / 1000).toFixed(1) + 's ' + (c ? '  ✓ ' : '  ✗ ') + m + (!c && x !== undefined ? '  → ' + JSON.stringify(x).slice(0, 700) : '')); c ? passes++ : fails++; };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const wav = () => { const n = 24000; const b = Buffer.alloc(44 + n * 2); b.write('RIFF', 0); b.writeUInt32LE(36 + n * 2, 4); b.write('WAVE', 8); b.write('fmt ', 12); b.writeUInt32LE(16, 16); b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22); b.writeUInt32LE(24000, 24); b.writeUInt32LE(48000, 28); b.writeUInt16LE(2, 32); b.writeUInt16LE(16, 34); b.write('data', 36); b.writeUInt32LE(n * 2, 40); return b; };
-const F = { status: 0, synth: [], active: 0, max: 0 };
+const F = { status: 0, synth: [], active: 0, max: 0, refuse: false };
 const srv = http.createServer((q, res) => { let body = ''; q.on('data', (d) => { body += d; }); q.on('end', async () => {
-  const okAuth = q.headers.authorization === 'Bearer ' + HT;
+  const okAuth = !F.refuse && q.headers.authorization === 'Bearer ' + HT;
   if (q.url === '/v1/status') { F.status++; res.writeHead(okAuth ? 200 : 401); return res.end('{}'); }
   if (q.url === '/v1/synthesize' && q.method === 'POST') { if (!okAuth) { res.writeHead(401); return res.end(); } F.active++; F.max = Math.max(F.max, F.active); let j = {}; try { j = JSON.parse(body); } catch (e) {} F.synth.push(j); await sleep(120); F.active--; res.writeHead(200, { 'content-type': 'audio/wav' }); return res.end(wav()); }
   res.writeHead(404); res.end(); }); });
-async function launch(w = 1440, hh = 900) {
-  const app = await _electron.launch({ chromiumSandbox: true, executablePath: require(path.join(ROOT, 'node_modules', 'electron')), args: [ROOT], env: { ...process.env, NYX_TEST: '1', NYX_DATA_DIR: DATA, APPDATA, OMNIVOICE_HERMES_TOKEN: HT } });
+async function launch(w = 1440, hh = 900, tokenEnv = { OMNIVOICE_HERMES_TOKEN: HT }) {
+  const env = { ...process.env, NYX_TEST: '1', NYX_DATA_DIR: DATA, APPDATA, ...tokenEnv }; if (!tokenEnv.OMNIVOICE_HERMES_TOKEN) delete env.OMNIVOICE_HERMES_TOKEN;
+  const app = await _electron.launch({ chromiumSandbox: true, executablePath: require(path.join(ROOT, 'node_modules', 'electron')), args: [ROOT], env });
   const win = await app.firstWindow();
   await app.evaluate(({ BrowserWindow }, [w, h]) => { const x = BrowserWindow.getAllWindows()[0]; x.setSize(w, h); x.center(); }, [w, hh]);
   await win.waitForFunction(() => (window.__nyxV2Ready === true || window.__nyxV25Ready === true) && window.__nyxLook2611 === true, null, { timeout: 30000 });
@@ -37,6 +40,17 @@ const setSize = async (app, w, h) => { await app.evaluate(({ BrowserWindow }, [w
 const shot = (win, name) => win.screenshot({ path: path.join(SHOTS, name) }).then(() => path.join(SHOTS, name)).catch(() => '');
 const openSpeech = async (win) => { await win.evaluate(() => { document.querySelectorAll('#toasts > *, .toast').forEach((t) => t.remove()); Panels.settings('speech'); }); await sleep(900); await win.evaluate(() => document.querySelector('.v2613-box')?.scrollIntoView({ block: 'start' })); await sleep(300); };
 const box = (win) => win.evaluate(() => { const b = document.querySelector('.v2613-box'); const s = b && b.querySelector('select'); return b && { value: s.value, opts: [...s.options].map((o) => ({ v: o.value, t: o.textContent, dis: o.disabled })), err: b.querySelector('.v2613-err').hidden ? '' : b.querySelector('.v2613-err').textContent, eng: b.querySelector('.v2613-engine').textContent, src: b.querySelector('.v2613-src').textContent }; });
+// every file under dir that contains the token (text or binary)
+const leaks = (dir, tok) => { const out = []; const walk = (d) => { let es = []; try { es = fs.readdirSync(d, { withFileTypes: true }); } catch (e) { return; } for (const e of es) { const f = path.join(d, e.name); if (e.isDirectory()) walk(f); else if (e.isFile()) { try { if (fs.readFileSync(f).includes(tok)) out.push(f); } catch (_) {} } } }; walk(dir); return out; };
+const countFiles = (dir) => { let n = 0; const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { if (e.isDirectory()) walk(path.join(d, e.name)); else n++; } }; try { walk(dir); } catch (e) {} return n; };
+async function exportAndSnapshot(app, win, tag) {
+  const EXP = fs.mkdtempSync(path.join(os.tmpdir(), 'nyx-v2613-export-' + tag + '-'));
+  await app.evaluate(({ dialog, shell }, dir) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [dir] }); shell.showItemInFolder = () => {}; }, EXP);
+  await win.evaluate(() => Features.exportBackup()); await sleep(800);
+  const snap = await win.evaluate(async () => { await Store.save(true); return API.inv('snap:create', 'v2613-token-check'); }); await sleep(400);
+  const ser = await win.evaluate(() => Store.serialize());
+  return { EXP, snap, ser, expFiles: countFiles(EXP), snapFiles: countFiles(path.join(DATA, 'snapshots')) + countFiles(DATA) };
+}
 const toasts = (win) => win.evaluate(() => [...document.querySelectorAll('.toast, #toasts > *')].map((x) => x.textContent));
 
 (async () => {
@@ -56,6 +70,7 @@ const toasts = (win) => win.evaluate(() => [...document.querySelectorAll('.toast
   ok(b && !b.err, 'no error box when ster is there');
   ok(b && /OmniVoice του Hermes \(7802\)|απαντά \(200\)/.test(b.eng), 'engine line: 7802 answers (200) → it will be used', b && b.eng);
   ok(b && b.src.includes('personas.json') && /μόνο ανάγνωση/.test(b.src), 'source file shown, «μόνο ανάγνωση»', b && b.src);
+  { const tk = await win.evaluate(() => document.querySelector('.v2613-token')?.textContent || ''); ok(/από τη μεταβλητή OMNIVOICE_HERMES_TOKEN/.test(tk) && !tk.includes(HT), 'token source shown («από τη μεταβλητή …»), never the token', tk); }
   const page = await win.evaluate(() => document.documentElement.outerHTML);
   ok(!page.includes(fx[0].voice.rvq.b64) && !page.includes('DUMMY-REF') && !page.includes(HT), 'the page never holds the voice code, the reference text or the token');
   const lst = await win.evaluate(() => API.inv('tts:voiceList2613', {}));
@@ -78,6 +93,23 @@ const toasts = (win) => win.evaluate(() => [...document.querySelectorAll('.toast
   await win.evaluate(() => { window.__sp = Speech.speak('Πρώτη πρόταση. Δεύτερη πρόταση. Τρίτη πρόταση. Τέταρτη πρόταση.'); }); await sleep(200);
   await win.evaluate(() => Speech.stopSpeak()); await win.evaluate(() => window.__sp); await sleep(400);
   ok(F.synth.length <= 2, 'stop: the queue is cancelled (not all 4 synthesised)', F.synth.length);
+  // ---- the token never reaches an export / snapshot / the data folder ----
+  { const X = await exportAndSnapshot(app, win, 'env');
+    ok(X.expFiles >= 2 && fs.existsSync(path.join(X.EXP, fs.readdirSync(X.EXP)[0] || '-', 'nyx-backup.json')), 'export (Ρυθμίσεις → Εξαγωγή) written', X.expFiles);
+    ok(!!X.snap, 'snapshot («Ιστορικό → Τώρα») written', X.snap);
+    const L = leaks(X.EXP, HT).concat(leaks(DATA, HT)); ok(L.length === 0 && !X.ser.includes(HT), 'token (from the environment) is in NO export file, snapshot, data file or the serialised state', L); }
+  // ---- 401 → «λάθος token OmniVoice», no own engine ----
+  F.refuse = true; F.synth.length = 0;
+  await win.evaluate(() => document.querySelectorAll('#toasts > *, .toast').forEach((t) => t.remove()));
+  const r401 = await win.evaluate(() => Speech.speak('Δοκιμή με λάθος token.')); await sleep(300);
+  const t401 = await toasts(win);
+  ok(r401 === null && F.synth.length === 0, '401: nothing synthesised, no other voice', { r401, n: F.synth.length });
+  ok(t401.some((x) => /Λάθος token OmniVoice/i.test(x)), '401: UI message «λάθος token OmniVoice»', t401);
+  { const vs = await win.evaluate(() => API.inv('tts:vsStatus')); ok(vs && vs.running === false, '401: own vs-engine NOT started (tts:vsStatus not running)', vs); }
+  await openSpeech(win); b = await box(win);
+  ok(/λάθος token OmniVoice \(401\)/.test(b.eng), 'setting: «Έλεγχος 7802: λάθος token OmniVoice (401) → …»', b.eng);
+  await shot(win, 'v2613-normal-05-7802-401-wrong-token.png');
+  F.refuse = false;
   // ---- ster missing ----
   fs.writeFileSync(PF, JSON.stringify(fx.filter((p) => p.name !== 'ster'), null, 1));
   await openSpeech(win); b = await box(win);
@@ -109,7 +141,20 @@ const toasts = (win) => win.evaluate(() => [...document.querySelectorAll('.toast
   b = await box(win); ok(!b.err, 'no error box for the generic voice');
   fs.copyFileSync(FX, PF);
   ok(fs.readFileSync(PF, 'utf8') === fs.readFileSync(FX, 'utf8'), 'personas.json never written by Nyx (the test restored it; contents = fixture)');
-  await quit(app); srv.close();
+  await quit(app);
+  // ---- second run: the token from a FILE (no env var) ----
+  { const TF = path.join(os.tmpdir(), 'nyx-v2613-hermes-' + process.pid + '.token'); fs.writeFileSync(TF, HT + '\n');
+    ({ app, win } = await launch(1440, 900, { OMNIVOICE_HERMES_TOKEN_FILE: TF }));
+    await openSpeech(win);
+    const tk = await win.evaluate(() => document.querySelector('.v2613-token')?.textContent || '');
+    ok(tk.includes('από το αρχείο') && tk.includes(TF) && !tk.includes(HT), 'run 2: «Token OmniVoice: από το αρχείο <path>»', tk);
+    F.synth.length = 0; const r = await win.evaluate(() => Speech.speak('Από αρχείο token.'));
+    ok(r && /OmniVoice του Hermes \(7802\)/.test(r.voice) && F.synth.length === 1, 'run 2: token from the file → 7802 answers 200 → spoken', r);
+    const X = await exportAndSnapshot(app, win, 'file');
+    const L = leaks(X.EXP, HT).concat(leaks(DATA, HT));
+    ok(X.expFiles >= 2 && !!X.snap && L.length === 0 && !X.ser.includes(HT), 'run 2: token (from the file) is in NO export, snapshot or data file', { L, exp: X.expFiles, snap: X.snap });
+    await quit(app); fs.unlinkSync(TF); }
+  srv.close();
   console.log(`\nv2.6.13 UI: ${passes} passed, ${fails} failed`);
   process.exit(fails ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(2); });

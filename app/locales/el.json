@@ -2150,10 +2150,16 @@
  "v2613.engine_dead": "σταμάτησε να απαντά",
  "v2613.probe": "Έλεγχος 7802",
  "v2613.probe_ok": "απαντά (200) → θα χρησιμοποιηθεί αυτό",
- "v2613.probe_refused": "αρνήθηκε το token ({v0}) → δικός μου vs-engine σε άλλη θύρα",
- "v2613.probe_down": "δεν απαντά → δικός μου vs-engine",
- "v2613.probe_other": "απάντησε {v0} → δικός μου vs-engine",
- "v2613.probe_no_token": "δεν έχει οριστεί το OMNIVOICE_HERMES_TOKEN → δικός μου vs-engine",
+ "v2613.probe_refused": "λάθος token OmniVoice ({v0}) → δεν μιλάω, δεν ξεκινά δικός μου vs-engine",
+ "v2613.probe_down": "δεν απαντά (κλειστό / χρονικό όριο) → δικός μου vs-engine",
+ "v2613.probe_other": "απάντησε {v0} → δεν μιλάω, δεν ξεκινά δικός μου vs-engine",
+ "v2613.probe_no_token": "απαντά ({v0}) αλλά δεν βρέθηκε token → δεν μιλάω, δεν ξεκινά δικός μου vs-engine",
  "v2613.hint": "Μιλάει πρόταση-πρόταση: η 1η παίζει όσο ετοιμάζεται η 2η. Η μηχανή επιλέγεται στην αρχή κάθε απάντησης.",
- "v2613.log": "Log φωνής (χωρίς token / κωδικό φωνής)"
+ "v2613.log": "Log φωνής (χωρίς token / κωδικό φωνής)",
+ "v2613.token_none": "Token OmniVoice: δεν βρέθηκε (μεταβλητή OMNIVOICE_HERMES_TOKEN ή αρχείο {v0})",
+ "v2613.token_file": "Token OmniVoice: από το αρχείο {v0} (δεν αποθηκεύεται στο Nyx)",
+ "v2613.token_env": "Token OmniVoice: από τη μεταβλητή OMNIVOICE_HERMES_TOKEN (δεν αποθηκεύεται στο Nyx)",
+ "v2613.err_hermes_http": "Το 7802 απάντησε {v0} αντί για 200. Δεν μίλησα και δεν ξεκίνησα δικό μου vs-engine (κάτι τρέχει ήδη στο 7802).",
+ "v2613.err_hermes_no_token": "Το OmniVoice του Hermes τρέχει στο 7802 (απάντησε {v0}), αλλά δεν βρέθηκε token OmniVoice (μεταβλητή OMNIVOICE_HERMES_TOKEN ή αρχείο {v1}). Δεν μίλησα και δεν ξεκίνησα δικό μου vs-engine.",
+ "v2613.err_hermes_token": "Λάθος token OmniVoice: το OmniVoice του Hermes (7802) απάντησε {v0}. Δεν μίλησα και δεν ξεκίνησα δικό μου vs-engine (δύο μοντέλα φωνής + Qwen δεν χωράνε στα 24 GB VRAM). Διόρθωσε το token και ξανάνοιξε το Nyx."
 }

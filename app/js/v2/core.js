@@ -570,6 +570,9 @@ const Speech = {
     if (c === 'personas_schema' || c === 'personas_read') return t('v2613.err_schema');
     if (c === 'persona_missing') return t('v2613.err_missing', { v0: v });
     if (c === 'persona_not_ready') return t('v2613.err_not_ready', { v0: v });
+    if (c === 'hermes_token') return t('v2613.err_hermes_token', { v0: r.status || 401 });
+    if (c === 'hermes_no_token') return t('v2613.err_hermes_no_token', { v0: r.status || '', v1: r.file || '' });
+    if (c === 'hermes_http') return t('v2613.err_hermes_http', { v0: r.status || '' });
     if (c === 'engine_start') return t('v2613.err_start', { v0: r.error || '' });
     if (c === 'engine_down') return t('v2613.err_down', { v0: (i || 0) + 1, v1: n || 1 });
     if (c === 'engine_token') return t('v2613.err_token');

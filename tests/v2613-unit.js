@@ -100,7 +100,10 @@ const DUMMY = fxJson[0].voice.rvq.b64, REF = fxJson[0].voice.refText;
   ok(!/child_process|spawn\(|exec\(|execFile/.test(src), 'main/voice2613.js: no new process (the own engine is started by vsengine.start, unchanged)');
   const urls = (src.match(/https?:\/\/[^\s'"`]+/g) || []); ok(urls.every((u) => u.startsWith('http://127.0.0.1')), 'only 127.0.0.1 URLs (no new external URL)', urls);
   ok(/\/v1\/status/.test(src) && /HERMES_PORT = 7802/.test(src) && /OMNIVOICE_HERMES_TOKEN/.test(src) && /\/v1\/synthesize/.test(src), 'probe GET 127.0.0.1:7802/v1/status with OMNIVOICE_HERMES_TOKEN; POST /v1/synthesize');
-  ok(!/reg(\.exe)?['"]?\s*,\s*\[\s*['"]query|HKCU/.test(src), 'no registry read (process.env only — no new spawn)');
+  ok(!/reg(\.exe)?['"]?\s*,\s*\[\s*['"]query|HKCU/.test(src), 'no registry read (token from the environment or a file only — no new spawn)');
+  ok(!/cfg\.[A-Za-z]*token|\bsettings\b|\bStore\./.test(src.replace(/^\s*\/\/.*$/gm, '')) && /OMNIVOICE_HERMES_TOKEN_FILE/.test(src), 'the OmniVoice token never comes from / goes to Nyx settings (env or file only)');
+  { const v2 = read('main/v2.js'); const h = v2.slice(v2.indexOf("H('tts:voiceList2613'"), v2.indexOf("H('tts:voiceCancel2613'") + 80);
+    ok(h.length > 80 && !/OMNIVOICE|token/i.test(h), 'the voice IPC handlers never pass a token to the renderer'); }
   ok(/if \(\+ownCfg\.port === HERMES_PORT\) ownCfg\.port = ''/.test(src), 'the own vs-engine never takes port 7802');
   const guard = read('main/ipc-guard.js');
   ok(/'tts:voiceList2613': \['o\?'\], 'tts:voiceBegin2613': \['o\?', 's\?'\], 'tts:voiceSpeak2613': \['n', 's', 's\?'\], 'tts:voiceCancel2613': \[\]/.test(guard), 'IPC channels validated in ipc-guard like the others');

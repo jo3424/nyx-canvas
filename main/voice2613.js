@@ -5,10 +5,16 @@
 //    are used instead. The rvq code, the reference text and every token stay in the main process: the renderer only gets
 //    names / ids / a ready flag, and everything that can reach a log, a toast or an error is redacted.
 //  - Engine, chosen at the START of every answer (beginMessage):
-//      GET http://127.0.0.1:7802/v1/status with «Authorization: Bearer $OMNIVOICE_HERMES_TOKEN» → 200 = Hermes's OmniVoice
-//      server is used (no own vs-engine is started, so the GPU memory is not filled twice);
-//      401/403 → «7802 refused (401); starting own vs-engine on port N»; no answer / timeout / other → own vs-engine,
-//      started exactly as before by main/vsengine.js (its own port — never 7802 — and its own token).
+//      GET http://127.0.0.1:7802/v1/status with «Authorization: Bearer <OmniVoice token>»
+//        200            → Hermes's OmniVoice server is used; no own vs-engine (no spawn).
+//        401 / 403      → UI message «λάθος token OmniVoice»; NO own vs-engine (two voice models + Qwen do not fit in 24 GB).
+//        other answer   → UI message; NO own vs-engine (something is on 7802).
+//        nothing answers (connection refused / timeout) → own vs-engine, started exactly as before by main/vsengine.js
+//                         (its own port — never 7802 — and its own token).
+//      The OmniVoice token: env OMNIVOICE_HERMES_TOKEN, else the file named by env OMNIVOICE_HERMES_TOKEN_FILE, else
+//      %APPDATA%\OmniVoice\hermes.token (first line). Read in main for each probe, kept in memory only — never in Nyx's
+//      settings, so it cannot reach an export, a backup or a snapshot. With no token, 7802 is still probed (without auth):
+//      if anything answers there, no own vs-engine is started either.
 //    If the engine dies in the middle of an answer: that sentence reports the error, the rest of the answer is skipped,
 //    nothing new is started during that answer; the probe runs again at the start of the next answer.
 //  - POST /v1/synthesize {text, language, ref_rvq_b64, ref_text, steps, guidance_scale} → WAV. One request at a time
@@ -33,6 +39,23 @@ function personasFile(opts = {}) {
     base = plat === 'win32' ? path.join(home, 'AppData', 'Roaming') : plat === 'darwin' ? path.join(home, 'Library', 'Application Support') : (env.XDG_CONFIG_HOME || path.join(home, '.config'));
   }
   return (plat === 'win32' ? path.win32 : path).join(base, 'GPU Voice Studio', 'personas.json');
+}
+// the OmniVoice token file (no settings involved): OMNIVOICE_HERMES_TOKEN_FILE, else %APPDATA%\OmniVoice\hermes.token
+function tokenFile(opts = {}) {
+  const env = opts.env || process.env; const plat = opts.platform || process.platform;
+  if (typeof env.OMNIVOICE_HERMES_TOKEN_FILE === 'string' && env.OMNIVOICE_HERMES_TOKEN_FILE.trim()) return nyxPath.expandVars(env.OMNIVOICE_HERMES_TOKEN_FILE.trim(), { ...opts, env });
+  const vs = personasFile({ ...opts, env, platform: plat }); if (!vs) return '';
+  const P = plat === 'win32' ? path.win32 : path;
+  return P.join(P.dirname(P.dirname(vs)), 'OmniVoice', 'hermes.token');
+}
+// → { token, source: 'env' | 'file' | 'none', file }
+async function readToken(opts = {}) {
+  const env = opts.env || process.env; const file = tokenFile(opts);
+  const v = env.OMNIVOICE_HERMES_TOKEN; if (typeof v === 'string' && v.trim()) return { token: v.trim(), source: 'env', file };
+  if (file) {
+    try { const fh = await fsp.open(file, 'r'); try { const b = Buffer.alloc(4096); const { bytesRead } = await fh.read(b, 0, 4096, 0); const tk = b.slice(0, bytesRead).toString('utf8').replace(/^\uFEFF/, '').split(/\r?\n/)[0].trim(); if (tk) return { token: tk, source: 'file', file }; } finally { await fh.close(); } } catch (e) { /* no file */ }
+  }
+  return { token: '', source: 'none', file };
 }
 const B64 = /^[A-Za-z0-9+/_\-\s]+={0,2}\s*$/;
 const num = (v, lo, hi) => (typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi ? v : null);
@@ -111,20 +134,22 @@ function create(deps = {}) {
   const now = deps.now || Date.now;
   const logBuf = [];
   let choice = null; let msgSeq = 0; let session = null; let chain = Promise.resolve(); let inflight = null; let cancelGen = 0;
-  const hermesToken = () => { const v = env.OMNIVOICE_HERMES_TOKEN; return typeof v === 'string' && v.trim() ? v.trim() : ''; };
+  let tokenNow = { token: '', source: 'none', file: '' }; // memory only (main process)
+  const hermesToken = () => tokenNow.token;
   const own = () => { try { return vse.token(secretsStore); } catch (e) { return ''; } };
   const red = () => redactor([hermesToken(), choice && choice.token, session && session.persona && session.persona.rvq, session && session.persona && session.persona.refText, own()]);
   const log = (s) => { const line = red()(s); logBuf.push(new Date(now()).toISOString().slice(11, 19) + ' ' + line); if (logBuf.length > 200) logBuf.shift(); if (deps.log) deps.log(line); };
   const publicChoice = () => choice ? { kind: choice.kind, port: choice.port, msg: choice.msg, dead: !!choice.dead } : null;
 
   async function probeHermes() {
-    const tk = hermesToken();
-    if (!tk) return { state: 'no_token' };
-    const r = await req(HERMES_BASE + '/v1/status', { headers: { Authorization: 'Bearer ' + tk }, timeout: 1500 });
-    if (r.status === 200) return { state: 'ok' };
-    if (r.status === 401 || r.status === 403) return { state: 'refused', status: r.status };
-    if (!r.status) return { state: 'down', why: r.error || 'no answer' };
-    return { state: 'other', status: r.status };
+    try { tokenNow = await (deps.readToken || readToken)({ env }); } catch (e) { tokenNow = { token: '', source: 'none', file: '' }; }
+    const tk = hermesToken(); const src = { source: tokenNow.source, file: tokenNow.file };
+    const r = await req(HERMES_BASE + '/v1/status', { headers: tk ? { Authorization: 'Bearer ' + tk } : {}, timeout: 1500 });
+    if (!r.status) return { state: 'down', why: r.error || 'no answer', ...src }; // nothing on 7802 (refused / timeout)
+    if (!tk) return { state: 'no_token', status: r.status, ...src };              // something answers, but no token
+    if (r.status === 200) return { state: 'ok', ...src };
+    if (r.status === 401 || r.status === 403) return { state: 'refused', status: r.status, ...src };
+    return { state: 'other', status: r.status, ...src };
   }
   // the start of an answer: probe 7802, otherwise the own vs-engine (started as before; never on 7802)
   async function beginMessage(cfg) {
@@ -136,8 +161,17 @@ function create(deps = {}) {
       else log('7802 OK (200): Hermes OmniVoice in use, own vs-engine not started');
       return { probe: p, engine: publicChoice() };
     }
+    // something answers on 7802 but not with 200: a message, and NO own vs-engine (the VRAM would not hold two voice models)
+    if (p.state !== 'down') {
+      choice = null;
+      const code = p.state === 'refused' ? 'hermes_token' : p.state === 'no_token' ? 'hermes_no_token' : 'hermes_http';
+      log(p.state === 'refused' ? `7802 refused (${p.status}): wrong OmniVoice token; own vs-engine NOT started (VRAM)`
+        : p.state === 'no_token' ? `7802 answered ${p.status} but no OmniVoice token was found (env OMNIVOICE_HERMES_TOKEN / file); own vs-engine NOT started (VRAM)`
+          : `7802 answered ${p.status}; own vs-engine NOT started (VRAM)`);
+      throw Object.assign(new Error(code), { code, status: p.status || 0 });
+    }
     const ownCfg = { ...(cfg || {}) }; if (+ownCfg.port === HERMES_PORT) ownCfg.port = ''; // never take Hermes's port
-    const why = p.state === 'refused' ? `7802 refused (${p.status})` : p.state === 'no_token' ? '7802 not tried (OMNIVOICE_HERMES_TOKEN not set)' : p.state === 'down' ? `7802 no answer (${p.why})` : `7802 answered ${p.status}`;
+    const why = `7802 no answer (${p.why})`;
     let st;
     try { st = await vse.start(ownCfg, secretsStore); }
     catch (e) { choice = null; log(`${why}; own vs-engine failed to start: ${e && e.message}`); throw Object.assign(new Error(red()(e && e.message || 'start')), { code: 'engine_start' }); }
@@ -172,7 +206,7 @@ function create(deps = {}) {
   async function list(opts = {}) {
     const r = await readPersonas(opts);
     const hermes = opts.probe === false ? null : await probeHermes();
-    return { ok: r.ok, file: r.file, error: r.error ? { code: r.error.code } : null, personas: r.personas.map(pub), generic: GENERIC, def: DEFAULT_VOICE, engine: publicChoice(), hermes: hermes && { state: hermes.state, status: hermes.status || 0 }, log: logBuf.slice(-30) };
+    return { ok: r.ok, file: r.file, error: r.error ? { code: r.error.code } : null, personas: r.personas.map(pub), generic: GENERIC, def: DEFAULT_VOICE, engine: publicChoice(), hermes: hermes && { state: hermes.state, status: hermes.status || 0 }, token: hermes ? { source: hermes.source, file: hermes.file } : null, log: logBuf.slice(-30) };
   }
   // the start of an answer: check the chosen voice FIRST (no silent change, no fallback), then pick the engine
   async function begin(cfg, want, opts = {}) {
@@ -185,7 +219,7 @@ function create(deps = {}) {
       if (!persona) return { ok: false, code: 'persona_missing', voice: w };
       if (!persona.ready) return { ok: false, code: 'persona_not_ready', reason: persona.reason, voice: persona.name };
     }
-    let b; try { b = await beginMessage(cfg); } catch (e) { return { ok: false, code: e.code || 'engine_start', error: red()(e.message) }; }
+    let b; try { b = await beginMessage(cfg); } catch (e) { return { ok: false, code: e.code || 'engine_start', status: e.status || 0, file: e.code === 'hermes_no_token' ? tokenNow.file : undefined, error: red()(e.message) }; }
     session = { msg: choice.msg, persona };
     return { ok: true, msg: choice.msg, voice: persona ? { id: persona.id, name: persona.name, steps: persona.steps, guidance: persona.guidance } : { id: GENERIC }, engine: b.engine, probe: { state: b.probe.state, status: b.probe.status || 0 } };
   }
@@ -195,4 +229,4 @@ function create(deps = {}) {
   }
   return { probeHermes, beginMessage, synth, cancel, list, begin, speak, log: () => logBuf.slice(), state: () => ({ engine: publicChoice(), msg: msgSeq }) };
 }
-module.exports = { HERMES_PORT, HERMES_BASE, GENERIC, DEFAULT_VOICE, personasFile, parsePersonas, readPersonas, findPersona, synthBody, redactor, httpReq, create, _pub: pub };
+module.exports = { HERMES_PORT, HERMES_BASE, GENERIC, DEFAULT_VOICE, personasFile, tokenFile, readToken, parsePersonas, readPersonas, findPersona, synthBody, redactor, httpReq, create, _pub: pub };

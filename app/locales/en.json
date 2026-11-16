@@ -2150,10 +2150,16 @@
  "v2613.engine_dead": "stopped answering",
  "v2613.probe": "7802 check",
  "v2613.probe_ok": "answers (200) → it will be used",
- "v2613.probe_refused": "refused the token ({v0}) → my own vs-engine on another port",
- "v2613.probe_down": "no answer → my own vs-engine",
- "v2613.probe_other": "answered {v0} → my own vs-engine",
- "v2613.probe_no_token": "OMNIVOICE_HERMES_TOKEN is not set → my own vs-engine",
+ "v2613.probe_refused": "wrong OmniVoice token ({v0}) → no speech, own vs-engine not started",
+ "v2613.probe_down": "no answer (closed / timeout) → my own vs-engine",
+ "v2613.probe_other": "answered {v0} → no speech, own vs-engine not started",
+ "v2613.probe_no_token": "answers ({v0}) but no token found → no speech, own vs-engine not started",
  "v2613.hint": "Speaks sentence by sentence: the 1st plays while the 2nd is prepared. The engine is chosen at the start of every answer.",
- "v2613.log": "Voice log (no token / voice code)"
+ "v2613.log": "Voice log (no token / voice code)",
+ "v2613.token_none": "OmniVoice token: not found (variable OMNIVOICE_HERMES_TOKEN or file {v0})",
+ "v2613.token_file": "OmniVoice token: from the file {v0} (not stored in Nyx)",
+ "v2613.token_env": "OmniVoice token: from the variable OMNIVOICE_HERMES_TOKEN (not stored in Nyx)",
+ "v2613.err_hermes_http": "7802 answered {v0} instead of 200. I did not speak and did not start my own vs-engine (something already runs on 7802).",
+ "v2613.err_hermes_no_token": "Hermes's OmniVoice is running on 7802 (answered {v0}), but no OmniVoice token was found (variable OMNIVOICE_HERMES_TOKEN or file {v1}). I did not speak and did not start my own vs-engine.",
+ "v2613.err_hermes_token": "Wrong OmniVoice token: Hermes's OmniVoice (7802) answered {v0}. I did not speak and did not start my own vs-engine (two voice models + Qwen do not fit in 24 GB VRAM). Fix the token and restart Nyx."
 }
