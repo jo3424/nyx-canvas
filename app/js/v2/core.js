@@ -576,7 +576,7 @@ const Speech = {
     if (c === 'bad_reference') return t('v2613.err_bad_ref');
     return t('v2613.err_sentence', { v0: (i || 0) + 1, v1: r.status || r.code || '' });
   },
-  voiceError(r, i, n) { toast('⚠️ ' + this.voiceErrorText(r, i, n), { kind: 'err', ms: 12000, action: { label: t('v23.open_ai'), fn: () => Hub.open() } }); },
+  voiceError(r, i, n) { toast('⚠️ ' + this.voiceErrorText(r, i, n), { kind: 'err', ms: 12000, action: { label: t('v267.set_speech'), fn: () => (typeof Panels !== 'undefined' && Panels.settings ? Panels.settings('speech') : Hub.open()) } }); },
 };
 function encodeWav(samples, sr) {
   const b = new ArrayBuffer(44 + samples.length * 2); const d = new DataView(b); const w = (o, s) => { for (let i = 0; i < s.length; i++) d.setUint8(o + i, s.charCodeAt(i)); };

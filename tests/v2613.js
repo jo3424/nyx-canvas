@@ -90,6 +90,9 @@ const toasts = (win) => win.evaluate(() => [...document.querySelectorAll('.toast
   ok(r2 === null && F.synth.length === 0 && F.status === before, 'speak with ster missing: nothing synthesised, engine not even probed (no fallback)', { r2, n: F.synth.length });
   ok(ts.some((x) => /Η φωνή «ster» δεν υπάρχει/.test(x)), 'speak with ster missing: UI message', ts);
   await shot(win, 'v2613-normal-03-speak-ster-missing-TOAST.png');
+  await win.evaluate(() => document.querySelector('.drawer .close, #drawer .close')?.click()); await sleep(400);
+  const opened = await win.evaluate(async () => { const b = [...document.querySelectorAll('.toast button, #toasts button')].find((x) => /Ομιλία/.test(x.textContent)); if (!b) return 'no button'; b.click(); await new Promise((r) => setTimeout(r, 900)); return !!document.querySelector('.v2613-box'); });
+  ok(opened === true, 'the error notice has an «Ομιλία» button that opens the speech settings', opened);
   // ---- file missing ----
   fs.unlinkSync(PF); await openSpeech(win); b = await box(win);
   ok(/Δεν βρέθηκε το personas.json/.test(b.err), 'personas.json missing: error box', b.err);
