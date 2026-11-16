@@ -63,6 +63,6 @@ ok(/-webkit-user-drag:none/.test(css) && /\.tab-ghost\{/.test(css) && /touch-act
 const pkg = JSON.parse(read('package.json') || '{}'), lock = JSON.parse(read('package-lock.json') || '{}');
 ok(['2.6.12.2', '2.6.13'].includes(pkg.version) && lock.version === pkg.version && (lock.packages && lock.packages[''] && lock.packages[''].version) === pkg.version, 'version 2.6.12.2 (package.json + package-lock)', [pkg.version, lock.version]);
 ok(/"electron": "45\.2\.3"/.test(read('package.json')), 'Electron 45.2.3');
-{ const CH = JSON.parse(read('CHANGELOG.json') || '{}'); ok(['2.6.12.2', '2.6.13'].includes(Object.keys(CH)[0]) && CH['2.6.12.2', '2.6.13'].el.length === 1 && CH['2.6.12.2', '2.6.13'].en.length === 1 && CH['2.6.12.1'], 'CHANGELOG 2.6.12.2 first (1 item el/en), 2.6.12.1 kept'); }
+{ const CH = JSON.parse(read('CHANGELOG.json') || '{}'); ok(['2.6.12.2', '2.6.13'].includes(Object.keys(CH)[0]) && CH['2.6.12.2'].el.length === 1 && CH['2.6.12.2'].en.length === 1 && CH['2.6.12.1'], 'CHANGELOG 2.6.12.2 first (1 item el/en), 2.6.12.1 kept'); }
 console.log(`\nv2.6.12.2 unit: ${passes} passed, ${fails} failed`);
 process.exit(fails ? 1 : 0);
