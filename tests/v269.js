@@ -175,7 +175,9 @@ async function say(win, text) {
     const snap = { gpu: { adapter: { name: 'AMD Radeon RX 7900 XTX', total: 24 * GB, used: 22.6 * GB }, procs: [{ pid: 4100, name: 'llama-server', path: 'C:\\Users\\jonh\\llama-router\\llama-server.exe', vram: 17.1 * GB }, { pid: 5200, name: 'llama-server', path: 'C:\\Users\\jonh\\GPU-Voice-Studio\\third_party\\llama\\llama-server.exe', vram: 4.4 * GB }] } };
     const el = document.querySelector('[data-st=vram-warn]'); Hub.paintVramWarn(el, snap); el.scrollIntoView({ block: 'center' }); return { txt: el.textContent, hidden: el.hidden, st: el.getAttribute('data-vram') };
   });
-  ok(!warn.hidden && warn.st === 'gvs' && /22,6 GB από 24,0 GB/.test(warn.txt) && /Voice Studio/.test(warn.txt), 'VRAM warning text with the measured numbers + Voice Studio', warn);
+  // 2.6.13.1: the Hub no longer shows the «Voice Studio» VRAM warning (removed from the Hub, user decision); the measurement itself is unchanged
+  const gvsState = await win.evaluate(() => { const GB = 1073741824; return NyxLimits.vramWarn({ gpu: { adapter: { name: 'AMD Radeon RX 7900 XTX', total: 24 * GB, used: 22.6 * GB }, procs: [{ pid: 4100, name: 'llama-server', path: 'C:\\Users\\jonh\\llama-router\\llama-server.exe', vram: 17.1 * GB }, { pid: 5200, name: 'llama-server', path: 'C:\\Users\\jonh\\GPU-Voice-Studio\\third_party\\llama\\llama-server.exe', vram: 4.4 * GB }] } }).state; });
+  ok(!/Voice Studio/.test(warn.txt) && warn.st !== 'gvs' && gvsState === 'gvs', '2.6.13.1: Hub VRAM line without the «Voice Studio» warning (vramWarn still measures it)', { warn, gvsState });
   const stBox = await win.evaluate(() => { const r = document.querySelector('.hub-stats').parentElement.getBoundingClientRect(); return { x: Math.max(0, r.x - 8), y: Math.max(0, r.y - 8), width: Math.min(r.width + 16, 1440), height: Math.min(520, 900) }; });
   await shot(win, 'hub-status-mtp-ts-vram-midnight.png', stBox);
 

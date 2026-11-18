@@ -103,7 +103,7 @@ const showHubTab = (win, tab, openDetails = true) => win.evaluate(({ tab, openDe
   ok(/unknown argument: --bad/.test(to) && /--bad/.test(to), 'Δοκιμή failure shows the engine’s own error (stderr) + command', to.slice(0, 300));
   await win.evaluate(() => { const s = document.querySelector('[data-testid=tts-preset], .hub-sec select'); }); 
   const presets = await win.evaluate(() => [...document.querySelectorAll('select option')].map(o => o.textContent).filter(t => /^(omnivoice|Piper|vs-engine)/.test(t)));
-  ok(presets.length === 3, 'TTS presets: vs-engine / omnivoice.cpp / Piper', presets);
+  ok(presets.length === 1 && presets[0] === 'Piper', 'TTS presets (2.6.13.1): only Piper — vs-engine / omnivoice.cpp removed', presets);
   await win.evaluate(() => document.querySelector('.tts-out').scrollIntoView({ block: 'end' })); await clearToasts(win); await win.waitForTimeout(300);
   await win.screenshot({ path: path.join(SHOTS, 'v22-tts.png') });
   await app.evaluate(() => { delete process.env.ELECTRON_RUN_AS_NODE; });

@@ -145,20 +145,30 @@ const zOrder = (win, a, b) => win.evaluate(([a, b]) => { const A = Items.el(Stor
   ok(/Ελληνικ|Greek/.test(req.toast), 'no Greek voice → clear Greek toast with a button to Windows settings', req.toast.slice(0, 200));
   await win.evaluate(() => { Store.state.settings.ai.tts.voice = ''; document.querySelectorAll('#toasts .toast').forEach(t => t.remove()); });
 
-  console.log('vs-engine server mode (fake engine)');
-  const vdir = fs.mkdtempSync(path.join(os.tmpdir(), 'nyx-vs-e2e-')); const m = path.join(vdir, 'omnivoice-base-Q8_0.gguf'), c = path.join(vdir, 'omnivoice-tokenizer-Q8_0.gguf'); fs.writeFileSync(m, 'x'); fs.writeFileSync(c, 'x');
-  await win.evaluate(([exe, m, c]) => { Object.assign(Store.state.settings.ai.tts, { mode: 'vsserver', exe, model: m, tokenizer: c, device: 'Vulkan0', port: 0 }); Store.save(); Panels.drawerKind = null; Panels.settings('speech'); }, [path.join(__dirname, 'fixtures', 'fake-vs-engine.js'), m, c]);
-  await win.waitForSelector('#drawer .vs-test'); await win.evaluate(() => document.querySelector('#drawer .vs-test').scrollIntoView({ block: 'center' }));
-  await win.click('#drawer .vs-test');
-  await win.waitForSelector('#drawer .vs-out audio, #drawer .vs-out .err', { timeout: 60000 });
-  const vo = await win.evaluate(() => { const o = document.querySelector('#drawer .vs-out'); return { ok: !!o.querySelector('audio'), txt: o.innerText.slice(0, 1500), probe: o.querySelectorAll('.vs-probe details').length }; });
-  ok(vo.ok && /\/v1\/audio\/speech/.test(vo.txt), 'Test starts vs-engine hidden with a token, finds POST /v1/audio/speech and plays the WAV', vo.txt);
-  ok(vo.probe >= 3 && /\/health/.test(vo.txt) && /--codec/.test(vo.txt) && /VS_ENGINE_TOKEN/.test(vo.txt), 'Test panel shows the command, the token note and the raw probe answers', vo);
-  ok(!/[A-Za-z0-9]{32}/.test(vo.txt.replace(/omnivoice[-\w.]*/g, '')), 'the token itself is never shown');
-  await win.screenshot({ path: path.join(SHOTS, 'v24-vs-engine.png') });
-  const sp = await win.evaluate(async () => { const r = await API.inv('tts:vsSpeak', Store.state.settings.ai.tts, 'Καλημέρα'); return r; });
-  ok(sp.file && sp.endpoint === 'POST /v1/audio/speech', 'Speak in vs-engine mode uses the found endpoint', sp);
-  await win.evaluate(() => API.inv('tts:vsStop')); await win.evaluate(() => { Store.state.settings.ai.tts.mode = 'system'; Store.save(); });
+  if (!fs.existsSync(path.join(__dirname, '..', 'main', 'vsengine.js'))) {
+    // 2.6.13.1: the local voice (vs-engine / OmniVoice) was removed — the speech panel has no vs-engine mode and the tts:vs* IPC is gone
+    console.log('vs-engine server mode — removed in 2.6.13.1');
+    await win.evaluate(() => { Panels.drawerKind = null; Panels.settings('speech'); });
+    await win.waitForSelector('#drawer select', { timeout: 15000 }).catch(() => {});
+    const rm = await win.evaluate(async () => { const opts = [...document.querySelectorAll('#drawer select option')].map((o) => o.value); let ipc = 'ok'; try { await API.inv('tts:vsStart', Store.state.settings.ai.tts); } catch (e) { ipc = 'rejected'; } return { vsOpt: opts.includes('vsserver'), vsTest: !!document.querySelector('#drawer .vs-test'), ipc }; });
+    ok(!rm.vsOpt && !rm.vsTest && rm.ipc === 'rejected', '2.6.13.1: no vs-engine server mode / Test button; tts:vsStart is not handled', rm);
+  } else {
+    console.log('vs-engine server mode (fake engine)');
+    const vdir = fs.mkdtempSync(path.join(os.tmpdir(), 'nyx-vs-e2e-')); const m = path.join(vdir, 'omnivoice-base-Q8_0.gguf'), c = path.join(vdir, 'omnivoice-tokenizer-Q8_0.gguf'); fs.writeFileSync(m, 'x'); fs.writeFileSync(c, 'x');
+    await win.evaluate(([exe, m, c]) => { Object.assign(Store.state.settings.ai.tts, { mode: 'vsserver', exe, model: m, tokenizer: c, device: 'Vulkan0', port: 0 }); Store.save(); Panels.drawerKind = null; Panels.settings('speech'); }, [path.join(__dirname, 'fixtures', 'fake-vs-engine.js'), m, c]);
+    await win.waitForSelector('#drawer .vs-test'); await win.evaluate(() => document.querySelector('#drawer .vs-test').scrollIntoView({ block: 'center' }));
+    await win.click('#drawer .vs-test');
+    await win.waitForSelector('#drawer .vs-out audio, #drawer .vs-out .err', { timeout: 60000 });
+    const vo = await win.evaluate(() => { const o = document.querySelector('#drawer .vs-out'); return { ok: !!o.querySelector('audio'), txt: o.innerText.slice(0, 1500), probe: o.querySelectorAll('.vs-probe details').length }; });
+    ok(vo.ok && /\/v1\/audio\/speech/.test(vo.txt), 'Test starts vs-engine hidden with a token, finds POST /v1/audio/speech and plays the WAV', vo.txt);
+    ok(vo.probe >= 3 && /\/health/.test(vo.txt) && /--codec/.test(vo.txt) && /VS_ENGINE_TOKEN/.test(vo.txt), 'Test panel shows the command, the token note and the raw probe answers', vo);
+    ok(!/[A-Za-z0-9]{32}/.test(vo.txt.replace(/omnivoice[-\w.]*/g, '')), 'the token itself is never shown');
+    await win.screenshot({ path: path.join(SHOTS, 'v24-vs-engine.png') });
+    const sp = await win.evaluate(async () => { const r = await API.inv('tts:vsSpeak', Store.state.settings.ai.tts, 'Καλημέρα'); return r; });
+    ok(sp.file && sp.endpoint === 'POST /v1/audio/speech', 'Speak in vs-engine mode uses the found endpoint', sp);
+    await win.evaluate(() => API.inv('tts:vsStop')); await win.evaluate(() => { Store.state.settings.ai.tts.mode = 'system'; Store.save(); });
+
+  }
 
   console.log('Groq');
   const g = await win.evaluate(() => { const p = AI.prov('groq'); return p && { base: p.base, keyRef: p.keyRef, def: p.defModel, kind: p.kind }; });

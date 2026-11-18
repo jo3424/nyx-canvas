@@ -161,8 +161,8 @@ const lastAssistant = (win) => win.evaluate(() => { const all = (Store.state.cha
   ok(/μετρημένο/.test(eng.tok), '/tokenize line: measured', eng.tok);
   ok(eng.na && /δεν ισχύει/.test(eng.naFit), 'router mode: «Μοντέλο» and «μέγιστο που χωράει» say they do not apply', eng);
   ok(eng.np === '1' && /Τιμή εκκίνησης: 1/.test(eng.npHelp || ''), '-np shows 1 (launch value), not a placeholder', eng);
-  ok(/OmniVoice/.test(eng.tts) && !/Φωνή Windows \(δεν χρειάζεται/.test(eng.tts) && eng.ttsReady === '1' && /exe ✓ · μοντέλο ✓ · tokenizer ✓/.test(eng.tts), '«Κείμενο → φωνή» shows OmniVoice with exe/μοντέλο/tokenizer ✓', eng.tts);
-  ok(eng.useBtn && /Φωνή συστήματος/.test(eng.tts), 'mode still «system» → visible warning + «Χρήση OmniVoice» button (no silent change)', eng.tts);
+  // 2.6.13.1: the OmniVoice card and its «Χρήση OmniVoice» warning were removed from the Hub (user decision, local voice out)
+  ok(eng.tts === null && eng.useBtn === false, '2.6.13.1: no «Κείμενο → φωνή · OmniVoice» card and no «Χρήση OmniVoice» button in the Hub', { tts: eng.tts, useBtn: eng.useBtn });
   const modeBefore = await win.evaluate(() => Store.state.settings.ai.tts.mode);
   ok(modeBefore === 'system', 'the TTS setting was not changed by opening the Hub');
   await win.evaluate(() => document.querySelector('[data-hub-tab=models]')?.click());
