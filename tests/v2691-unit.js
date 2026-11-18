@@ -171,7 +171,7 @@ const oldMsgs = [{ role: 'system', content: 'INST' }, { role: 'user', content: '
   ok(!/t\('v267\.available'\)/.test(ht) && /v2691\.stat_loaded_of/.test(ht), '«N / max διαθέσιμα» gone; loaded / --models-max');
   ok(/raceMs\(API\.inv\('perf:snapshot'\), 20000/.test(ht) && !/raceMs\(API\.inv\('perf:snapshot'\), 1200/.test(ht), 'VRAM snapshot no longer cut at 1,2 s');
   ok((ht.match(/v268\.mmproj_card/g) || []).length === 1, 'mmproj hint once');
-  ok(/'data-tts-engine': 'omnivoice'/.test(ht) && !/t\('v267\.tts_system'\)/.test(ht), 'TTS card = OmniVoice (no «Φωνή Windows» card)');
+  ok((/'data-tts-engine': 'omnivoice'/.test(ht) || /v2\.6\.13\.1: the «Κείμενο → φωνή · OmniVoice» card/.test(ht)) && !/t\('v267\.tts_system'\)/.test(ht), 'TTS card = OmniVoice (no «Φωνή Windows» card) — since 2.6.13.1 the OmniVoice card is removed (local voice out)');
   ok(/qwen3\\\.8-27b/.test(ht) && /Apache-2\.0/.test(ht), 'Qwen3.8-27B → Apache-2.0');
   ok(/disk \/ 1e9/.test(ht) && /ttsDir/.test(ht), 'disk in decimal GB, router models + OmniVoice models');
   ok(/v2691\.na_router_model/.test(ht) && /v2691\.na_router_fit/.test(hb), 'router mode: «Μοντέλο» and «μέγιστο που χωράει» marked not applicable');
@@ -181,8 +181,8 @@ const oldMsgs = [{ role: 'system', content: 'INST' }, { role: 'user', content: '
   ok(Object.keys(el).filter((k) => k.startsWith('v2691.')).length >= 30, 'el/en strings present');
 
   const pkg = require('../package.json');
-  ok(['2.6.9.1', '2.6.9.2', '2.6.9.3', '2.6.10', '2.6.10.1', '2.6.11', '2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13'].includes(pkg.version) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.9.1, Electron 45.2.3', pkg.version);
-  const CH = require('../CHANGELOG.json'); ok(['2.6.9.1', '2.6.9.2', '2.6.9.3', '2.6.10', '2.6.10.1', '2.6.11', '2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13'].includes(Object.keys(CH)[0]) && CH['2.6.9.1'].el.length === 3 && CH['2.6.9.1'].en.length === 3, 'CHANGELOG 2.6.9.1 first, 3 deliverables');
+  ok(['2.6.9.1', '2.6.9.2', '2.6.9.3', '2.6.10', '2.6.10.1', '2.6.11', '2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1'].includes(pkg.version) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.9.1, Electron 45.2.3', pkg.version);
+  const CH = require('../CHANGELOG.json'); ok(['2.6.9.1', '2.6.9.2', '2.6.9.3', '2.6.10', '2.6.10.1', '2.6.11', '2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1'].includes(Object.keys(CH)[0]) && CH['2.6.9.1'].el.length === 3 && CH['2.6.9.1'].en.length === 3, 'CHANGELOG 2.6.9.1 first, 3 deliverables');
   console.log(`\nv2.6.9.1 unit: ${passes} passed, ${fails} failed`);
   process.exit(fails ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

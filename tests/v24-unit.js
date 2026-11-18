@@ -4,8 +4,11 @@ let fails = 0, passes = 0;
 const ok = (c, m, x) => { console.log((c ? '  ✓ ' : '  ✗ ') + m + (x !== undefined && !c ? '  → ' + JSON.stringify(x).slice(0, 500) : '')); c ? passes++ : fails++; };
 const listen = (srv) => new Promise(r => srv.listen(0, '127.0.0.1', () => r(srv.address().port)));
 (async () => {
-  const vs = require('../main/vsengine');
+  // v2.6.13.1: main/vsengine.js (vs-engine started hidden by Nyx) is removed — the vs-engine sections below only run on
+  // versions that still have it; on 2.6.13.1+ the removal itself is checked (and tests/v26131-unit.js proves no spawn).
+  const vsFile = path.join(__dirname, '..', 'main', 'vsengine.js'); const vs = fs.existsSync(vsFile) ? require(vsFile) : null;
   const ai = require('../main/ai');
+  if (!vs) { console.log('vs-engine (removed in 2.6.13.1)'); ok(!fs.existsSync(vsFile), 'main/vsengine.js is gone — Nyx never starts vs-engine'); } else {
   console.log('vs-engine helpers');
   ok(vs.parsePort('[vs-engine] listening on http://127.0.0.1:51234') === 51234, 'port from "listening on http://…:N"');
   ok(vs.parsePort('Server started at 0.0.0.0:8080') === 8080 && vs.parsePort('port: 7860') === 7860, 'port from other common log lines');
@@ -37,6 +40,7 @@ const listen = (srv) => new Promise(r => srv.listen(0, '127.0.0.1', () => r(srv.
   const bad = { ...cfg, exe: path.join(dir, 'missing.exe') };
   let e1 = null; try { await vs.start(bad, secrets); } catch (e) { e1 = e; } ok(e1 && /vs-engine\.exe/.test(e1.message), 'missing exe → clear error');
 
+  }
   console.log('Rate limits (429) + retry-after');
   ok(ai.parseWait('7') === 7 && Math.abs(ai.parseWait('2m59.56s') - 179.56) < 0.01 && Math.abs(ai.parseWait('7.66s') - 7.66) < 0.01 && ai.parseWait('250ms') === 0.25 && ai.parseWait('1h2m3s') === 3723, 'parses retry-after / x-ratelimit-reset formats');
   let hits = 0; const s429 = http.createServer((q, r) => { hits++; if (q.url.startsWith('/short') && hits === 1) { r.writeHead(429, { 'retry-after': '1', 'content-type': 'application/json' }); return r.end('{"error":{"message":"Rate limit reached"}}'); }
