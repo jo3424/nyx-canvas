@@ -179,6 +179,16 @@ openssl pkeyutl -verify -pubin -inkey nyx-update-CURRENT-public.pem -rawin -in n
 - Βάση του patch: 2.6.12.2 (`c79c15e`). Σε 2.6.12.1, 2.6.12 ή 2.6.11.1 απορρίπτεται (WRONG_BASE)· σε άλλο Electron ζητά πλήρη εγκατάσταση (NEEDS_FULL).
 - Επαλήθευση με το χέρι: όπως στην §4β, με `nyx-2.6.12.2-to-2.6.13.zip`.
 
+## 4θ. 2.6.13.1: υπογραφή με το CURRENT (19/11/2026)
+
+Βασικό patch: `nyx-2.6.13-to-2.6.13.1.zip` (το PC του χρήστη είναι στην 2.6.13). Δευτερεύον: `nyx-2.6.12.2-to-2.6.13.1.zip`. Και τα δύο με το **CURRENT**, με τους ελέγχους της §4β.
+- Πριν από την υπογραφή: το δημόσιο που βγαίνει από το ιδιωτικό έχει SPKI sha256 `68027240f3b9210542ac342d94b4c5430e3846fa8f94a3df7a9a13387e207ca6` = **ακριβώς** το `CURRENT` (trusted[1]) του `main/update-key.js`.
+- Επαλήθευση με τη λίστα έμπιστων κλειδιών της βάσης (2.6.13 `d8d6b9e` για το βασικό, 2.6.12.2 `c79c15e` για το δευτερεύον· ίδια λίστα `[LEGACY, CURRENT]`): περνά με CURRENT· με LEGACY μόνο → BAD_SIG· το detached `.sig` με LEGACY → Signature Verification Failure.
+- Η λίστα έμπιστων κλειδιών δεν άλλαξε (`main/update-key.js`, `main/update-core.js` ίδια με `c79c15e` και `d8d6b9e`)· δεν φτιάχτηκε νέο κλειδί. Κανένα ιδιωτικό κλειδί στο repo ή στα zip.
+- Βασικό: 411.058 bytes, sha256 `517637daae9813b49aa71295b949cbeef8e411b8787fad173d582e687a9ada1f`· `.sig` sha256 `43bfa3729a40c547d971dceace182cc97aa22755bcf62f6aade1e878b9d2d5a0`· 18 αλλαγμένα, 4 διαγραμμένα (`main/vsengine.js`, `main/voice2613.js`, `app/js/v26/voice2613.js`, `app/js/v26/voicehub2613.js`). Μόνο σε 2.6.13 → OK· σε 2.6.12.2 / 2.6.12.1 / 2.6.12 → WRONG_BASE· σε 2.6.13.1 → NOT_NEWER· άλλο Electron → NEEDS_FULL.
+- Δευτερεύον: 430.829 bytes, sha256 `a7978c48287d44403472f4c06b989c087acea9c40d6c05e04ba932e504072e01`· `.sig` sha256 `f9aa2d2bfbcf9f4806f47c6879a84a5497bdad7797c4d64c9b3cef5b9d831774`· 23 αλλαγμένα, 1 διαγραμμένο (`main/vsengine.js`). Μόνο σε 2.6.12.2 → OK.
+- Επαλήθευση με το χέρι: όπως στην §4β, με το αντίστοιχο zip.
+
 ## 5. ΠΡΟΤΑΣΗ (δεν υλοποιήθηκε): ο Hermes υπογράφει δικά του patch
 
 Στόχος: ο Hermes να μπορεί να φτιάχνει patch όταν ο κύριος agent πιάνει όριο, χωρίς ποτέ να αποκτά το κλειδί LEGACY και χωρίς να μπορεί να το αντικαταστήσει.
