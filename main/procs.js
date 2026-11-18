@@ -157,6 +157,7 @@ function resolveLlamaCfg(c) {
 function precheck(id, c) {
   c = (id === 'llama') ? resolveLlamaCfg(c) : resolveServerCfg(c);
   if (!c.exe || !fs.existsSync(c.exe)) return new ProcError('exe', t('procs.001') + (c.exe || '—'), { field: 'exe' });
+  if (require('./novoice').isLocalVoiceExe(c.exe)) return new ProcError('exe', require('./novoice').refuse(c.exe).message, { field: 'exe' }); // v2.6.13.1
   if (fs.statSync(c.exe).isDirectory()) return new ProcError('exe', t('procs.010', { v0: c.exe }), { field: 'exe' });
   if (id === 'sd') { if (c.modelDir && !fs.existsSync(c.modelDir)) return new ProcError('model', t('v25.sd_nodir', { v0: c.modelDir }), { field: 'modelDir' }); return null; }
   if (id === 'llama' && isRouterMode(c)) {

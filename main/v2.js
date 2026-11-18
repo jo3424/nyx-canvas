@@ -5,8 +5,7 @@ const { t, tr } = require('./i18n');
 const { app, BrowserWindow, ipcMain, dialog, shell, session, webContents, nativeImage, screen, Notification, clipboard } = require('electron');
 const fs = require('fs'), fsp = fs.promises, path = require('path'), os = require('os'), crypto = require('crypto');
 const { pathToFileURL } = require('url');
-const vsengine = require('./vsengine');
-const voice2613 = require('./voice2613'); let voice = null; // v2.6.13 «φωνή ster»
+// v2.6.13.1: main/vsengine.js (vs-engine started hidden by Nyx) is removed — Nyx never starts vs-engine (main/novoice.js)
 const dnd = require('./dnd');
 const { isInside, writeFileAtomic } = require('./fsutil');
 const secure = require('./secure');
@@ -224,25 +223,6 @@ function wire(ctx) {
     return { ok: true, file: n, voice: j.voice, culture: j.culture, src: j.src };
   });
   // v2.4: vs-engine HTTP server mode (own random token via safeStorage, hidden process, API probing)
-  H('tts:vsStart', async (cfg) => { try { return { ok: true, ...(await vsengine.start(cfg, secrets)) }; } catch (e) { return { ok: false, error: e.message, log: e.log || '', cmd: e.cmd || '' }; } });
-  H('tts:vsStop', () => { vsengine.stop(); return true; });
-  H('tts:vsStatus', () => vsengine.status());
-  H('tts:vsProbe', async () => vsengine.probe(secrets));
-  H('tts:vsSpeak', async (cfg, text) => { const n = C.uniqueName('vs.wav'); const r = await vsengine.speak(cfg, secrets, String(text || '').slice(0, 4000), path.join(C.MEDIA_DIR(), n)); return { file: n, endpoint: r.endpoint }; });
-  H('tts:vsTest', async (cfg, text) => {
-    const t0 = Date.now(); let st;
-    try { st = await vsengine.start(cfg, secrets); } catch (e) { return { ok: false, stage: 'start', error: e.message, log: e.log || '', cmd: e.cmd || '', ms: Date.now() - t0 }; }
-    let pr = null; try { pr = await vsengine.probe(secrets); } catch (e) {}
-    const n = C.uniqueName('vs.wav'); const r = await vsengine.speak(cfg, secrets, text || t('v22.tts_sample'), path.join(C.MEDIA_DIR(), n), { report: true });
-    return { ...r, stage: 'speak', file: r.ok ? n : null, probe: pr, cmd: st.cmd, log: vsengine.status().log, ms: Date.now() - t0 };
-  });
-  // v2.6.13: the answer voice (GPU Voice Studio persona or the generic voice) — personas.json read only; rvq / reference
-  // text / tokens never leave the main process; Hermes's OmniVoice (127.0.0.1:7802) first, otherwise our own vs-engine
-  const V = () => voice || (voice = voice2613.create({ vsengine, secrets, log: (s) => console.log('[voice] ' + s) }));
-  H('tts:voiceList2613', async (o) => V().list({ probe: !(o && o.probe === false) }));
-  H('tts:voiceBegin2613', async (cfg, want) => V().begin(cfg, want));
-  H('tts:voiceSpeak2613', async (msg, text, lang) => { const n = C.uniqueName('voice.wav'); const r = await V().speak(msg, text, lang, path.join(C.MEDIA_DIR(), n)); return r.ok ? { ...r, file: n } : r; });
-  H('tts:voiceCancel2613', () => V().cancel());
   H('sys:winSettings', (k) => { const u = ({ speech: 'ms-settings:speech', lang: 'ms-settings:regionlanguage' })[k]; if (u && process.platform === 'win32') shell.openExternal(u); return !!u; });
   H('tts:sapiStop', () => { try { sapiProc?.kill(); } catch (e) {} sapiProc = null; return true; });
   H('ai:lmsFind', () => ai.findLms());
@@ -385,5 +365,5 @@ async function afterReady(state) {
   await new Promise(r => setImmediate(r)); // let the first frame/input through before plugins spin up
   await plugins.startEnabled().catch(e => console.error('plugins', e));
 }
-function shutdown() { try { v25?.flushMemorySync?.(); } catch (e) {} try { v25?.stop(); } catch (e) {} try { vsengine.stop(); } catch (e) {} procs.stopAll(); plugins.unloadAll(); }
+function shutdown() { try { v25?.flushMemorySync?.(); } catch (e) {} try { v25?.stop(); } catch (e) {} procs.stopAll(); plugins.unloadAll(); }
 module.exports = { wire, afterReady, shutdown, onWillAttachWebview, broadcastState, openCapture, snapshot, renderText, WEB_PARTITION, plugins, stickyWins };

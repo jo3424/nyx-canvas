@@ -101,18 +101,19 @@ const Hub = {
     const groqBox = h('div', { class: 'groq-stt', hidden: S.kind !== 'groq' },
       selField(t('v24.groq_model'), [['whisper-large-v3-turbo', 'whisper-large-v3-turbo (' + t('v24.groq_fast') + ')'], ['whisper-large-v3', 'whisper-large-v3 (' + t('v24.groq_acc') + ')']], S.groqModel || 'whisper-large-v3-turbo', (v) => { S.groqModel = v; Store.save(); }),
       h('p', { class: 'muted small' }, t('v24.groq_stt_note')));
-    const vsBox = h('div', { class: 'vs-box', hidden: T.mode !== 'vsserver' }, ...this.vsRows(T));
-    const voiceBox = h('div', { class: 'voice-box', hidden: T.mode === 'command' || T.mode === 'vsserver' }, ...this.voiceRows(T));
+    // v2.6.13.1: no «Τοπικός server: vs-engine» any more (local voice removed); «Χωρίς φωνή» = Nyx does not speak
+    const voiceBox = h('div', { class: 'voice-box', hidden: T.mode !== 'system' }, ...this.voiceRows(T));
+    const offNote = h('p', { class: 'muted small', 'data-st': 'tts-off', hidden: T.mode !== 'off' }, t('v26131.off_note'));
     return h('div', { class: 'speech-form' },
       selField(t('hub.012'), [['whispercpp', t('hub.013')], ['groq', t('v24.stt_groq')], ['openai', 'OpenAI-compatible /audio/transcriptions']], S.kind, (v) => { S.kind = v; Store.save(); sttBase.hidden = v === 'groq'; groqBox.hidden = v !== 'groq'; }),
       sttBase, groqBox, this.field(t('hub.015'), this.inp(S, 'language', 'el')),
       h('label', { class: 'chk' }, h('input', { type: 'checkbox', class: 'toggle', checked: S.autoSend ? true : null, onchange: (e) => { S.autoSend = e.target.checked; Store.save(); } }), h('span', {}, t('hub.016'))),
       h('button', { class: 'btn ghost sm', onclick: () => this.testStt() }, iconSvg('mic', 15), t('hub.017')),
       h('hr'),
-      selField(t('hub.018'), [['system', t('v24.mode_system')], ['vsserver', t('v24.mode_vs')], ['command', t('hub.020')]], T.mode, (v) => { T.mode = v; Store.save(); ttsBox.hidden = v !== 'command'; vsBox.hidden = v !== 'vsserver'; voiceBox.hidden = v === 'command' || v === 'vsserver'; }),
-      voiceBox, vsBox, ttsBox,
+      selField(t('hub.018'), [['off', t('v26131.mode_off')], ['system', t('v24.mode_system')], ['command', t('hub.020')]], T.mode, (v) => { T.mode = v; Store.save(); ttsBox.hidden = v !== 'command'; voiceBox.hidden = v !== 'system'; offNote.hidden = v !== 'off'; }),
+      offNote, voiceBox, ttsBox,
       h('label', { class: 'chk' }, h('input', { type: 'checkbox', class: 'toggle', checked: T.speak ? true : null, onchange: (e) => { T.speak = e.target.checked; Store.save(); } }), h('span', {}, t('hub.023'))),
-      h('button', { class: 'btn ghost sm tts-try', onclick: async (e) => { const b = e.currentTarget; b.disabled = true; const r = await Speech.speak(t('hub.024'), { report: true }); b.disabled = false; if (r) toast('🔊 ' + t('v23.tts_ok', { v0: ({ sapi: 'Windows SAPI', onecore: 'Windows OneCore', command: t('hub.020'), vsserver: 'vs-engine', web: t('v24.web_voice') })[r.via] || r.via, v1: r.voice || '—' })); } }, iconSvg('volume-2', 15), t('hub.025')));
+      h('button', { class: 'btn ghost sm tts-try', onclick: async (e) => { const b = e.currentTarget; if (T.mode === 'off') { toast(t('v26131.off_try')); return; } b.disabled = true; const r = await Speech.speak(t('hub.024'), { report: true }); b.disabled = false; if (r) toast('🔊 ' + t('v23.tts_ok', { v0: ({ sapi: 'Windows SAPI', onecore: 'Windows OneCore', command: t('hub.020'), web: t('v24.web_voice') })[r.via] || r.via, v1: r.voice || '—' })); } }, iconSvg('volume-2', 15), t('hub.025')));
   },
   assistantForm() {
     const A = Store.state.settings.ai; const As = A.assistant;
@@ -275,7 +276,7 @@ const Hub = {
   },
   paintVramWarn(el, snap) {
     if (!el) return null;
-    const w = NyxLimits.vramWarn(snap);
+    const w = NyxLimits.vramWarn(snap, { ignoreGvs: true }); // v2.6.13.1: no «Voice Studio» warning in the Hub
     const txt = this.vramText(w);
     el.hidden = !txt; el.textContent = txt ? '⚠️ ' + txt : ''; el.title = txt ? t('v269.vram_tip') + ' ' + t('v2692.vram_rule_tip') : '';
     el.setAttribute('data-vram', w.state);
@@ -411,8 +412,6 @@ const Hub = {
 
   // vs-engine (GPU-Voice-Studio) has no public docs → keep editable + «Δοκιμή» (shows the real stderr) + «--help».
   TTS_PRESETS: {
-    vsengine: '{exe} --model {model} --codec {tokenizer} --text-file {text_file} --output {out}',
-    omnivoice: '{exe} --model {model} --codec {tokenizer} --lang Greek -o {out} < {text_file}',
     piper: '{exe} --model {model} --output_file {out} < {text_file}',
   },
   // v2.4: voice picker (Chromium + Windows SAPI5 + OneCore, with language), rate/pitch, Greek-voice hint
@@ -436,44 +435,11 @@ const Hub = {
       selField(t('v23.engine'), [['auto', t('v23.engine_auto')], ['sapi', t('v24.engine_win')]], T.engine || 'auto', (v) => { T.engine = v; Store.save(); }),
       slider('rate', t('v24.rate')), slider('pitch', t('v24.pitch')), hint];
   },
-  // v2.4: vs-engine runs as a local HTTP server; Nyx starts it hidden with its own token and discovers the API.
-  vsRows(T) {
-    const out = h('div', { class: 'vs-out' });
-    const chk = (k, label) => h('label', { class: 'chk' }, h('input', { type: 'checkbox', class: 'toggle', checked: T[k] ? true : null, onchange: (e) => { T[k] = e.target.checked; Store.save(); } }), h('span', {}, label));
-    const pre = (txt) => h('pre', { class: 'srv-log' }, txt);
-    const table = (rows) => h('div', { class: 'vs-probe' }, ...rows.map(r => h('details', {}, h('summary', {}, h('code', {}, r.path || r.endpoint), ' → ', h('b', { class: r.status >= 200 && r.status < 300 ? 'ok' : 'err' }, String(r.status || '✗')), r.ctype ? h('small', { class: 'muted' }, ' ' + r.ctype) : null), pre(r.body || ''))));
-    const test = async (e) => {
-      const b = e.currentTarget; b.disabled = true; out.innerHTML = ''; out.append(h('p', { class: 'muted small' }, t('v24.vs_starting')));
-      let r; try { r = await API.inv('tts:vsTest', T, t('hub.024')); } catch (err) { r = { ok: false, error: cleanErr(err) }; } b.disabled = false; out.innerHTML = '';
-      out.append(h('p', { class: r.ok ? 'ok small' : 'err small' }, r.ok ? t('v24.vs_ok', { v0: r.endpoint, v1: ((r.ms || 0) / 1000).toFixed(1) }) : '✗ ' + (r.error || '')));
-      if (r.cmd) out.append(h('small', { class: 'muted' }, t('v22.tts_cmd')), pre(r.cmd + '\n(VS_ENGINE_TOKEN = ' + t('v24.vs_token_set') + ')'));
-      if (r.probe) out.append(h('small', { class: 'muted' }, t('v24.vs_found', { v0: r.probe.port, v1: r.probe.auth, v2: (r.probe.routes || []).join(', ') || '—' })), table(r.probe.results || []));
-      if (r.tries?.length) out.append(h('small', { class: 'muted' }, t('v24.vs_tries')), table(r.tries));
-      if (r.log) out.append(h('small', { class: 'muted' }, 'stdout / stderr'), pre(r.log.trim().slice(-2500)));
-      if (r.ok && r.file) out.append(h('audio', { controls: true, src: Store.media(r.file) }));
-      if (!r.ok) out.append(h('p', { class: 'muted small' }, '💡 ' + t('v24.vs_hint')));
-    };
-    const stop = async () => { await API.inv('tts:vsStop'); out.innerHTML = ''; out.append(h('p', { class: 'muted small' }, t('v24.vs_stopped'))); };
-    const help = async () => { const r = await API.inv('tts:help', T.exe).catch(e => ({ ok: false, error: cleanErr(e) })); Panels.modal('vs-engine --help', h('pre', { class: 'srv-log tall' }, r.ok ? (r.out || t('v22.no_output')) : '✗ ' + r.error), { wide: true }); };
-    if (!T.device) T.device = 'Vulkan0';
-    return [
-      ...(typeof VoiceHub !== 'undefined' ? VoiceHub.rows(T) : []), // v2.6.13: «Φωνή απάντησης» + engine in use
-      h('p', { class: 'muted small' }, t('v24.vs_intro')),
-      this.pathRow(T, 'exe', t('v22.tts_exe'), 'file', { kind: 'exe', names: ['vs-engine.exe'] }),
-      this.pathRow(T, 'model', '--model (gguf)', 'file', { kind: 'tts-model', names: ['omnivoice-base-Q8_0.gguf'] }),
-      this.pathRow(T, 'tokenizer', '--codec (tokenizer gguf)', 'file', { kind: 'tts-tokenizer', names: ['omnivoice-tokenizer-Q8_0.gguf'] }),
-      h('div', { class: 'row gap wrap' },
-        selField('--device', [['Vulkan0', 'Vulkan0 (GPU)'], ['Vulkan1', 'Vulkan1'], ['CUDA0', 'CUDA0'], ['CPU', 'CPU']], T.device, (v) => { T.device = v; Store.save(); }),
-        this.field('--port', this.inp(T, 'port', t('v24.vs_port_auto')))),
-      h('div', { class: 'row gap wrap' }, chk('noFa', '--no-fa'), chk('clampFp16', '--clamp-fp16')),
-      this.pathRow(T, 'refAudio', t('v24.vs_ref'), 'file', { kind: 'wav', names: ['reference.wav'] }),
-      this.field(t('v24.vs_endpoint'), this.inp(T, 'endpoint', 'POST /v1/audio/speech'), t('v24.vs_endpoint_help')),
-      h('div', { class: 'row gap wrap' }, h('button', { class: 'btn sm primary vs-test', onclick: test }, iconSvg('flask-conical', 14), t('v24.vs_test')), h('button', { class: 'btn sm ghost', onclick: stop }, iconSvg('square', 14), t('v24.vs_stop')), h('button', { class: 'btn sm ghost', onclick: help }, iconSvg('circle-question-mark', 14), t('v22.tts_help'))),
-      h('p', { class: 'muted small' }, '💡 ' + t('v24.vs_hint')), out];
-  },
+  // v2.6.13.1: vsRows (vs-engine started hidden by Nyx) removed — Nyx never starts vs-engine.
+
   ttsRows(T) {
     const tpl = this.inp(T, 'template', ''); tpl.classList.add('mono');
-    const preset = selField(t('v22.tts_preset'), [['', t('v22.tts_custom')], ['vsengine', t('v22.tts_vs')], ['omnivoice', 'omnivoice.cpp (omnivoice-tts)'], ['piper', 'Piper']], Object.keys(this.TTS_PRESETS).find(k => this.TTS_PRESETS[k] === T.template) || '', (v) => { if (!v) return; T.template = this.TTS_PRESETS[v]; tpl.value = T.template; Store.save(); });
+    const preset = selField(t('v22.tts_preset'), [['', t('v22.tts_custom')], ['piper', 'Piper']], Object.keys(this.TTS_PRESETS).find(k => this.TTS_PRESETS[k] === T.template) || '', (v) => { if (!v) return; T.template = this.TTS_PRESETS[v]; tpl.value = T.template; Store.save(); });
     const out = h('div', { class: 'tts-out' });
     const test = async (e) => {
       const b = e.currentTarget; b.disabled = true; out.innerHTML = ''; out.append(h('p', { class: 'muted small' }, t('v22.tts_running')));
@@ -486,7 +452,7 @@ const Hub = {
     };
     const help = async () => { const r = await API.inv('tts:help', T.exe).catch(e => ({ ok: false, error: cleanErr(e) })); Panels.modal(esc((T.exe || '').split(/[\\/]/).pop() || 'exe') + ' --help', h('pre', { class: 'srv-log tall' }, r.ok ? (r.out || t('v22.no_output')) : '✗ ' + r.error), { wide: true }); };
     return [preset,
-      this.pathRow(T, 'exe', t('v22.tts_exe'), 'file', { kind: 'exe', names: ['vs-engine.exe', 'omnivoice-tts.exe', 'piper.exe'] }),
+      this.pathRow(T, 'exe', t('v22.tts_exe'), 'file', { kind: 'exe', names: ['piper.exe'] }),
       this.pathRow(T, 'model', t('v22.tts_model'), 'file', { kind: 'tts-model', names: ['omnivoice-base-Q8_0.gguf'] }),
       this.pathRow(T, 'tokenizer', t('v22.tts_tok'), 'file', { kind: 'tts-tokenizer', names: ['omnivoice-tokenizer-Q8_0.gguf'] }),
       this.field(t('hub.021'), tpl, t('v22.tts_note')),

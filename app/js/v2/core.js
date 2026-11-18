@@ -87,6 +87,10 @@ Store.load = async function () {
     if (!S.ai.stt.base) S.ai.stt.base = 'http://127.0.0.1:8178';
     S.ai.stt._migratedFromGroq = true;
   }
+  // v2.6.13.1: local voice (OmniVoice / vs-engine) is removed. «Τοπικός server: vs-engine», a «Εντολή» pointing at
+  // vs-engine / omnivoice-tts, or the 2.6.13 «Φωνή απάντησης» → «Χωρίς φωνή», with a one-time notice (v25/core.js).
+  // Only this voice setting changes; the previous values are kept in _migratedLocalVoiceOff (nothing is lost).
+  NyxLimits.migrateLocalVoice(S.ai.tts);
   S.tools ||= {}; S.browser ||= { home: 'https://duckduckgo.com', search: 'https://duckduckgo.com/?q=%s', tabs: [] };
   try {
     if (API && !V2.viewer && S.ai) {
@@ -298,6 +302,28 @@ const NyxLimits = {
   speedOf(tm) { return tm && tm.predicted_n != null && tm.predicted_ms > 0 ? tm.predicted_n / (tm.predicted_ms / 1000) : null; },
   // VRAM warning only from a real measurement (perf snapshot); Voice Studio found by process name or path
   GVS_PROC: /voice.?studio|gpu-voice|vs-engine|omnivoice/i,
+  // v2.6.13.1: local voice (OmniVoice / vs-engine) is removed — the same names main refuses to start (main/novoice.js)
+  LOCAL_VOICE_EXE: /(^|[\\/])(vs-engine|omnivoice[\w-]*)(\.exe)?$/i,
+  LOCAL_VOICE_CMD: /(^|[\\/\s"'])(vs-engine|omnivoice[\w-]*)(\.exe)?(?=["'\s]|$)/i,
+  // which leftover voice setting must become «Χωρίς φωνή»: 'vsserver' | 'command' | '' (nothing to change)
+  localVoiceMode(T) {
+    if (!T) return '';
+    if (T.mode === 'vsserver') return 'vsserver';
+    if (T.mode === 'command' && (this.LOCAL_VOICE_EXE.test(String(T.exe || '').trim()) || this.LOCAL_VOICE_CMD.test(String(T.template || '')))) return 'command';
+    return '';
+  },
+  // → 'off' + a record of what it was (_migratedLocalVoiceOff); the 2.6.13 vsVoice key moves into that record.
+  // Idempotent: a second load finds mode 'off' and changes nothing. Returns true when it changed the mode.
+  migrateLocalVoice(T, now) {
+    if (!T) return false;
+    const from = this.localVoiceMode(T);
+    if (from) {
+      T._migratedLocalVoiceOff = { from, exe: String(T.exe || '').split(/[\\/]/).pop(), template: from === 'command' ? String(T.template || '') : '', vsVoice: T.vsVoice != null ? String(T.vsVoice) : null, at: now || Date.now() };
+      T.mode = 'off'; delete T._localVoiceOffNoticeShown; // a new change → a new notice (never silent)
+    }
+    if (T.vsVoice != null) { if (T._migratedLocalVoiceOff && T._migratedLocalVoiceOff.vsVoice == null) T._migratedLocalVoiceOff.vsVoice = String(T.vsVoice); delete T.vsVoice; }
+    return !!from;
+  },
   // v2.6.9.2: 94–99% VRAM is normal for Qwen + MTP + mmproj + 32K (68–77 t/s). The percentage alone never warns.
   // Yellow only when (a) Voice Studio holds VRAM, (b) Windows «Shared GPU memory» rose above what this session first
   // measured (= spill to system RAM), or (c) the speed of the same model fell clearly below its best in this session.
@@ -327,7 +353,8 @@ const NyxLimits = {
     }
     const spd = opts.speed || (this._lastSpeedModel && this._speeds[this._lastSpeedModel]) || null;
     const slow = !!(spd && spd.n >= 2 && spd.best > 0 && spd.last < spd.best * this.SLOW_RATIO);
-    const state = gvs.length ? 'gvs' : spill >= this.SPILL_MIN ? 'spill' : slow ? 'slow' : 'ok';
+    // v2.6.13.1: opts.ignoreGvs (the Hub) → no «Voice Studio» warning; spill / slow still warn
+    const state = (gvs.length && !opts.ignoreGvs) ? 'gvs' : spill >= this.SPILL_MIN ? 'spill' : slow ? 'slow' : 'ok';
     return { state, pct, used: ad.used, total: ad.total, gvs, others, high, spill, shared: shared ?? null, speed: spd ? { last: spd.last, best: spd.best } : null };
   },
   EMBED_RE: /embed|bge|\be5\b|e5-|minilm|gte-|nomic|jina|arctic|mxbai|sentence|retriev|colbert/i,
@@ -506,7 +533,9 @@ const Speech = {
     this.stopSpeak();
     const play = async (file, via, voice) => { const a = this._audio = new Audio(Store.media(file)); await a.play(); return { via, voice }; };
     if (T.mode === 'command') { try { const f = await API.inv('tts:run', T, text); return await play(f, 'command', ''); } catch (e) { toast('⚠️ TTS: ' + cleanErr(e), { kind: 'err' }); return null; } }
-    if (T.mode === 'vsserver') return this.speakVoice(text, T); // v2.6.13: «Φωνή απάντησης» (Voice Studio persona / generic), sentence by sentence
+    // v2.6.13.1: local voice (OmniVoice / vs-engine) is removed. «Χωρίς φωνή» = Nyx does not speak; a leftover vs-engine mode
+    // (migrated to 'off' at load) never reaches main either — nothing starts vs-engine.
+    if (T.mode === 'off' || T.mode === 'vsserver') return null;
     const win = async (why) => {
       try {
         const o = want.startsWith('sapi:') || want.startsWith('onecore:') ? { voice: want.slice(want.indexOf(':') + 1), src: want.split(':')[0], pitch } : { pitch };
@@ -537,49 +566,7 @@ const Speech = {
     const w = await API.inv('tts:voices', fresh).catch(() => []);
     return web.concat(w.map(v => ({ id: v.src + ':' + v.name, name: v.name, lang: v.lang, src: v.src })));
   },
-  stopSpeak() {
-    try { speechSynthesis.cancel(); } catch (e) {} try { this._audio?.pause(); } catch (e) {} this._audio = null; API.inv('tts:sapiStop').catch(() => {});
-    // v2.6.13: stop / a new answer cancels the sentence queue (and the request in flight)
-    this._vgen = (this._vgen || 0) + 1; const end = this._endPlay; this._endPlay = null; end && end(); API.inv('tts:voiceCancel2613').catch(() => {});
-  },
-  // v2.6.13 «φωνή ster»: the chosen voice is checked first (no silent change, no fallback to another voice), the engine is
-  // chosen per answer in main (Hermes's OmniVoice on 127.0.0.1:7802, otherwise our own vs-engine); sentence N plays while
-  // N+1 is synthesised, one request at a time; a dead engine ends this answer with a message
-  async speakVoice(text, T) {
-    const gen = this._vgen = (this._vgen || 0) + 1; const lang = this.textLang(text);
-    let b; try { b = await API.inv('tts:voiceBegin2613', T, T.vsVoice || ''); } catch (e) { b = { ok: false, code: 'engine_start', error: cleanErr(e) }; }
-    if (gen !== this._vgen) return null;
-    if (!b || !b.ok) { this.voiceError(b || {}); return null; }
-    this.voiceEngine = b.engine; window.dispatchEvent(new CustomEvent('nyx:voice-engine', { detail: b.engine }));
-    const parts = NyxVoice.splitSentences(text);
-    const res = await NyxVoice.pipeline(parts, {
-      isCancelled: () => gen !== this._vgen,
-      synth: (i, s) => API.inv('tts:voiceSpeak2613', b.msg, s, lang).catch((e) => ({ ok: false, code: 'error', error: cleanErr(e) })),
-      play: (file) => new Promise((done) => {
-        if (gen !== this._vgen) return done(); const a = this._audio = new Audio(Store.media(file)); this._endPlay = done;
-        a.onended = () => done(); a.onerror = () => done(); a.play().catch(() => done());
-      }),
-      onError: (i, r) => { if (gen === this._vgen) this.voiceError(r, i, parts.length); },
-    });
-    return { via: 'vsserver', voice: (b.voice?.name || t('v2613.generic')) + ' · ' + this.engineLabel(b.engine), parts: parts.length, ...res };
-  },
-  engineLabel(e) { return !e ? '—' : e.kind === 'hermes' ? t('v2613.engine_hermes') : t('v2613.engine_own', { v0: e.port }); },
-  voiceErrorText(r, i, n) {
-    const c = r.code || 'error'; const v = r.voice || 'ster';
-    if (c === 'personas_missing') return t('v2613.err_file');
-    if (c === 'personas_schema' || c === 'personas_read') return t('v2613.err_schema');
-    if (c === 'persona_missing') return t('v2613.err_missing', { v0: v });
-    if (c === 'persona_not_ready') return t('v2613.err_not_ready', { v0: v });
-    if (c === 'hermes_token') return t('v2613.err_hermes_token', { v0: r.status || 401 });
-    if (c === 'hermes_no_token') return t('v2613.err_hermes_no_token', { v0: r.status || '', v1: r.file || '' });
-    if (c === 'hermes_http') return t('v2613.err_hermes_http', { v0: r.status || '' });
-    if (c === 'engine_start') return t('v2613.err_start', { v0: r.error || '' });
-    if (c === 'engine_down') return t('v2613.err_down', { v0: (i || 0) + 1, v1: n || 1 });
-    if (c === 'engine_token') return t('v2613.err_token');
-    if (c === 'bad_reference') return t('v2613.err_bad_ref');
-    return t('v2613.err_sentence', { v0: (i || 0) + 1, v1: r.status || r.code || '' });
-  },
-  voiceError(r, i, n) { toast('⚠️ ' + this.voiceErrorText(r, i, n), { kind: 'err', ms: 12000, action: { label: t('v267.set_speech'), fn: () => (typeof Panels !== 'undefined' && Panels.settings ? Panels.settings('speech') : Hub.open()) } }); },
+  stopSpeak() { try { speechSynthesis.cancel(); } catch (e) {} try { this._audio?.pause(); } catch (e) {} this._audio = null; API.inv('tts:sapiStop').catch(() => {}); },
 };
 function encodeWav(samples, sr) {
   const b = new ArrayBuffer(44 + samples.length * 2); const d = new DataView(b); const w = (o, s) => { for (let i = 0; i < s.length; i++) d.setUint8(o + i, s.charCodeAt(i)); };

@@ -1,13 +1,29 @@
 {
+ "2.6.13.1": {
+  "el": [
+   "Η τοπική φωνή (OmniVoice / vs-engine) αφαιρέθηκε, γιατί φόρτωνε την GPU και ο Qwen έπεφτε στα 13–17 t/s: φεύγουν η «Φωνή απάντησης», η ανάγνωση του personas.json, ο έλεγχος της θύρας 7802 και το token OmniVoice. Το Nyx δεν ξεκινά ποτέ μόνο του vs-engine ή omnivoice-tts — ούτε στην εκκίνηση, ούτε όταν μιλάει, ούτε από ρύθμιση ή κουμπί.",
+   "Αν η ομιλία ήταν «Τοπικός server: vs-engine» (ή εντολή με vs-engine / omnivoice-tts, ή η «Φωνή απάντησης» της 2.6.13), γυρίζει σε «Χωρίς φωνή» και το βλέπεις σε μήνυμα μία φορά. Τίποτε άλλο δεν αλλάζει: πίνακες, κάρτες και συνδρομές μένουν ίδια.",
+   "Hub: βγαίνουν η γραμμή «Κείμενο → φωνή · OmniVoice» και η προειδοποίηση «Τρέχει και το Voice Studio».",
+   "Καρτέλες (από την 2.6.13): όταν σέρνεις μια καρτέλα κοντά στην αριστερή ή δεξιά άκρη της μπάρας, η μπάρα κυλά (πιο γρήγορα όσο πιο κοντά στην άκρη)· σταματά όταν αφήσεις ή πατήσεις Esc.",
+   "Το μενού «+N ▾» με 25+ κρυμμένους πίνακες ανοίγει πάντα μέσα στο παράθυρο (πριν άνοιγε πάνω από την οθόνη)."
+  ],
+  "en": [
+   "Local voice (OmniVoice / vs-engine) is removed because it loaded the GPU and Qwen dropped to 13–17 t/s: no «Answer voice», no personas.json reading, no 7802 check, no OmniVoice token. Nyx never starts vs-engine or omnivoice-tts by itself — not at start, not when speaking, not from a setting or a button.",
+   "If speech was «Local server: vs-engine» (or a command with vs-engine / omnivoice-tts, or the 2.6.13 «Answer voice»), it switches to «No voice» and you see a one-time message. Nothing else changes: boards, cards and subscriptions stay the same.",
+   "Hub: the «Text → voice · OmniVoice» row and the «Voice Studio is also running» warning are removed.",
+   "Tabs (from 2.6.13): dragging a tab near the left or right edge of the bar scrolls the bar (faster the closer to the edge); it stops on release or Esc.",
+   "The «+N ▾» menu with 25+ hidden boards always opens inside the window (it used to open above the screen)."
+  ]
+ },
  "2.6.13": {
   "el": [
-   "Φωνή απάντησης: το τοπικό LLM μιλάει με persona του Voice Studio (προεπιλογή «ster», κλώνος) ή με τη «Γενική γυναικεία» — μόνο αν τη διαλέξεις. Πρόταση-πρόταση: η 1η παίζει όσο ετοιμάζεται η 2η. Αν λείπει η persona ή το personas.json, βλέπεις μήνυμα· καμία σιωπηλή αλλαγή φωνής.",
-   "Μηχανή φωνής: πρώτα το OmniVoice του Hermes (127.0.0.1:7802). Λάθος token → μήνυμα «λάθος token OmniVoice», χωρίς δεύτερη μηχανή στη GPU. Δικός σου vs-engine μόνο όταν δεν απαντά τίποτα στο 7802. Το token διαβάζεται από μεταβλητή περιβάλλοντος ή αρχείο, ποτέ από τις ρυθμίσεις.",
+   "[Αφαιρέθηκε στην 2.6.13.1] Φωνή απάντησης: το τοπικό LLM μιλάει με persona του Voice Studio (προεπιλογή «ster», κλώνος) ή με τη «Γενική γυναικεία» — μόνο αν τη διαλέξεις. Πρόταση-πρόταση: η 1η παίζει όσο ετοιμάζεται η 2η. Αν λείπει η persona ή το personas.json, βλέπεις μήνυμα· καμία σιωπηλή αλλαγή φωνής.",
+   "[Αφαιρέθηκε στην 2.6.13.1] Μηχανή φωνής: πρώτα το OmniVoice του Hermes (127.0.0.1:7802). Λάθος token → μήνυμα «λάθος token OmniVoice», χωρίς δεύτερη μηχανή στη GPU. Δικός σου vs-engine μόνο όταν δεν απαντά τίποτα στο 7802. Το token διαβάζεται από μεταβλητή περιβάλλοντος ή αρχείο, ποτέ από τις ρυθμίσεις.",
    "Καρτέλες: όταν σέρνεις μια καρτέλα κοντά στην αριστερή ή δεξιά άκρη της μπάρας, η μπάρα κυλά (πιο γρήγορα όσο πιο κοντά στην άκρη), για να την αφήσεις ανάμεσα σε κρυμμένες καρτέλες. Σταματά όταν αφήσεις ή πατήσεις Esc."
   ],
   "en": [
-   "Answer voice: the local LLM speaks with a Voice Studio persona (default «ster», a clone) or «Generic female» — only if you pick it. Sentence by sentence: the 1st plays while the 2nd is prepared. A missing persona or personas.json shows a message; never a silent voice change.",
-   "Voice engine: Hermes's OmniVoice (127.0.0.1:7802) first. Wrong token → «wrong OmniVoice token» message, no second engine on the GPU. Your own vs-engine only when nothing answers on 7802. The token comes from an environment variable or a file, never from settings.",
+   "[Removed in 2.6.13.1] Answer voice: the local LLM speaks with a Voice Studio persona (default «ster», a clone) or «Generic female» — only if you pick it. Sentence by sentence: the 1st plays while the 2nd is prepared. A missing persona or personas.json shows a message; never a silent voice change.",
+   "[Removed in 2.6.13.1] Voice engine: Hermes's OmniVoice (127.0.0.1:7802) first. Wrong token → «wrong OmniVoice token» message, no second engine on the GPU. Your own vs-engine only when nothing answers on 7802. The token comes from an environment variable or a file, never from settings.",
    "Tabs: dragging a tab near the left or right edge of the bar scrolls the bar (faster the closer to the edge), so you can drop it between hidden tabs. Stops on release or Esc."
   ]
  },

@@ -124,7 +124,6 @@ Hub.paintHubTabs = function (panes, show) {
     const llamaPill = h('span', { 'data-st': 'llama-pill', class: 'hub-pills' });
     if (cached.loadedNames) llamaPill.append(pill(cached.loadedNames));
     const whisperDot = dot(cached.whisperOn ? 'g' : 'x');
-    const ttsOn = !!(this.procState.tts?.running);
     const sdOn = !!(this.procState.sd?.running);
     // v2.6.11: one clear Greek state per row (σε λειτουργία / σταματημένο), never an English «running/stopped»
     const runPill = (on, st) => { const p = pill(on == null ? t('v2611.st_check') : on ? t('v2611.st_on') : t('v2611.st_off'), on ? 'ok' : on === false ? 'off' : ''); p.setAttribute('data-run', on == null ? '' : on ? 'on' : 'off'); if (st) p.setAttribute('data-st', st); return p; };
@@ -135,7 +134,6 @@ Hub.paintHubTabs = function (panes, show) {
       h('div', { class: 'hub-h4' }, t('v267.running')),
       row(llamaDot, llamaMsg, llamaPill, llamaRun),
       row(whisperDot, h('span', { class: 'grow' }, t('v267.stt_row') + ' · :' + (A.servers.whisper.port || 8178)), h('span', { class: 'hub-pills' }, pill((A.servers.whisper.model || A.stt.kind || '').toString().split(/[\\/]/).pop() || 'whisper')), whisperRun),
-      row(dot(ttsOn ? 'g' : 'x'), h('span', { class: 'grow' }, t('v267.tts_row')), ttsOn ? pill('OmniVoice') : h('button', { class: 'btn sm', onclick: () => this.startTtsEngine?.() || toast(t('v267.not_configured')) }, t('hub.064').trim()), runPill(ttsOn)),
       row(dot(sdOn ? 'g' : 'x'), h('span', { class: 'grow' }, t('v267.image_row')), sdOn ? pill('sd-server') : h('span', { class: 'muted small' }, t('v267.not_configured'))),
       row(dot(liveN ? 'g' : 'x'), h('span', { class: 'grow', 'data-st': 'live-pages', 'data-n': String(liveN) }, t('v2611.live_pages')), pill(t('v2611.live_pages_n', { v0: liveN }))));
 
@@ -482,31 +480,8 @@ Hub.paintHubTabs = function (panes, show) {
       llamaBox._setSummary?.(t('v267.llm_summary', { v0: build, v1: dirShow, v2: maxLabel(live), v3: ctxShow, v4: 'Vulkan' }));
     });
 
-    // v2.6.9.1: the «Κείμενο → φωνή» card is about OmniVoice (the Windows voice was ruled out). It shows the OmniVoice
-    // files with ✓/✗; if the speaking mode is still «Φωνή συστήματος», that is said in a warning with a one-click switch
-    // (only on the user's click — nothing changes by itself).
-    const ttsMode = A.tts.mode;
-    const ttsBox = h('div', { class: 'srv', 'data-srv': 'tts', 'data-tts-engine': 'omnivoice' });
-    const ttsSum = h('span', { class: 'muted small', 'data-st': 'tts-summary' }, t('v267.tts_summary', { v0: (A.tts.model || '').split(/[\\/]/).pop() || 'base Q8_0' }));
-    const ttsChecks = h('span', { class: 'muted small', 'data-st': 'tts-paths' }, '');
-    const ttsWarn = h('p', { class: 'warn small', 'data-st': 'tts-mode-warn', hidden: true });
-    const ttsDot = dot('x');
-    ttsBox.append(row(ttsDot, h('span', { class: 'grow' }, h('b', {}, t('v267.tts_row') + ' · OmniVoice'), h('br'), ttsSum, h('br'), ttsChecks), h('button', { class: 'btn sm primary', onclick: () => toast(t('v267.not_configured')) }, t('hub.064').trim())), ttsWarn);
-    (async () => {
-      const keys = [['exe', 'exe'], ['model', t('v2691.tts_model')], ['tokenizer', 'tokenizer']];
-      const paths = keys.map(([k]) => A.tts[k] || '');
-      const r = await API.inv('sys:exists', paths.filter(Boolean)).catch(() => null);
-      let j = 0; const okAll = []; const parts = keys.map(([k, lab], i) => { if (!paths[i]) { okAll.push(false); return lab + ' —'; } const e = r && r[j++]; const ok = !!(e && e.exists && !e.dir); okAll.push(ok); return lab + ' ' + (ok ? '✓' : '✗'); });
-      ttsChecks.textContent = parts.join(' · ');
-      const ready = okAll.every(Boolean);
-      ttsDot.className = 'hub-dot ' + (ready ? 'g' : 'x');
-      ttsBox.setAttribute('data-tts-ready', ready ? '1' : '0');
-      if (ttsMode === 'system') {
-        ttsWarn.hidden = false; ttsWarn.innerHTML = '';
-        ttsWarn.append(t(ready ? 'v2691.tts_mode_system' : 'v2691.tts_mode_system_missing'), ' ', ready ? h('button', { class: 'btn sm', 'data-act': 'use-omnivoice', onclick: () => { A.tts.mode = 'command'; Store.save(); ttsWarn.hidden = true; toast(t('v2691.tts_switched')); } }, t('v2691.tts_use')) : '');
-      }
-    })();
-    el.append(ttsBox);
+    // v2.6.13.1: the «Κείμενο → φωνή · OmniVoice» card (and its «Φωνή συστήματος → Χρήση OmniVoice» warning) is removed —
+    // local voice is out, Nyx never starts vs-engine / omnivoice-tts.
     const imgSlot = h('div', { class: 'hub-image-slot srv', 'data-srv': 'sd' });
     imgSlot.append(row(dot('x'), h('span', { class: 'grow' }, h('b', {}, t('v267.image_row')), h('br'), h('span', { class: 'muted small' }, t('v267.image_summary'))), h('button', { class: 'btn sm', onclick: () => { const adv = el.querySelector('details.hub-adv'); if (adv) adv.open = true; } }, t('v267.configure'))));
     el.append(imgSlot);
@@ -575,16 +550,8 @@ Hub.paintHubTabs = function (panes, show) {
       h('label', { class: 'chk' }, h('input', { type: 'checkbox', class: 'toggle', checked: W.autoStart ? true : null, onchange: (e) => { W.autoStart = e.target.checked; Store.save(); } }), h('span', {}, t('v22.autostart')))
     );
     this._rows.whisper = { exe: whisExe, model: whisModel, log: null };
-    const T = A.tts || {};
-    const ttsAdv = h('div', { 'data-srv': 'tts' });
-    ttsAdv.append(
-      this.pathRow(T, 'exe', t('v22.tts_exe'), 'file', { kind: 'exe', names: ['vs-engine.exe', 'omnivoice-tts.exe', 'piper.exe'] }),
-      this.pathRow(T, 'model', t('v22.tts_model'), 'file', { kind: 'tts-model', names: ['omnivoice-base-Q8_0.gguf'] }),
-      this.pathRow(T, 'tokenizer', t('v22.tts_tok'), 'file', { kind: 'tts-tokenizer', names: ['omnivoice-tokenizer-Q8_0.gguf'] }),
-      this.field(t('hub.069'), this.inp(T, 'extra', ''))
-    );
     const sdAdv = h('div', { class: 'hub-sd-adv' });
-    adv.append(h('h4', {}, t('v267.llm_router')), llamaAdv, h('h4', {}, t('v267.stt_row')), whisAdv, h('h4', {}, t('v267.tts_row')), ttsAdv, h('h4', {}, t('v267.image_row')), sdAdv);
+    adv.append(h('h4', {}, t('v267.llm_router')), llamaAdv, h('h4', {}, t('v267.stt_row')), whisAdv, h('h4', {}, t('v267.image_row')), sdAdv);
     el.append(adv);
     refill25(el);
     el._painted = true;

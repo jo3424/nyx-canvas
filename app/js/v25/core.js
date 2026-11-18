@@ -186,5 +186,11 @@ const People = {
       stt._groqSttNoticeShown = true; Store.save();
       toast(t('v266.stt_moved'), { ms: 10000 });
     }
+    // v2.6.13.1: the voice setting was moved to «Χωρίς φωνή» (local voice removed) → say so once; the flag is saved
+    const tts = Store.state.settings?.ai?.tts;
+    if (tts && tts._migratedLocalVoiceOff && !tts._localVoiceOffNoticeShown) {
+      tts._localVoiceOffNoticeShown = Date.now(); Store.save();
+      toast('🔇 ' + t('v26131.migrated'), { ms: 30000, action: { label: t('v267.set_speech'), fn: () => (typeof Panels !== 'undefined' && Panels.settings ? Panels.settings('speech') : Hub.open()) } });
+    }
   };
 })();

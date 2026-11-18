@@ -7,6 +7,7 @@ const secrets = require('./secrets');
 const nyxPath = require('./paths');
 const limits = require('./limits');
 const routerkey = require('./routerkey');
+const novoice = require('./novoice'); // v2.6.13.1: never start vs-engine / omnivoice-tts
 
 function headers(p) {
   const h = { 'Content-Type': 'application/json' };
@@ -539,6 +540,7 @@ async function tts(cfg, text, outDir, opts = {}) {
   cfg = nyxPath.resolveCfgPaths(cfg || {}, ['exe', 'model', 'tokenizer', 'refAudio']);
   const fail = (msg) => { if (opts.report) return { ok: false, error: msg, ms: 0 }; throw new Error(msg); };
   if (!String(cfg.template || '').trim()) return fail(t('ai.005'));
+  if (novoice.isLocalVoiceExe(cfg.exe) || novoice.mentionsLocalVoice(cfg.template)) return fail(novoice.refuse(cfg.exe || 'template').message);
   if (cfg.exe && !fs.existsSync(cfg.exe)) return fail(t('procs.001') + cfg.exe);
   const out = path.join(outDir, `tts-${Date.now().toString(36)}.wav`);
   const tf = path.join(os.tmpdir(), `nyx-tts-${Date.now()}.txt`); await fsp.writeFile(tf, text, 'utf8');
@@ -552,9 +554,10 @@ async function tts(cfg, text, outDir, opts = {}) {
   if (opts.report) return { ok: true, cmd, file: out, stdout: r.out.slice(-1500), stderr: r.err.slice(-1500), ms: Date.now() - t0 };
   return out;
 }
-// "exe --help" → lets the user see the real CLI flags of an unknown engine (vs-engine)
+// "exe --help" → lets the user see the real CLI flags of an unknown engine (never vs-engine / omnivoice-tts: v2.6.13.1)
 function exeHelp(exe) {
   exe = nyxPath.resolveForUse(exe);
+  if (novoice.isLocalVoiceExe(exe)) return Promise.resolve({ ok: false, error: novoice.refuse(exe).message });
   if (!exe || !fs.existsSync(exe)) return Promise.resolve({ ok: false, error: t('procs.001') + (exe || '—') });
   return new Promise((res) => {
     let out = ''; const ch = spawn(exe, ['--help'], { cwd: path.dirname(exe), windowsHide: true });

@@ -26,7 +26,7 @@ const TOOLS = [
   { id: 'lmstudio', name: 'LM Studio', cat: 'AI', cmds: ['lms'], paths: ['%LOCALAPPDATA%\\Programs\\LM Studio\\LM Studio.exe', '%LOCALAPPDATA%\\Programs\\lm-studio\\LM Studio.exe', '%ProgramFiles%\\LM Studio\\LM Studio.exe'], kind: 'gui', http: 'http://localhost:1234/v1/models' },
   { id: 'llama', name: 'llama-server', cat: 'AI', cmds: ['llama-server'], paths: [GVS('third_party\\llama\\llama-server.exe')], ver: ['--version'], parse: /version: (\S+)/, kind: 'cli' },
   { id: 'whisper', name: 'whisper-server', cat: 'AI', cmds: ['whisper-server'], paths: [GVS('third_party\\whisper.cpp\\build-vulkan\\bin\\Release\\whisper-server.exe')], kind: 'cli' },
-  { id: 'vsengine', name: 'vs-engine (TTS)', cat: 'AI', cmds: [], paths: [GVS('vs-engine\\engine\\build-vulkan\\Release\\vs-engine.exe')], kind: 'cli' },
+  // v2.6.13.1: the «vs-engine (TTS)» entry is removed (local voice is out; its «launch» ran vs-engine --help)
   { id: 'ollama', name: 'Ollama', cat: 'AI', cmds: ['ollama'], paths: ['%LOCALAPPDATA%\\Programs\\Ollama\\ollama.exe'], ver: ['--version'], parse: /version is (\S+)|(\d+\.\d+\.\d+)/, kind: 'cli', http: 'http://localhost:11434/api/version' },
   { id: 'tesseract', name: 'Tesseract OCR', cat: 'Media', cmds: ['tesseract'], paths: ['%ProgramFiles%\\Tesseract-OCR\\tesseract.exe'], ver: ['--version'], parse: /tesseract v?(\S+)/i, kind: 'cli' },
   { id: 'syncthing', name: 'Syncthing', cat: 'Apps', cmds: ['syncthing'], paths: ['%LOCALAPPDATA%\\Programs\\Syncthing\\syncthing.exe'], ver: ['--version'], parse: /syncthing (v\S+)/, kind: 'cli' },
@@ -69,6 +69,7 @@ async function detectAll(overrides = {}) {
   return { tools, files, platform: process.platform, at: Date.now() };
 }
 function launch(p, kind) {
+  const nv = require('./novoice'); if (nv.isLocalVoiceExe(p)) throw nv.refuse(p); // v2.6.13.1
   if (!exists(p)) throw new Error(t('systools.003') + p);
   if (kind === 'cli' && WIN) { spawn('cmd.exe', ['/c', 'start', 'cmd.exe', '/k', `"${p}" --help`], { detached: true, windowsHide: false }).unref(); return true; }
   const ch = spawn(p, [], { detached: true, stdio: 'ignore', cwd: path.dirname(p), shell: /\.(bat|cmd)$/i.test(p) }); ch.on('error', () => {}); ch.unref(); return true;
