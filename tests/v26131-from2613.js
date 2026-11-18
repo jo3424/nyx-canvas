@@ -17,7 +17,10 @@ const ok = (c, m, x) => { process.stdout.write((c ? '  ✓ ' : '  ✗ ') + m + (
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 if (!fs.existsSync(path.join(BASE, 'main', 'voice2613.js'))) { console.log('2.6.13 base not found at ' + BASE + ' (set NYX_BASE_2613)'); console.log('\nv2.6.13.1 upgrade from 2.6.13: 0 passed, 1 failed'); process.exit(1); }
 // the 2.6.13 personas fixture (dummy base64, as in the 2.6.13 tests)
-const fx = cp.execSync('git show d8d6b9e:tests/fixtures/personas-ster.json', { cwd: ROOT }).toString();
+// the 2.6.13 personas fixture: from the 2.6.13 tree if it has tests/, else from git (this repo, or NYX_REPO when run from an installed copy)
+const fx = (() => { const f = path.join(BASE, 'tests', 'fixtures', 'personas-ster.json'); if (fs.existsSync(f)) return fs.readFileSync(f, 'utf8');
+  for (const cwd of [ROOT, process.env.NYX_REPO].filter(Boolean)) { try { return cp.execSync('git show d8d6b9e:tests/fixtures/personas-ster.json', { cwd, stdio: ['ignore', 'pipe', 'ignore'] }).toString(); } catch (e) {} }
+  throw new Error('personas-ster.json fixture not found (set NYX_REPO to the git checkout)'); })();
 const PF = path.join(APPDATA, 'GPU Voice Studio', 'personas.json'); fs.mkdirSync(path.dirname(PF), { recursive: true }); fs.writeFileSync(PF, fx);
 const psVoice = () => { try { return cp.execSync('ps -eo args', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().split('\n').filter((l) => /vs-engine|omnivoice-tts/.test(l) && !/ps -eo/.test(l)); } catch (e) { return []; } };
 async function launch(root) {
