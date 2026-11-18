@@ -77,6 +77,7 @@
     "test:v2613auto": "node tests/v2613-autoscroll.js",
     "test:v26131unit": "node tests/v26131-unit.js",
     "test:v26131": "node tests/v26131.js",
+    "test:v26131up": "node tests/v26131-from2613.js",
     "test:v26122unit": "node tests/v26122-unit.js",
     "test:v26122": "node tests/v26122.js",
     "test:v26122x": "node tests/v26122-xpointer.js",
