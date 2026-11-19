@@ -9,7 +9,7 @@ const ok = (c, m, x) => { console.log((c ? '  ✓ ' : '  ✗ ') + m + (!c && x !
 
 console.log('version + leftovers');
 const pkg = require(R + '/package.json');
-ok(((pkg.version.startsWith('2.6.9') || pkg.version.startsWith('2.6.10') || pkg.version.startsWith('2.6.11') || pkg.version.startsWith('2.6.12') || pkg.version.startsWith('2.6.13')) || pkg.version === '2.6.8' || pkg.version.startsWith('2.6.8') || pkg.version === '2.6.7' || pkg.version.startsWith('2.6.7.')) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.7+/2.6.8, Electron 45.2.3', pkg.version);
+ok(((pkg.version.startsWith('2.6.9') || pkg.version.startsWith('2.6.10') || pkg.version.startsWith('2.6.11') || pkg.version.startsWith('2.6.12') || pkg.version.startsWith('2.6.13') || pkg.version.startsWith('2.7.')) || pkg.version === '2.6.8' || pkg.version.startsWith('2.6.8') || pkg.version === '2.6.7' || pkg.version.startsWith('2.6.7.')) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.7+/2.6.8, Electron 45.2.3', pkg.version);
 const core = fs.readFileSync(R + '/app/js/v2/core.js', 'utf8');
 ok(!/\bMODEL_RECS\b/.test(core) && !/\bMODEL_FIT_NOTE\b/.test(core), 'MODEL_RECS / MODEL_FIT_NOTE removed from core.js');
 ok(!/core\.r_fit/.test(core), 'core.r_fit not referenced in core.js');

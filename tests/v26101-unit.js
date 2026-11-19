@@ -186,8 +186,8 @@ function fakeRouter(port, apiKey) {
 
   // ---- 7) docs / version ----
   const pkg = require('../package.json'); const CH = require('../CHANGELOG.json');
-  ok(['2.6.10.1', '2.6.11', '2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1'].includes(pkg.version) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.10.1, Electron 45.2.3', pkg.version);
-  ok(['2.6.10.1', '2.6.11', '2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1'].includes(Object.keys(CH)[0]) && CH['2.6.10.1'].el.length === 1 && CH['2.6.10.1'].en.length === 1, 'CHANGELOG 2.6.10.1 first, 1 item');
+  ok(['2.6.10.1', '2.6.11', '2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1', '2.7.0'].includes(pkg.version) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.10.1, Electron 45.2.3', pkg.version);
+  ok(['2.6.10.1', '2.6.11', '2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1', '2.7.0'].includes(Object.keys(CH)[0]) && CH['2.6.10.1'].el.length === 1 && CH['2.6.10.1'].en.length === 1, 'CHANGELOG 2.6.10.1 first, 1 item');
   const el = require('../app/locales/el.json'), en = require('../app/locales/en.json');
   ok(['key_active', 'copy', 'key_copied', 'warn_open', 'warn_mismatch', 'warn_autostart', 'autostart_rewrite', 'autostart_rewritten'].every((k) => el['v26101.' + k] && en['v26101.' + k]), 'Greek + English texts');
   ok(el['v26101.key_active'] === 'Κλειδί router: ενεργό' && el['v26101.copy'] === 'Αντιγραφή', 'Hub labels «Κλειδί router: ενεργό» / «Αντιγραφή»');

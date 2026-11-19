@@ -84,12 +84,12 @@ const W = (n, w = 120) => Array.from({ length: n }, () => w);
   ok(el.t_library === JSON.parse(cp.execSync('git show b271669:app/locales/el.json', { cwd: R }).toString()).t_library, 't_library unchanged (used by the insert menu)');
   ok(/MINZ: 0\.05, MAXZ: 8/.test(read('app/js/canvas.js')), 'zoom stays 5 %–800 %');
   const pkg = JSON.parse(read('package.json')); const lock = JSON.parse(read('package-lock.json'));
-  ok(['2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1'].includes(pkg.version) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.11.1, Electron 45.2.3', pkg.version);
-  ok(['2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1'].includes(lock.version) && lock.packages[''].version === lock.version, 'package-lock version 2.6.11.1', [lock.version, lock.packages[''].version]);
+  ok(['2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1', '2.7.0'].includes(pkg.version) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.11.1, Electron 45.2.3', pkg.version);
+  ok(['2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1', '2.7.0'].includes(lock.version) && lock.packages[''].version === lock.version, 'package-lock version 2.6.11.1', [lock.version, lock.packages[''].version]);
   const lockDiff = cp.execSync('git diff b271669 -- package-lock.json', { cwd: R }).toString().split('\n').filter((l) => /^[+-]\s/.test(l));
-  ok(lockDiff.length <= 4 && lockDiff.every((l) => /"version": "2\.6\.(5\.1|11\.1|12|12\.1|12\.2|13|13\.1)"/.test(l)), 'package-lock: only the version fields changed', lockDiff);
+  ok(lockDiff.length <= 4 && lockDiff.every((l) => /"version": "2\.(6\.(5\.1|11\.1|12|12\.1|12\.2|13|13\.1)|7\.0)"/.test(l)), 'package-lock: only the version fields changed', lockDiff);
   const CH = JSON.parse(read('CHANGELOG.json'));
-  ok(['2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1'].includes(Object.keys(CH)[0]) && CH['2.6.11.1'].el.length === 3 && CH['2.6.11.1'].en.length === 3 && CH['2.6.11'], 'CHANGELOG 2.6.11.1 first (3 items), 2.6.11 kept');
+  ok(['2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1', '2.7.0'].includes(Object.keys(CH)[0]) && CH['2.6.11.1'].el.length === 3 && CH['2.6.11.1'].en.length === 3 && CH['2.6.11'], 'CHANGELOG 2.6.11.1 first (3 items), 2.6.11 kept');
   const mainDiff = cp.execSync('git diff --name-only b271669 -- main main.js preload.js boot.js', { cwd: R }).toString().trim();
   const V2613 = ['main/voice2613.js', 'main/v2.js', 'main/ipc-guard.js', 'main/vsengine.js', 'main/novoice.js', 'main/ai.js', 'main/procs.js', 'main/systools.js']; // 2.6.13 voice + its 2.6.13.1 removal (never start vs-engine): tests/v26131-unit.js checks these are only removals + the novoice guard
   ok(mainDiff.split('\n').filter((f) => f && !V2613.includes(f)).length === 0, 'no change in main process / preload / IPC / permissions (2.6.13 voice files excepted)', mainDiff);
