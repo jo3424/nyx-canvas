@@ -77,7 +77,7 @@ async function pass(name, real, w, h, shotTag) {
   ok(stB.start === stC.start, `${name}: after release the bar stays where it is (no more scrolling)`, { stA, stB, stC });
   // 2) speed ∝ closeness
   const rate = async (dx) => {
-    await reset(); const v = (await st()).vis; await grab(v[1]); await go(B.right - dx, B.y, 8);
+    await reset(); const v = (await st()).vis; await grab(v[1]); const Bd = await bar(); /* 2.7.0: #tabs is as wide as its visible tabs — measure it after reset, not once */ await go(Bd.right - dx, Bd.y, 8);
     const a = (await st()).start; await sleep(1000); const b = (await st()).start;
     await go((B.left + B.right) / 2, B.y, 4); await P.esc(); await P.up(); await sleep(300); return b - a;
   };
