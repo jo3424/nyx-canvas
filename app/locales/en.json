@@ -2212,5 +2212,6 @@
  "v270.vram_adapter": "card total (Windows): {v0}",
  "v270.chip_vram_procs": "VRAM of the router's processes (Windows per-process measurement)",
  "v270.lbl_board_del": "Delete board “{name}”",
- "v270.lbl_board_back": "Restore board “{name}”"
+ "v270.lbl_board_back": "Restore board “{name}”",
+ "v270.rel_in_1h": "in 1 h"
 }

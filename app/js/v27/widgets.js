@@ -46,7 +46,7 @@ const Widgets = {
     body.innerHTML = `<div class="wg-err"><span class="wg-err-ico">${iconSvg('triangle-alert', 22)}</span><b>${esc(t('v270.err_title'))}</b><span class="muted small">${esc(String((e && e.message) || e || '').slice(0, 160))}</span><button class="btn sm ghost act" data-act="w-retry">${iconSvg('refresh-cw', 13)} ${esc(t('v270.retry'))}</button></div>`;
   },
   chip(n, text, hot) { const c = n.querySelector('.wg-chip'); if (!c) return; c.hidden = !text; c.textContent = text || ''; c.classList.toggle('hot', !!hot); },
-  relText(r) { return r.k === 'in_h' ? t('v270.rel_in_h', { n: r.n }) : r.k === 'in_min' ? t('v270.rel_in_min', { n: r.n }) : r.k === 'tomorrow' ? t('v2693.tomorrow') : r.k === 'days' ? t('v270.rel_days', { n: r.n }) : r.k === 'past_today' ? t('v270.rel_past_today') : t('v270.rel_past'); },
+  relText(r) { return r.k === 'in_h' ? (r.n === 1 ? t('v270.rel_in_1h') : t('v270.rel_in_h', { n: r.n })) : r.k === 'in_min' ? t('v270.rel_in_min', { n: r.n }) : r.k === 'tomorrow' ? t('v2693.tomorrow') : r.k === 'days' ? t('v270.rel_days', { n: r.n }) : r.k === 'past_today' ? t('v270.rel_past_today') : t('v270.rel_past'); },
   hm(at) { const d = new Date(at); return pad(d.getHours()) + ':' + pad(d.getMinutes()); },
   whenText(e) { const dd = Math.round((new Date(e.at).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 864e5); const timed = !/^\d{4}-\d\d-\d\d$/.test(String(e.raw || '')) && (new Date(e.at).getHours() || new Date(e.at).getMinutes()); const tm = timed ? ' ' + this.hm(e.at) : ''; return dd === 0 ? t('v2693.today') + tm : dd === 1 ? t('v2693.tomorrow') + ' ' + fmtDM(new Date(e.at)) + tm : fmtDay(new Date(e.at)) + tm; },
   KIND_ICON: { reminder: 'alarm-clock', countdown: 'timer', show: 'tv', sub: 'credit-card' },
@@ -57,7 +57,7 @@ const Widgets = {
     const k = it.wkind; const sz = it.wsize || 'm'; let html = ''; let chip = '', hot = false;
     if (k === 'subs') {
       const S = d; const up = S.upcoming.slice(0, sz === 's' ? 0 : sz === 'l' ? 4 : 2);
-      html = `<div class="wg-lab muted">${esc(t('v270.this_month', { v0: S.month.name + ' ' + S.month.y }))}</div><div class="wg-big"><b data-wsubs-total="${S.total}">${esc(S.totalText)}</b><span class="muted">${esc(t('v270.of_active', { n: S.active }))}</span></div><div class="subx-bar wg-bar"><i style="width:${Math.round(S.pct * 100)}%"></i></div><div class="wg-lab muted small">${esc(t('v270.paid_left', { v0: S.paidText, v1: S.dueText, v2: S.month.lastDM }))}</div>`
+      html = `<div class="wg-lab muted">${esc(t('v270.this_month', { v0: S.month.name + ' ' + S.month.y }))}</div><div class="wg-big act live" data-act="w-subs" style="cursor:pointer"><b data-wsubs-total="${S.total}">${esc(S.totalText)}</b><span class="muted">${esc(t('v270.of_active', { n: S.active }))}</span></div><div class="subx-bar wg-bar"><i style="width:${Math.round(S.pct * 100)}%"></i></div><div class="wg-lab muted small">${esc(t('v270.paid_left', { v0: S.paidText, v1: S.dueText, v2: S.month.lastDM }))}</div>`
         + (up.length ? `<div class="wg-list">${up.map((u) => this.row({ id: u.id, kind: 'sub', emo: u.icon || '💳', title: u.name, color: u.color, sub: u.dm + ' · ' + Subs.when(u) }, u.text, false, 'w-subs')).join('')}</div>` : (sz !== 's' && !S.upcoming.length ? `<div class="wg-empty muted">${esc(t('sub_empty'))}</div>` : ''));
       const nx = S.upcoming[0]; chip = nx ? nx.text + ' · ' + Subs.when(nx) : '';
     } else if (k === 'reminders') {

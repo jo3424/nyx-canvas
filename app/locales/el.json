@@ -2212,5 +2212,6 @@
  "v270.vram_adapter": "σύνολο κάρτας (Windows): {v0}",
  "v270.chip_vram_procs": "VRAM των διεργασιών του router (μέτρηση των Windows ανά διεργασία)",
  "v270.lbl_board_del": "Διαγραφή πίνακα «{name}»",
- "v270.lbl_board_back": "Επαναφορά πίνακα «{name}»"
+ "v270.lbl_board_back": "Επαναφορά πίνακα «{name}»",
+ "v270.rel_in_1h": "σε 1 ώρα"
 }
