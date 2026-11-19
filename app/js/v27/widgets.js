@@ -19,7 +19,7 @@ const Widgets = {
     const D = NyxWidgetData; const now = Date.now(); const st = Store.state;
     if (it.wkind === 'subs') { const S = this.subsSummary(); if (!S) throw new Error(t('v270.err_calc')); return S; }
     const subsUp = (() => { const S = this.subsSummary(); return S ? S.upcoming : null; })();
-    if (it.wkind === 'reminders') return D.reminders(st, now, it.wsize === 's' ? 1 : it.wsize === 'l' ? 5 : 3);
+    if (it.wkind === 'reminders') return D.reminders(st, now, it.wsize === 'l' ? 5 : 3);
     if (it.wkind === 'today') return D.today(st, now, { subsUpcoming: subsUp });
     if (it.wkind === 'calendar') { const off = this.months.get(it.id) || 0; const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + off); return D.calendar(st, d.getFullYear(), d.getMonth() + 1, now, { subsUpcoming: subsUp }); }
     if (it.wkind === 'tag') return { ...D.tagged(st, it.wtag, it.wsize === 's' ? 3 : it.wsize === 'l' ? 9 : 5), tags: D.allTags(st).slice(0, 8) };
@@ -48,7 +48,7 @@ const Widgets = {
   chip(n, text, hot) { const c = n.querySelector('.wg-chip'); if (!c) return; c.hidden = !text; c.textContent = text || ''; c.classList.toggle('hot', !!hot); },
   relText(r) { return r.k === 'in_h' ? t('v270.rel_in_h', { n: r.n }) : r.k === 'in_min' ? t('v270.rel_in_min', { n: r.n }) : r.k === 'tomorrow' ? t('v2693.tomorrow') : r.k === 'days' ? t('v270.rel_days', { n: r.n }) : r.k === 'past_today' ? t('v270.rel_past_today') : t('v270.rel_past'); },
   hm(at) { const d = new Date(at); return pad(d.getHours()) + ':' + pad(d.getMinutes()); },
-  whenText(e) { const dd = Math.round((new Date(e.at).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 864e5); const timed = !/^\d{4}-\d\d-\d\d$/.test(String(e.raw || '')) && (new Date(e.at).getHours() || new Date(e.at).getMinutes()); const tm = timed ? ' ' + this.hm(e.at) : ''; return dd === 0 ? t('v2693.today') + tm : dd === 1 ? t('v2693.tomorrow') + ' ' + fmtDM(e.at) + tm : fmtDay(e.at) + tm; },
+  whenText(e) { const dd = Math.round((new Date(e.at).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 864e5); const timed = !/^\d{4}-\d\d-\d\d$/.test(String(e.raw || '')) && (new Date(e.at).getHours() || new Date(e.at).getMinutes()); const tm = timed ? ' ' + this.hm(e.at) : ''; return dd === 0 ? t('v2693.today') + tm : dd === 1 ? t('v2693.tomorrow') + ' ' + fmtDM(new Date(e.at)) + tm : fmtDay(new Date(e.at)) + tm; },
   KIND_ICON: { reminder: 'alarm-clock', countdown: 'timer', show: 'tv', sub: 'credit-card' },
   row(e, right, hot, act) {
     return `<div class="wg-row${hot ? ' hot' : ''} act live" data-act="${act || 'w-open'}" data-ref="${esc(e.id)}" data-rkind="${esc(e.kind || '')}" style="--rc:${esc(e.color || (e.kind === 'sub' ? '#4fbf7a' : e.birthday ? '#e3a33b' : e.kind === 'reminder' ? '#e0607a' : 'var(--accent)'))}"><span class="wg-ri">${e.emo && e.kind !== 'reminder' ? esc(e.emo) : iconSvg(e.birthday ? 'cake' : (this.KIND_ICON[e.kind] || 'dot'), 14)}</span><span class="wg-rm"><b>${esc(e.title || '—')}</b><span class="muted">${esc(e.sub || this.whenText(e))}</span></span>${right ? `<span class="wg-rr${hot ? ' hot' : ''}">${esc(right)}</span>` : ''}</div>`;
@@ -66,7 +66,7 @@ const Widgets = {
     } else if (k === 'today') {
       const now = new Date(); const date = now.toLocaleDateString(LANG === 'el' ? 'el-GR' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
       html = `<div class="wg-date"><b>${esc(date.charAt(0).toUpperCase() + date.slice(1))}</b></div>` + (d.items.length ? `<div class="wg-list">${d.items.slice(0, sz === 's' ? 2 : sz === 'l' ? 6 : 4).map((e) => this.row({ ...e, sub: e.kind === 'sub' ? (e.amount || '') + ' · ' + t('v270.charge') : this.whenText(e) }, e.kind === 'sub' ? '' : this.relText(e.rel), e.rel.soon)).join('')}</div>` : `<div class="wg-empty muted">${esc(t('v270.today_empty'))}</div>`)
-        + `<div class="wg-more-line muted small">${esc(d.tomorrow ? t('v270.tomorrow_n', { n: d.tomorrow }) : d.next ? t('v270.next_on', { v0: fmtDay(d.next.at), v1: d.next.title }) : t('v270.nothing_next'))}</div>`;
+        + `<div class="wg-more-line muted small">${esc(d.tomorrow ? t('v270.tomorrow_n', { n: d.tomorrow }) : d.next ? t('v270.next_on', { v0: fmtDay(new Date(d.next.at)), v1: d.next.title }) : t('v270.nothing_next'))}</div>`;
       chip = d.items.length ? t('v270.chip_today', { n: d.items.length }) : '';
     } else if (k === 'calendar') {
       const mn = new Date(d.year, d.month - 1, 1).toLocaleDateString(LANG === 'el' ? 'el-GR' : 'en-GB', { month: 'long', year: 'numeric' });
@@ -75,7 +75,7 @@ const Widgets = {
       const cell = (c) => `<button class="wg-day act live${c.inMonth ? '' : ' out'}${c.today ? ' today' : ''}${pick === c.day ? ' picked' : ''}" data-act="w-day" data-day="${c.day}" data-n="${c.n}">${c.d}${c.kinds.length ? `<i class="wg-dots">${c.kinds.slice(0, 3).map((x) => `<s class="k-${x}"></s>`).join('')}</i>` : ''}</button>`;
       let foot = '';
       if (pick) { const evs = NyxWidgetData.events(Store.state, { subsUpcoming: (this.subsSummary() || {}).upcoming }).filter((e) => e.day === pick); foot = `<div class="wg-cal-foot" data-wpick="${pick}"><b>${esc(fmtDay(pick))}</b> · ${evs.length ? evs.slice(0, 3).map((e) => esc(e.title)).join(' · ') : esc(t('v270.cal_none'))}</div>`; }
-      else if (sz !== 's') foot = `<div class="wg-cal-foot muted">${d.upcoming.map((e) => esc(fmtDay(e.at) + ' ' + (e.kind === 'sub' ? t('v270.charge_short') : e.title.split(/\s+/).slice(0, 2).join(' ')))).join(' · ') || esc(t('v270.cal_none'))}</div>`;
+      else if (sz !== 's') foot = `<div class="wg-cal-foot muted">${d.upcoming.map((e) => esc(fmtDay(new Date(e.at)) + ' ' + (e.kind === 'sub' ? t('v270.charge_short') : e.title.split(/\s+/).slice(0, 2).join(' ')))).join(' · ') || esc(t('v270.cal_none'))}</div>`;
       html = `<div class="wg-cal-head"><b>${esc(mn.charAt(0).toUpperCase() + mn.slice(1))}</b><span class="grow"></span><button class="mini act live" data-act="w-prev">‹</button><button class="mini act live" data-act="w-next">›</button></div><div class="wg-cal"><div class="wg-wd">${wd.map((x) => `<span>${esc(x)}</span>`).join('')}</div>${d.weeks.filter((w, i) => i < 5 || w.some((c) => c.inMonth)).map((w) => `<div class="wg-wk">${w.map(cell).join('')}</div>`).join('')}</div>${foot}`;
       const tk = d.weeks.flat().find((c) => c.today); chip = tk && tk.n ? t('v270.chip_today', { n: tk.n }) : '';
     } else if (k === 'tag') {
