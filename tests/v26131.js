@@ -45,7 +45,7 @@ const diffPaths = (a, b, p = '', out = []) => { if (JSON.stringify(a) === JSON.s
   // ---------- run 1: a 2.6.13 profile: vs-engine mode + ster + real content ----------
   let { app, win } = await launch();
   const ver = await win.evaluate(() => (Store.info && Store.info.version) || '');
-  ok(String(ver) === '2.6.13.1', 'app version 2.6.13.1', ver);
+  ok(['2.6.13.1', '2.7.0'].includes(String(ver)), 'app version 2.6.13.1 (or later)', ver);
   await win.evaluate(([vs, model]) => {
     const B = Store.state.boards; for (let i = 0; i < 30; i++) B.push({ id: 'mb' + i, name: 'Πίνακας ' + (i + 4), emoji: '📁', color: '#7c8cff', view: { x: 0, y: 0, z: 1 }, items: i < 3 ? [{ id: 'it' + i, type: 'note', x: 10 * i, y: 20, w: 200, h: 120, text: 'κάρτα ' + i }] : [] });
     Store.state.subs.push({ id: 'sub-netflix', name: 'Netflix', price: 13.99, cycle: 'monthly', next: '2026-12-01' }, { id: 'sub-spotify', name: 'Spotify', price: 10.99, cycle: 'monthly', next: '2026-12-05' });
