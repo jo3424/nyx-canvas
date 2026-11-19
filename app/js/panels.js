@@ -417,7 +417,8 @@ const Panels = {
     this.menu(r.right + 10, r.top - 120, [
       [I('image'), t('ins_image'), () => Features.pickAndAdd('image')], [I('video'), t('ins_video'), () => Features.pickAndAdd('video')], [I('music'), t('ins_audio'), () => Features.pickAndAdd('audio')], [I('paperclip'), t('ins_file'), () => Features.pickAndAdd('any')], [I('link'), t('ins_link'), () => Features.addLink()], '-',
       [I('timer'), t('ins_countdown'), () => Features.newCountdown()], [I('tv'), t('ins_show'), () => Features.showSearch()], [I('alarm-clock'), t('ins_reminder'), () => Features.newReminderCard()], [I('mic'), t('ins_voice'), () => Voice.toggle()], '-',
-      [I('credit-card'), t('ins_subs'), () => Subs.toCanvas()], [I('radar'), t('ins_tracker'), () => Features.newTracker()], [I('frame'), t('ins_frame'), () => { const c = Canvas.center(); Features.addAt({ type: 'frame', w: 640, h: 420, title: LANG === 'el' ? t('items.007') : 'Frame', z: 0 }, c.x, c.y); }]]);
+      [I('credit-card'), t('ins_subs'), () => Subs.toCanvas()], [I('radar'), t('ins_tracker'), () => Features.newTracker()], [I('frame'), t('ins_frame'), () => { const c = Canvas.center(); Features.addAt({ type: 'frame', w: 640, h: 420, title: LANG === 'el' ? t('items.007') : 'Frame', z: 0 }, c.x, c.y); }],
+      '-', [I('layout-grid'), t('v270.ins_widget'), () => Widgets.gallery(), 'ins-widget']]); // v2.7.0: «Widget…» opens the gallery (mockup 09)
   },
   // ---------- contextual style bar ----------
   hideStylebar() { $('#stylebar').hidden = true; },
