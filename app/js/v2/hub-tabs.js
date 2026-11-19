@@ -174,9 +174,17 @@ Hub.paintHubTabs = function (panes, show) {
         if (el._fillTok !== tok || !document.contains(el)) return;
         const ad2 = pf && pf.gpu && pf.gpu.adapter;
         const known = ad2 && (ad2.used != null || ad2.total);
-        vramB.textContent = known ? fmtGB(ad2.used) : '—';
-        if (known) vramB.setAttribute('data-gvs-vram', String(ad2.used || 0));
-        vramS.textContent = known ? t('v267.stat_vram', { v0: fmtGB(ad2.total) }) : (pf && pf._timeout ? t('v2691.vram_timeout') : t('v267.stat_vram_unknown') + (pf?.gpu?.error ? ' · ' + pf.gpu.error : ''));
+        // v2.7.0: VRAM from the real processes (gpu.ps1 → per-process dedicated VRAM); the adapter total only when Windows gives no per-process numbers
+        const VP = pf && !pf._timeout && typeof NyxFix270 !== 'undefined' ? NyxFix270.vramFromProcs(pf) : null;
+        if (VP) {
+          vramB.textContent = fmtGB(VP.total); vramB.setAttribute('data-gvs-vram', String(VP.total)); vramB.setAttribute('data-vram-src', 'procs');
+          vramS.textContent = t('v270.vram_procs', { v0: VP.adapterTotal ? fmtGB(VP.adapterTotal) : '—', v1: VP.top.slice(0, 2).map((x) => x.label + ' ' + fmtNum(x.vram / 1073741824, 1)).join(' · ') });
+          vramS.title = VP.top.map((x) => x.label + (x.n > 1 ? ' ×' + x.n : '') + ': ' + fmtGB(x.vram)).join('\n') + (VP.adapterUsed != null ? '\n' + t('v270.vram_adapter', { v0: fmtGB(VP.adapterUsed) }) : '');
+        } else {
+          vramB.textContent = known ? fmtGB(ad2.used) : '—';
+          if (known) { vramB.setAttribute('data-gvs-vram', String(ad2.used || 0)); vramB.setAttribute('data-vram-src', 'adapter'); }
+          vramS.textContent = known ? t('v267.stat_vram', { v0: fmtGB(ad2.total) }) : (pf && pf._timeout ? t('v2691.vram_timeout') : t('v267.stat_vram_unknown') + (pf?.gpu?.error ? ' · ' + pf.gpu.error : ''));
+        }
         vramS.setAttribute('data-st-done', '1');
         Hub.paintVramWarn(vramWarn, pf && !pf._timeout ? pf : null);
         if (el._live) { el._live.vramB = vramB.textContent; el._live.vramS = vramS.textContent; }
@@ -317,7 +325,7 @@ Hub.paintHubTabs = function (panes, show) {
       const ms = NyxUI.modelState(m);
       const f = fileFor(name);
       const hasVision = !!(f && mmprojs.some((x) => dirOfFile(x) && dirOfFile(x) === dirOfFile(f)));
-      const chips = NyxUI.modelChips({ id: name, bytes: m.size || m.bytes || (f && f.size) || 0, ctx: m.ctxArg || m.nCtx || 0, tps: lastId && norm(lastId) === norm(name) ? lastTps : 0, vramGB: 0, port: cfg.port || 8080, loaded: ms === 'loaded' }, LANG);
+      const chips = NyxUI.modelChips({ id: name, bytes: (typeof NyxFix270 !== 'undefined' ? NyxFix270.modelBytes(name, files).bytes : 0) || m.size || m.bytes || 0, ctx: m.ctxArg || m.nCtx || 0, tps: lastId && norm(lastId) === norm(name) ? lastTps : 0, vramGB: 0, port: cfg.port || 8080, loaded: ms === 'loaded' }, LANG);
       const chipEls = chips.map((c) => { const e = h('span', { class: 'hub-chip' + (c.known ? '' : ' off'), 'data-chip': c.k, title: t('v2612.chip_' + c.k) }, c.v); if (c.k === 'vram' && ms === 'loaded') vramChips.push(e); return e; });
       if (hasVision) chipEls.push(h('span', { class: 'hub-chip vision', 'data-chip': 'vision', title: t('v2612.vision_tip') }, h('span', { html: iconSvg('eye', 11), 'aria-hidden': 'true' }), ' ' + t('v2612.vision')));
       chipEls.push(h('span', { class: 'hub-chip lic', 'data-chip': 'license', title: lic.note || lic.license }, lic.license));
@@ -335,8 +343,10 @@ Hub.paintHubTabs = function (panes, show) {
         h('div', { class: 'hub-chips' }, ...chips.map((c) => h('span', { class: 'hub-chip', 'data-chip': c.k, title: t('v2612.chip_' + c.k) }, c.v)))));
     }
     if (vramChips.length === 1) raceMs(API.inv('perf:snapshot'), 20000, null).then((pf) => {
+      const VP = pf && typeof NyxFix270 !== 'undefined' ? NyxFix270.vramFromProcs(pf) : null; const e = vramChips[0];
+      if (VP && VP.llama > 0) { e.textContent = 'VRAM ' + fmtNum(VP.llama / 1073741824, 1); e.classList.remove('off'); e.title = t('v270.chip_vram_procs'); e.setAttribute('data-vram-src', 'procs'); return; } // v2.7.0: the router's own processes
       const ad = pf && pf.gpu && pf.gpu.adapter; if (!ad || ad.used == null) return;
-      const e = vramChips[0]; e.textContent = 'VRAM ' + fmtNum(ad.used / 1073741824, 1); e.classList.remove('off'); e.title = t('v2612.chip_vram_total');
+      e.textContent = 'VRAM ' + fmtNum(ad.used / 1073741824, 1); e.classList.remove('off'); e.title = t('v2612.chip_vram_total');
     });
     // v2.6.9.1: the mmproj hint is shown once (under the tasks); it was repeated here.
     const budget = +cfg.diskBudgetGB || 70;

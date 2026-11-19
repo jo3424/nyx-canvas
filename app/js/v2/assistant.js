@@ -470,7 +470,7 @@ const Assistant = {
       if (ev.type === 'delta') { this.paintLive(live, ev.raw || ev.text || '', ev.reasoning || ''); $('#as-msgs').scrollTop = 1e9; }
     };
     // v2.6.9: real VRAM measurement in parallel (never delays the send); one visible notice per new state
-    API.inv('perf:snapshot').then((snap) => { const w = NyxLimits.vramWarn(snap); const txt = Hub.vramText ? Hub.vramText(w) : ''; const key = w.state + ':' + (w.gvs || []).map(x => x.pid).join(','); if (txt && key !== this._vramKey && document.contains(live)) { this._vramKey = key; onNotice('warn', '⚠️ ' + txt); } else if (!txt) this._vramKey = ''; }).catch(() => {});
+    API.inv('perf:snapshot').then((snap) => { const w = NyxLimits.vramWarn(snap, { ignoreGvs: true }); /* v2.7.0: no «Voice Studio» line in the chat either (removed from the Hub in 2.6.13.1) */ const txt = Hub.vramText ? Hub.vramText(w) : ''; const key = w.state + ':' + (w.gvs || []).map(x => x.pid).join(','); if (txt && key !== this._vramKey && document.contains(live)) { this._vramKey = key; onNotice('warn', '⚠️ ' + txt); } else if (!txt) this._vramKey = ''; }).catch(() => {});
     let res;
     try { res = await this.run(text, onNotice, onDelta); } catch (e) { res = { content: '⚠️ ' + cleanErr(e), error: true }; }
     if (this._cancelled && res && !res.error) { res = { ...res, cancelled: true, content: (res.content || '') }; }
