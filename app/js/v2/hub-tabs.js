@@ -178,7 +178,7 @@ Hub.paintHubTabs = function (panes, show) {
         const VP = pf && !pf._timeout && typeof NyxFix270 !== 'undefined' ? NyxFix270.vramFromProcs(pf) : null;
         if (VP) {
           vramB.textContent = fmtGB(VP.total); vramB.setAttribute('data-gvs-vram', String(VP.total)); vramB.setAttribute('data-vram-src', 'procs');
-          vramS.textContent = t('v270.vram_procs', { v0: VP.adapterTotal ? fmtGB(VP.adapterTotal) : '—', v1: VP.top.slice(0, 2).map((x) => x.label + ' ' + fmtNum(x.vram / 1073741824, 1)).join(' · ') });
+          vramS.textContent = t('v270.vram_procs', { v0: VP.adapterTotal ? fmtGB(VP.adapterTotal) : '—', v1: VP.top.slice(0, 1).map((x) => x.label + ' ' + fmtNum(x.vram / 1073741824, 1)).join(' · ') });
           vramS.title = VP.top.map((x) => x.label + (x.n > 1 ? ' ×' + x.n : '') + ': ' + fmtGB(x.vram)).join('\n') + (VP.adapterUsed != null ? '\n' + t('v270.vram_adapter', { v0: fmtGB(VP.adapterUsed) }) : '');
         } else {
           vramB.textContent = known ? fmtGB(ad2.used) : '—';

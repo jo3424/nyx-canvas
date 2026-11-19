@@ -158,6 +158,7 @@ const Widgets = {
     paint();
     const close = Panels.modal(iconSvg('layout-grid', 18) + ' ' + esc(t('v270.gallery')), body, { wide: true });
     $('#modal .modal-box').classList.add('wg-gal-box');
+    setTimeout(() => { const f = body.querySelector('[data-gcat=all]'); if (f && !body.contains(document.activeElement)) f.focus(); }, 0); // Esc closes it even when opened from a menu
     const cleanup = () => { $('#modal .modal-box').classList.remove('wg-gal-box'); };
     setTimeout(() => { const M = $('#modal'); const o = M.onpointerdown; const obs = new MutationObserver(() => { if (M.hidden) { cleanup(); obs.disconnect(); } }); obs.observe(M, { attributes: true, attributeFilter: ['hidden'] }); }, 0);
     return close;

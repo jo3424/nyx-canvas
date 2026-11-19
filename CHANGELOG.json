@@ -1,4 +1,24 @@
 {
+ "2.7.0": {
+  "el": [
+   "Νέα widgets πάνω στον καμβά: Σήμερα, Συνδρομές, Υπενθυμίσεις, Ημερολόγιο και #tag. Παίρνουν τα στοιχεία από τις κάρτες και τις συνδρομές σου (τίποτα από το internet) και ανανεώνονται μόνα τους.",
+   "«Προσθήκη widget»: νέο κουμπί στην πάνω μπάρα και «+ → Widget…». Διαλέγεις μέγεθος (Μικρό / Μεσαίο / Μεγάλο) πριν την προσθήκη. Τα RSS, YouTube, Νερό και τα δικά σου widgets φαίνονται ήδη, αλλά έρχονται στην 2.7.1 / 2.7.2· ο Καιρός θέλει πρώτα απόφασή σου (νέα διεύθυνση internet).",
+   "Κάθε widget έχει μενού ⋯: μέγεθος, σύμπτυξη, καρφίτσωμα στο παράθυρο Widget, κλείδωμα και «Αφαίρεση» (πάει στον Κάδο, Ctrl+Z το φέρνει πίσω). Μετακινείται και αλλάζει μέγεθος όπως κάθε κάρτα. Αν μια πηγή αργεί δείχνει «φορτώνει», αν αποτύχει «Δεν φόρτωσε» με κουμπί «Ξανά».",
+   "Hub: η κάρτα του Qwen δείχνει το πραγματικό μέγεθος του μοντέλου (~17,7 GB), όχι το 1,7 GB του αρχείου MTP που βρίσκεται στον ίδιο φάκελο.",
+   "Hub: η VRAM μετριέται από τις πραγματικές διεργασίες (ό,τι ήδη έδινε το Windows ανά διεργασία στον πίνακα Απόδοσης)· βλέπεις ποιες διεργασίες την πιάνουν. Δεν προστέθηκε νέα εντολή συστήματος.",
+   "Η διαγραφή πίνακα είναι πλέον ένα βήμα αναίρεσης: με Ctrl+Z ή «Αναίρεση» ο πίνακας γυρίζει και οι κάρτες του φεύγουν από τον Κάδο.",
+   "Η προειδοποίηση «Voice Studio» βγήκε και από τη συνομιλία του βοηθού."
+  ],
+  "en": [
+   "New widgets on the canvas: Today, Subscriptions, Reminders, Calendar and #tag. They read your own cards and subscriptions (nothing from the internet) and refresh on their own.",
+   "“Add widget”: a new top-bar button and “+ → Widget…”. Pick a size (Small / Medium / Large) before adding. RSS, YouTube, Water and your own widgets are shown but arrive in 2.7.1 / 2.7.2; Weather first needs your decision (a new internet address).",
+   "Every widget has a ⋯ menu: size, collapse, pin to the Widget window, lock and “Remove” (goes to the Bin, Ctrl+Z brings it back). It moves and resizes like any card. A slow source shows “loading”, a failing one “Didn't load” with “Retry”.",
+   "Hub: the Qwen card shows the model's real size (~17.7 GB), not the 1.7 GB MTP file in the same folder.",
+   "Hub: VRAM is measured from the real processes (the per-process numbers Windows already gave to the Performance panel); you see which processes hold it. No new system command.",
+   "Deleting a board is now one undo step: Ctrl+Z or “Undo” brings the board back and its cards leave the Bin.",
+   "The “Voice Studio” warning is gone from the assistant chat too."
+  ]
+ },
  "2.6.13.1": {
   "el": [
    "Η τοπική φωνή (OmniVoice / vs-engine) αφαιρέθηκε, γιατί φόρτωνε την GPU και ο Qwen έπεφτε στα 13–17 t/s: φεύγουν η «Φωνή απάντησης», η ανάγνωση του personas.json, ο έλεγχος της θύρας 7802 και το token OmniVoice. Το Nyx δεν ξεκινά ποτέ μόνο του vs-engine ή omnivoice-tts — ούτε στην εκκίνηση, ούτε όταν μιλάει, ούτε από ρύθμιση ή κουμπί.",
