@@ -70,7 +70,7 @@ const Widgets = {
       chip = d.items.length ? t('v270.chip_today', { n: d.items.length }) : '';
     } else if (k === 'calendar') {
       const mn = new Date(d.year, d.month - 1, 1).toLocaleDateString(LANG === 'el' ? 'el-GR' : 'en-GB', { month: 'long', year: 'numeric' });
-      const wd = LANG === 'el' ? t('v270.wd_el').split(',') : t('v270.wd_en').split(',');
+      const wd = t('v270.wd').split(',');
       const pick = this.picked.get(it.id);
       const cell = (c) => `<button class="wg-day act live${c.inMonth ? '' : ' out'}${c.today ? ' today' : ''}${pick === c.day ? ' picked' : ''}" data-act="w-day" data-day="${c.day}" data-n="${c.n}">${c.d}${c.kinds.length ? `<i class="wg-dots">${c.kinds.slice(0, 3).map((x) => `<s class="k-${x}"></s>`).join('')}</i>` : ''}</button>`;
       let foot = '';
