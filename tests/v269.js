@@ -84,7 +84,7 @@ async function say(win, text) {
   const router = await startRouter();
   const { app, win } = await launch();
   const ver = await win.evaluate(() => (Store.info && Store.info.version) || '');
-  ok(String(ver).includes('2.6.9') || String(ver).startsWith('2.6.10') || String(ver).startsWith('2.6.11') || String(ver).startsWith('2.6.12') || String(ver).startsWith('2.6.13'), 'app version 2.6.9', ver);
+  ok(String(ver).includes('2.6.9') || String(ver).startsWith('2.6.10') || String(ver).startsWith('2.6.11') || String(ver).startsWith('2.6.12') || String(ver).startsWith('2.6.13') || String(ver).startsWith('2.7.'), 'app version 2.6.9', ver);
   await win.evaluate((a) => {
     Store.state.settings.theme = 'midnight'; Theme.apply(Store.state.settings);
     const A = Store.state.settings.ai; const L = A.providers.find((p) => p.id === 'llama');
