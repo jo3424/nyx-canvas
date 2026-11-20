@@ -108,10 +108,10 @@ for (const k of ['spawn', 'execFile', 'exec', 'fork', 'spawnSync', 'execFileSync
   const haveBase = git('cat-file -e ' + base) !== null;
   if (haveBase) {
     const names = git(`diff --name-status ${base} -- main`).trim().split('\n').filter(Boolean);
-    const allowed = { 'D\tmain/vsengine.js': 1, 'D\tmain/voice2613.js': 1, 'A\tmain/novoice.js': 1, 'M\tmain/v2.js': 1, 'M\tmain/ipc-guard.js': 1, 'M\tmain/ai.js': 1, 'M\tmain/systools.js': 1, 'M\tmain/procs.js': 1 };
+    const allowed = { 'D\tmain/vsengine.js': 1, 'D\tmain/voice2613.js': 1, 'A\tmain/novoice.js': 1, 'M\tmain/v2.js': 1, 'M\tmain/ipc-guard.js': 1, 'M\tmain/ai.js': 1, 'M\tmain/systools.js': 1, 'M\tmain/procs.js': 1, 'A\tmain/today271.js': 1 }; // + 2.7.1 «Σήμερα» (tests/v271-unit.js)
     ok(names.every((n) => allowed[n]), '(δ) main/ vs 2.6.13: only the voice removals + main/novoice.js + the guard lines', names);
     const add = git(`diff -U0 ${base} -- main app/js app/index.html`).split('\n').filter((l) => /^\+(?!\+\+)/.test(l));
-    ok(!add.some((l) => /https?:\/\//.test(l)), '(δ) no new URL in the added lines', add.filter((l) => /https?:\/\//.test(l)));
+    ok(!add.some((l) => /https?:\/\//.test(l) && !/^\+const URL_FIXED = 'https:\/\/api\.open-meteo\.com\/v1\/forecast\?/.test(l)), '(δ) no new URL in the added lines (2.7.1: the one approved Open-Meteo URL)', add.filter((l) => /https?:\/\//.test(l)));
     ok(!add.some((l) => /\b(spawn|execFile|exec|fork)\s*\(/.test(l) && !/^\+\s*\/\//.test(l)), '(δ) no new spawn / exec in the added lines', add.filter((l) => /\b(spawn|execFile|exec|fork)\s*\(/.test(l)));
     for (const f of ['main/ai.js', 'main/systools.js', 'main/procs.js']) { const d = git(`diff -U0 ${base} -- ${f}`).split('\n').filter((l) => /^[-+](?![-+])/.test(l)); ok(d.filter((l) => l[0] === '-').every((l) => /vsengine|vs-engine|exe --help/.test(l)) && d.filter((l) => l[0] === '+').every((l) => /novoice|2\.6\.13\.1/.test(l)), `(δ) ${f}: only the novoice guard added`, d); }
     const keep = git(`diff ${base} -- app/js/v26/autoscroll2613.js app/js/v26/tabdrag26122.js app/js/v26/tabs26121.js tests/v2613-autoscroll.js`);

@@ -87,11 +87,11 @@ const W = (n, w = 120) => Array.from({ length: n }, () => w);
   ok(['2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1', '2.7.0', '2.7.1'].includes(pkg.version) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.11.1, Electron 45.2.3', pkg.version);
   ok(['2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1', '2.7.0', '2.7.1'].includes(lock.version) && lock.packages[''].version === lock.version, 'package-lock version 2.6.11.1', [lock.version, lock.packages[''].version]);
   const lockDiff = cp.execSync('git diff b271669 -- package-lock.json', { cwd: R }).toString().split('\n').filter((l) => /^[+-]\s/.test(l));
-  ok(lockDiff.length <= 4 && lockDiff.every((l) => /"version": "2\.(6\.(5\.1|11\.1|12|12\.1|12\.2|13|13\.1)|7\.0)"/.test(l)), 'package-lock: only the version fields changed', lockDiff);
+  ok(lockDiff.length <= 4 && lockDiff.every((l) => /"version": "2\.(6\.(5\.1|11\.1|12|12\.1|12\.2|13|13\.1)|7\.[01])"/.test(l)), 'package-lock: only the version fields changed', lockDiff);
   const CH = JSON.parse(read('CHANGELOG.json'));
   ok(['2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1', '2.7.0', '2.7.1'].includes(Object.keys(CH)[0]) && CH['2.6.11.1'].el.length === 3 && CH['2.6.11.1'].en.length === 3 && CH['2.6.11'], 'CHANGELOG 2.6.11.1 first (3 items), 2.6.11 kept');
   const mainDiff = cp.execSync('git diff --name-only b271669 -- main main.js preload.js boot.js', { cwd: R }).toString().trim();
-  const V2613 = ['main/voice2613.js', 'main/v2.js', 'main/ipc-guard.js', 'main/vsengine.js', 'main/novoice.js', 'main/ai.js', 'main/procs.js', 'main/systools.js']; // 2.6.13 voice + its 2.6.13.1 removal (never start vs-engine): tests/v26131-unit.js checks these are only removals + the novoice guard
+  const V2613 = ['main/voice2613.js', 'main/v2.js', 'main/ipc-guard.js', 'main/vsengine.js', 'main/novoice.js', 'main/ai.js', 'main/procs.js', 'main/systools.js', 'main.js', 'main/today271.js']; /* + 2.7.1 «Σήμερα» weather: main/today271.js, 1 line in main.js, 1 IPC entry — tests/v271-unit.js checks exactly that */ // 2.6.13 voice + its 2.6.13.1 removal (never start vs-engine): tests/v26131-unit.js checks these are only removals + the novoice guard
   ok(mainDiff.split('\n').filter((f) => f && !V2613.includes(f)).length === 0, 'no change in main process / preload / IPC / permissions (2.6.13 voice files excepted)', mainDiff);
   ok(cp.execSync('git diff b271669 -- main/update-key.js', { cwd: R }).toString() === '', 'trusted update keys unchanged');
   let pk = ''; try { pk = cp.execSync('git grep -l -I -E "BEGIN [A-Z ]*PRIVATE KEY" -- . ":!tests"', { cwd: R }).toString().trim(); } catch (e) { pk = ''; }

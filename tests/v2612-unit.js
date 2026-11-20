@@ -128,7 +128,7 @@ const W = (n, w = 120) => Array.from({ length: n }, () => w);
   ok(['2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1', '2.7.0', '2.7.1'].includes(Object.keys(CH)[0]) && CH['2.6.12'].el.length === 3 && CH['2.6.12'].en.length === 3 && CH['2.6.11.1'], 'CHANGELOG 2.6.12 first (3 items), 2.6.11.1 kept');
   let diff = '';
   try { diff = cp.execSync('git diff --name-only fd0e31f -- main/ preload.js app/preload.js 2>/dev/null', { cwd: R }).toString().trim(); } catch (e) { diff = 'ERR'; }
-  const V2613 = ['main/voice2613.js', 'main/v2.js', 'main/ipc-guard.js', 'main/vsengine.js', 'main/novoice.js', 'main/ai.js', 'main/procs.js', 'main/systools.js']; // 2.6.13 voice + its 2.6.13.1 removal (never start vs-engine): tests/v26131-unit.js checks these are only removals + the novoice guard
+  const V2613 = ['main/voice2613.js', 'main/v2.js', 'main/ipc-guard.js', 'main/vsengine.js', 'main/novoice.js', 'main/ai.js', 'main/procs.js', 'main/systools.js', 'main.js', 'main/today271.js']; /* + 2.7.1 «Σήμερα» weather: main/today271.js, 1 line in main.js, 1 IPC entry — tests/v271-unit.js checks exactly that */ // 2.6.13 voice + its 2.6.13.1 removal (never start vs-engine): tests/v26131-unit.js checks these are only removals + the novoice guard
   ok(diff.split('\n').filter((f) => f && !V2613.includes(f)).length === 0, 'no main-process / preload change (router & model behaviour untouched; 2.6.13 voice files excepted)', diff);
   const html = read('app/index.html');
   ok(/v2611\.css[\s\S]*v2612\.css/.test(html) && /ui2611\.js[\s\S]*ui2612\.js/.test(html), 'v2612.css / ui2612.js loaded after 2.6.11');
