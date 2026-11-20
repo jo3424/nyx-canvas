@@ -25,7 +25,7 @@ const resp = (txt, o = {}) => ({ ok: o.status ? o.status < 400 : true, status: o
   ok((srcMain.match(/https?:\/\//g) || []).length === 1, 'main/today271.js contains exactly one URL', srcMain.match(/https?:\/\/[^'"\s]+/g));
   ok(M.TIMEOUT_MS === 8000 && M.MAX_BYTES === 65536 && M.EVERY_MS === 1800000 && M.RETRY1_MS === 600000 && M.RETRY2_MS === 1800000, '8 s timeout, 64 KB cap, every 30′, retry 10′ then 30′');
   // ---- fetchFixed ----
-  let seen = null; const body = FX.build(new Date(2026, 10, 25, 14, 10));
+  let seen = null; const body = FX.build(new Date('2026-11-25T14:10:00+02:00'));
   const d1 = await M.fetchFixed(async (url, opts) => { seen = { url, opts }; return resp(JSON.stringify(body)); }, M.URL_FIXED);
   ok(seen.url === M.URL_FIXED && seen.opts.method === 'GET' && seen.opts.redirect === 'error' && seen.opts.credentials === 'omit', 'GET, no redirects, no cookies', seen.opts);
   ok(d1.cur.t === 15.2 && d1.cur.code === 2 && d1.cur.wd === 315 && d1.hours.length === 24 && d1.hours[0].time === '2026-11-25T14:00', 'answer reduced to current + 24 hours', d1.cur);
@@ -88,12 +88,13 @@ const resp = (txt, o = {}) => ({ ok: o.status ? o.status < 400 : true, status: o
   ok(allCodes.every((c) => EL[W(c, 1)[1]] && EN[W(c, 1)[1]] && EL[W(c, 1)[1]] !== '—'), 'every WMO code has a Greek and English text');
   ok(tr(W(2, 1)[1]) === 'Λίγα σύννεφα' && tr(W(0, 0)[1]) === 'Ξαστεριά' && tr(W(96, 1)[1]) === 'Καταιγίδα με χαλάζι', 'texts as the mockup (Λίγα σύννεφα, Ξαστεριά, Καταιγίδα με χαλάζι)');
   ok([[0, 'n'], [22.4, 'n'], [22.5, 'ne'], [90, 'e'], [180, 's'], [270, 'w'], [315, 'nw'], [359, 'n'], [360, 'n']].every(([d, k]) => R.dir8(d) === k) && tr('v271.d_' + R.dir8(315)) === 'ΒΔ', '8 wind directions (315° → ΒΔ)');
-  const now = new Date(2026, 10, 25, 14, 20).getTime(); const data = M.normalize(FX.build(now));
+  const now = Date.parse('2026-11-25T14:20:00+02:00'); /* Athens wall clock, whatever the machine's zone */ const data = M.normalize(FX.build(now));
   const cells = R.strip(data.hours, now);
   ok(cells.length === 8 && cells[0].now && cells[1].label === '17:00' && cells[7].label === '11:00', '8 boxes every 3 hours from now (Τώρα, 17:00 … 11:00)', cells.map((c) => c.label));
   ok(cells[1].pop === 70 && cells[2].pop === 80 && cells[0].pop === 10, 'box rain % = highest of its three hours', cells.map((c) => c.pop));
   ok(cells[2].code === 95 && cells[0].t === 15, 'box icon + temperature = its first hour');
   const later = now + 4 * 3600000; ok(R.strip(data.hours, later)[0].label === '18:00' && R.strip(data.hours, later).length === 7, 'hours already past are dropped (stale data shows what is left)');
+  ok(R.hourKey(Date.parse('2026-11-25T12:20:00Z')) === '2026-11-25T14:00' && R.hm(Date.parse('2026-11-25T12:05:00Z')) === '14:05' && R.hourKey(Date.parse('2026-07-01T12:00:00Z')) === '2026-07-01T15:00', '«Τώρα» / ΩΩ:ΛΛ on the Europe/Athens clock (winter +2, summer +3), like the answer');
   const st = (o) => ({ ok: true, data, fetchedAt: now - 5 * 60000, lastErr: null, nextAt: now + 25 * 60000, names: 'Αικατερίνη', ...o });
   let V = R.view(st(), now, true); ok(!V.down && !V.stale && !V.offline, 'fresh: normal');
   V = R.view(st({ fetchedAt: now - 61 * 60000 }), now, true); ok(V.stale && !V.down, 'over 60′ old → stale (dimmed)');

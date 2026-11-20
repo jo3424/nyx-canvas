@@ -66,7 +66,7 @@ const W = (win, id) => win.evaluate((id) => {
   // ---- 2) content ----
   ok(/^15° Λίγα σύννεφα · 12 km\/h ΒΔ$/.test(w.inl.trim()), 'header line: «15° Λίγα σύννεφα · 12 km/h ΒΔ»', w.inl);
   ok(w.cells.length === 8 && w.cells[0] === 'Τώρα' && w.cells.slice(1).every((x) => /^\d\d:00$/.test(x)), '8 boxes every 3 hours, «Τώρα» first, no scroll', w.cells);
-  const today = new Date(); const hm = String(today.getHours()).padStart(2, '0') + ':';
+  const hm = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Athens', hour: '2-digit', hourCycle: 'h23' }).format(new Date()) + ':';
   ok(/Γιορτή/.test(w.ft) && new RegExp('Ενημέρωση ' + hm + '\\d\\d').test(w.ft) && /Weather data by Open-Meteo\.com/.test(w.ft), 'footer: Γιορτή · Ενημέρωση ΩΩ:ΛΛ · Weather data by Open-Meteo.com', w.ft);
   ok(!/°F|πυξίδα/i.test(w.inl + w.ft) && w.blur === 'none' && w.anims === 0 && w.canvas === 0, 'only °C, no compass; no blur, no animation, no canvas', { blur: w.blur, anims: w.anims, canvas: w.canvas });
   ok(!w.over, 'everything inside the card at M', w);

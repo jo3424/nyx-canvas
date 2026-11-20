@@ -45,8 +45,11 @@
   const DIRS = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
   const dir8 = (deg) => DIRS[Math.round((((+deg % 360) + 360) % 360) / 45) % 8];
   const pad = (n) => String(n).padStart(2, '0');
-  const hourKey = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:00`; };
-  const hm = (ms) => { const d = new Date(ms); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+  // the answer's hours are Europe/Athens (the URL asks for it): «Τώρα» and ΩΩ:ΛΛ use the same clock, whatever the PC's zone
+  let FMT = null;
+  const ath = (ms) => { if (!FMT) FMT = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Athens', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); const o = {}; for (const p of FMT.formatToParts(new Date(ms))) o[p.type] = p.value; return o; };
+  const hourKey = (ms) => { const o = ath(ms); return `${o.year}-${o.month}-${o.day}T${o.hour}:00`; };
+  const hm = (ms) => { const o = ath(ms); return o.hour + ':' + o.minute; };
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   // 8 boxes every 3 hours from the current hour: first hour's icon + temperature, the highest rain % of the three
   function strip(hours, now) {
@@ -88,7 +91,7 @@
       + `<div class="t271-ft">${nd}${dot}${V.down ? '' : fresh + dot}${om}</div>`;
     return { V, ico, inl, off, body, state: V.down ? 'down' : V.stale ? 'stale' : 'ok' };
   }
-  const api = { SPRITE, SIZE, ACC, STALE_MS, wmo, dir8, strip, view, parts, hourKey };
+  const api = { SPRITE, SIZE, ACC, STALE_MS, wmo, dir8, strip, view, parts, hourKey, hm };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.NyxToday271 = api;
 })(typeof window !== 'undefined' ? window : globalThis);
