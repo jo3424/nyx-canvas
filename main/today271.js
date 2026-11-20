@@ -103,7 +103,7 @@ function create(o) {
     return run();
   }
   function names(day) {
-    const m = DAY_RE.exec(String(day || '')); const d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(now());
+    const m = String(day || '').match(DAY_RE); const d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(now());
     try { if (!namesFn && !namesErr) namesFn = loadNames(o.pluginFile, o.readFile); } catch (e) { namesErr = e; }
     if (!namesFn) return { names: '', namesOk: false };
     try { return { names: String(namesFn(d) || ''), namesOk: true }; } catch (e) { return { names: '', namesOk: false }; }

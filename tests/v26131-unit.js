@@ -121,9 +121,9 @@ for (const k of ['spawn', 'execFile', 'exec', 'fork', 'spawnSync', 'execFileSync
   ok(/autoscroll2613\.js/.test(read('app/index.html')) && !/voice2613\.js|voicehub2613\.js/.test(read('app/index.html')), '(δ) index.html: autoscroll2613.js kept, voice scripts gone');
   ok(!/v2613-(box|voice|err|log)/.test(read('app/v2613.css')) && /#tabs\.as-left/.test(read('app/v2613.css')), '(δ) v2613.css: only the auto-scroll edge glow left');
   const pkg = JSON.parse(read('package.json')), lock = JSON.parse(read('package-lock.json')), CH = JSON.parse(read('CHANGELOG.json'));
-  ok(['2.6.13.1', '2.7.0'].includes(pkg.version) && lock.version === pkg.version && lock.packages[''].version === pkg.version, '(δ) version 2.6.13.1 (package.json + package-lock)');
+  ok(['2.6.13.1', '2.7.0', '2.7.1'].includes(pkg.version) && lock.version === pkg.version && lock.packages[''].version === pkg.version, '(δ) version 2.6.13.1 (package.json + package-lock)');
   ok(pkg.devDependencies.electron === '45.2.3', '(δ) Electron 45.2.3');
-  ok(['2.6.13.1', '2.7.0'].includes(Object.keys(CH)[0]) && CH['2.6.13.1'].el.length === 5 && CH['2.6.13.1'].en.length === 5 && /^\[Αφαιρέθηκε στην 2\.6\.13\.1\]/.test(CH['2.6.13'].el[0]) && CH['2.6.12.2'], '(δ) CHANGELOG 2.6.13.1 first (5 items); the 2.6.13 voice items marked «Αφαιρέθηκε στην 2.6.13.1»');
+  ok(['2.6.13.1', '2.7.0', '2.7.1'].includes(Object.keys(CH)[0]) && CH['2.6.13.1'].el.length === 5 && CH['2.6.13.1'].en.length === 5 && /^\[Αφαιρέθηκε στην 2\.6\.13\.1\]/.test(CH['2.6.13'].el[0]) && CH['2.6.12.2'], '(δ) CHANGELOG 2.6.13.1 first (5 items); the 2.6.13 voice items marked «Αφαιρέθηκε στην 2.6.13.1»');
   ok(!/vsserver/.test(JSON.stringify(read('app/js/v2/core.js').match(/tts: \{[^}]*\}/))), '(δ) the default speech mode is not vs-engine');
   console.log(`\nv2.6.13.1 unit: ${passes} passed, ${fails} failed`);
   process.exit(fails ? 1 : 0);

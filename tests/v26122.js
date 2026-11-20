@@ -56,7 +56,7 @@ async function drag(win, from, to, o = {}) {
 (async () => {
   let { app, win } = await launch();
   const ver = await win.evaluate(() => (Store.info && Store.info.version) || '');
-  ok(['2.6.12.2', '2.6.13', '2.6.13.1', '2.7.0'].includes(String(ver)), 'app version 2.6.12.2(+)', ver);
+  ok(['2.6.12.2', '2.6.13', '2.6.13.1', '2.7.0', '2.7.1'].includes(String(ver)), 'app version 2.6.12.2(+)', ver);
   ok(await win.evaluate(() => window.__nyxTabDrag26122 === true && typeof TabDrag === 'object' && typeof NyxUI.dropPlan === 'function'), 'tabdrag26122 loaded (pointer events)');
   await win.evaluate(() => document.querySelectorAll('#toasts > *, .toast').forEach((t) => t.remove()));
   await win.evaluate(() => { window.__del = []; const o = App.deleteBoard; App.deleteBoard = function (b) { window.__del.push(b.id); return o.call(this, b); }; });

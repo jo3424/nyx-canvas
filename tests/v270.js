@@ -13,6 +13,8 @@ const http = require('http');
 const path = require('path'), fs = require('fs'), os = require('os');
 const ROOT = process.env.NYX_ROOT || path.join(__dirname, '..');
 const DATA = fs.mkdtempSync(path.join(os.tmpdir(), 'nyx-v270-'));
+// v2.7.1: «Σήμερα» reads the weather from main → a mocked answer (no live call in tests); ignored by 2.7.0
+const MOCK271 = path.join(DATA, 'mock-openmeteo.json'); fs.writeFileSync(MOCK271, JSON.stringify({ body: require('./fixtures/openmeteo271').build(Date.now()) }));
 const SHOTS = process.env.NYX_SHOTS || path.join(__dirname, '..', 'shots'); fs.mkdirSync(SHOTS, { recursive: true });
 let fails = 0, passes = 0;
 const T0 = Date.now(); const ok = (c, m, x) => { console.log(((Date.now() - T0) / 1000).toFixed(1) + 's ' + (c ? '  ✓ ' : '  ✗ ') + m + (!c && x !== undefined ? '  → ' + JSON.stringify(x).slice(0, 900) : '')); c ? passes++ : fails++; };
@@ -64,12 +66,12 @@ const seed = (now) => {
 
 (async () => {
   const router = await startRouter();
-  const app = await _electron.launch({ chromiumSandbox: true, executablePath: require(path.join(__dirname, '..', 'node_modules', 'electron')), args: [ROOT], env: { ...process.env, NYX_TEST: '1', NYX_DATA_DIR: DATA } });
+  const app = await _electron.launch({ chromiumSandbox: true, executablePath: require(path.join(__dirname, '..', 'node_modules', 'electron')), args: [ROOT], env: { ...process.env, NYX_TEST: '1', NYX_DATA_DIR: DATA, NYX_TODAY271_MOCK: MOCK271 } });
   const win = await app.firstWindow(); const errs = []; win.on('pageerror', (e) => errs.push(e.message));
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setBounds({ x: 0, y: 0, width: 1440, height: 900 }));
   await win.waitForFunction(() => window.__nyxLook2611 === true, null, { timeout: 30000 }); await sleep(600);
   const ver = await win.evaluate(() => (Store.info && Store.info.version) || '');
-  ok(ver === '2.7.0', 'app version 2.7.0', ver);
+  ok(['2.7.0', '2.7.1'].includes(ver), 'app version 2.7.0 / 2.7.x', ver);
   ok(await win.evaluate(() => window.__nyxWidgets270 === true && typeof Widgets === 'object' && typeof Items.R.widget === 'function'), 'widgets module loaded, a «widget» card type exists');
   const keys0 = await win.evaluate((a) => {
     const A = Store.state.settings.ai; const L = A.providers.find((p) => p.id === 'llama'); L.enabled = true; L.base = 'http://127.0.0.1:' + a.port + '/v1';
@@ -126,7 +128,8 @@ const seed = (now) => {
       tag: tx(ids.tag), tagRows: g(ids.tag) ? g(ids.tag).querySelectorAll('.wg-row').length : 0, d: new Date().getDate() };
   }, ids);
   ok(Object.values(W.states).every((s) => s === 'ok'), 'all 5 widgets painted (state ok)', W.states);
-  ok(/Πότισμα φυτών/.test(W.today) && /Τηλέφωνο στον λογιστή/.test(W.today + W.rem), 'Σήμερα: today\'s reminder; tomorrow listed', W.today);
+  // v2.7.1: «Σήμερα» became weather + name day (Variant C); the reminders stay in «Υπενθυμίσεις»
+  ok((/Πότισμα φυτών/.test(W.today) || (/Γιορτή/.test(W.today) && /Weather data by Open-Meteo/.test(W.today))) && /Τηλέφωνο στον λογιστή/.test(W.today + W.rem), 'Σήμερα: today\'s reminder (2.7.0) / weather + name day (2.7.1); tomorrow listed', W.today);
   ok(W.subsTotal && W.subsTotal.replace(/\s/g, '') === String(W.panelTotal).replace(/\s/g, '') && /Υπηρεσία ταινιών Α/.test(W.subs), 'Συνδρομές: same monthly total as the Subscriptions panel (' + W.panelTotal + ') + next charges', { w: W.subsTotal, p: W.panelTotal, txt: W.subs });
   ok(W.remRows >= 3 && /Γενέθλια φίλου/.test(W.rem), 'Υπενθυμίσεις: ≥3 rows incl. the birthday', W.rem);
   ok(W.calToday === String(W.d) && W.calDots > 0, 'Ημερολόγιο: today (' + W.d + ') marked, dots for events', W);
@@ -151,14 +154,15 @@ const seed = (now) => {
   ok(mrows.kind === 'widget' && ['sz-s', 'sz-m', 'sz-l', 'collapse', 'pin', 'lock', 'del'].every((x) => mrows.rows.includes(x)), '⋯ menu: sizes, collapse, pin, lock, remove', mrows);
   await win.click('#ctxmenu [data-wmi=sz-s]'); await sleep(300);
   let it = await win.evaluate((id) => { const i = Store.get(id); const n = document.querySelector(`.item[data-id="${id}"]`); return { s: i.wsize, w: i.w, h: i.h, cls: n.className }; }, ids.today);
-  ok(it.s === 's' && it.w === 240 && /wsz-s/.test(it.cls), 'size S → 240 wide, class wsz-s', it);
+  const SZ = await win.evaluate(() => ({ s: NyxWidgetData.sizeFor('today', 's'), l: NyxWidgetData.sizeFor('today', 'l') })); // 2.7.0: 240 / 440×380 · 2.7.1: 380 / 600×186
+  ok(it.s === 's' && it.w === SZ.s.w && /wsz-s/.test(it.cls), 'size S → ' + SZ.s.w + ' wide, class wsz-s', it);
   await openMenu(ids.today); await win.click('#ctxmenu [data-wmi=sz-l]'); await sleep(300);
-  it = await win.evaluate((id) => Store.get(id).wsize + ' ' + Store.get(id).w, ids.today); ok(it === 'l 440', 'size L → 440', it);
+  it = await win.evaluate((id) => Store.get(id).wsize + ' ' + Store.get(id).w, ids.today); ok(it === 'l ' + SZ.l.w, 'size L → ' + SZ.l.w, it);
   await openMenu(ids.today); await win.click('#ctxmenu [data-wmi=collapse]'); await sleep(300);
   it = await win.evaluate((id) => { const i = Store.get(id); return { c: i.wcollapsed, h: i.h, cls: document.querySelector(`.item[data-id="${id}"]`).className }; }, ids.today);
   ok(it.c === true && it.h === 46 && /wg-collapsed/.test(it.cls), 'collapse → header only (46 px)', it);
   await openMenu(ids.today); await win.click('#ctxmenu [data-wmi=collapse]'); await sleep(300);
-  it = await win.evaluate((id) => ({ c: !!Store.get(id).wcollapsed, h: Store.get(id).h }), ids.today); ok(!it.c && it.h === 380, 'expand → back to L height', it);
+  it = await win.evaluate((id) => ({ c: !!Store.get(id).wcollapsed, h: Store.get(id).h }), ids.today); ok(!it.c && it.h === SZ.l.h, 'expand → back to L height', it);
   await openMenu(ids.today); await win.click('#ctxmenu [data-wmi=pin]'); await sleep(300);
   ok(await win.evaluate((id) => Store.get(id).pinned === true, ids.today), 'pin → it.pinned (shown in the Widget window)');
   await openMenu(ids.today); await win.click('#ctxmenu [data-wmi=lock]'); await sleep(300);

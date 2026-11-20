@@ -69,7 +69,7 @@ const css = read('app/v26121.css');
 ok(!/#[0-9a-f]{3,6}\b/i.test(css.replace(/#ff6b81/gi, '')), 'v26121.css: no new colours (theme tokens; the delete hover = the existing .danger red)');
 // versions / invariants
 const pkg = JSON.parse(read('package.json')); const CH = JSON.parse(read('CHANGELOG.json'));
-ok(['2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1', '2.7.0'].includes(pkg.version) && ['2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1', '2.7.0'].includes(Object.keys(CH)[0]) && CH['2.6.12.1'].el.length === 3 && CH['2.6.12.1'].en.length === 3, 'version 2.6.12.1 + changelog el/en');
+ok(['2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1', '2.7.0', '2.7.1'].includes(pkg.version) && ['2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1', '2.7.0', '2.7.1'].includes(Object.keys(CH)[0]) && CH['2.6.12.1'].el.length === 3 && CH['2.6.12.1'].en.length === 3, 'version 2.6.12.1 + changelog el/en');
 ok(/^\^?~?45\.2\.3$/.test(String((pkg.devDependencies || {}).electron || (pkg.dependencies || {}).electron)), 'Electron 45.2.3', (pkg.devDependencies || {}).electron);
 console.log(`\nv2.6.12.1 unit: ${passes} passed, ${fails} failed`);
 process.exit(fails ? 1 : 0);

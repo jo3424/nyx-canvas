@@ -121,6 +121,21 @@ const resp = (txt, o = {}) => ({ ok: o.status ? o.status < 400 : true, status: o
   ok(!/@keyframes/.test(css) && !/backdrop-filter:\s*(?!none)/.test(css) && !/(?<![-\w])filter:/.test(css) && !/transition:\s*(?!none)/.test(css), 'v271.css: no keyframes, no blur, no filter, no transitions');
   const guard = fs.readFileSync(path.join(ROOT, 'main/ipc-guard.js'), 'utf8');
   ok(/'app:today271': \['o\?'\]/.test(guard), 'one IPC entry in ipc-guard (app:today271)');
+  // ---- static guards vs 2.7.0 (e1c4387) ----
+  const cp = require('child_process'); const git = (a) => { try { return cp.execFileSync('git', a.split(' '), { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] }).toString(); } catch (e) { return null; } };
+  if (git('cat-file -e e1c4387') !== null) {
+    const files = git('diff --name-only e1c4387 -- main main.js preload.js electron-builder.yml build').trim().split('\n').filter(Boolean).sort();
+    ok(files.join() === 'main.js,main/ipc-guard.js,main/today271.js', 'main side: only main/today271.js (new), main/ipc-guard.js, main.js; preload.js unchanged', files);
+    const addMain = git('diff -U0 e1c4387 -- main.js main/ipc-guard.js').split('\n').filter((l) => /^\+(?!\+\+)/.test(l));
+    ok(addMain.length === 3 && addMain.filter((l) => /'app:today271'/.test(l)).length === 1 && addMain.filter((l) => /today271'\)\.register\(ipcMain/.test(l)).length === 1, 'main.js +1 line (register) · ipc-guard +1 entry (+1 comment)', addMain);
+    const add = git('diff -U0 e1c4387 -- app main main.js preload.js').split('\n').filter((l) => /^\+(?!\+\+)/.test(l));
+    const urls = add.flatMap((l) => l.match(/https?:\/\/[^\s'"`)]+/g) || []).filter((u) => !/^http:\/\/www\.w3\.org\/2000\/svg$/.test(u));
+    ok(urls.length === 1 && urls[0] === 'https://api.open-meteo.com/v1/forecast?latitude=40.627&longitude=22.444', 'exactly one new URL (api.open-meteo.com); the svg namespace in CSS is not a URL that loads', urls);
+    ok(!add.some((l) => /\b(spawn|execFile|exec|fork|execSync|spawnSync)\s*\(/.test(l)), 'no new spawn / exec');
+    ok(git('diff --name-only e1c4387 -- app/plugins main/res').trim() === '', 'app/plugins and main/res unchanged (no new unpacked hashes needed)');
+    ok(git('diff e1c4387 -- main/update-key.js main/update-core.js package.json').split('\n').filter((l) => /^[+-](?![+-])/.test(l)).every((l) => /"version"/.test(l)), 'update keys / core unchanged; package.json only the version', null);
+    const pk = require('../package.json'); ok(pk.version === '2.7.1' && pk.devDependencies.electron === '45.2.3', 'version 2.7.1, Electron 45.2.3');
+  } else ok(true, 'static guards skipped (no git history)');
   console.log(`\nv2.7.1 unit: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 })().catch((e) => { console.log('  ✗ crashed: ' + (e && e.stack)); process.exit(1); });

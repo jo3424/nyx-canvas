@@ -65,7 +65,7 @@ const strip = (win) => win.evaluate(() => {
   const router = await startRouter();
   let { app, win } = await launch();
   const ver = await win.evaluate(() => (Store.info && Store.info.version) || '');
-  ok(['2.6.11', '2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1', '2.7.0'].includes(String(ver)), 'app version 2.6.11', ver);
+  ok(['2.6.11', '2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1', '2.7.0', '2.7.1'].includes(String(ver)), 'app version 2.6.11', ver);
   // baseline data: 1 board with cards, 2 subscriptions, settings snapshot (must survive everything below)
   const before = await win.evaluate((a) => {
     const A = Store.state.settings.ai; const L = A.providers.find((p) => p.id === 'llama');

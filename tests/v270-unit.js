@@ -75,8 +75,10 @@ ok(/NyxLimits\.vramWarn\(snap, \{ ignoreGvs: true \}\)/.test(as) && !/NyxLimits\
 console.log('(γ) static guards vs 2.6.13.1');
 const base = '296da39';
 if (git('cat-file -e ' + base) !== null) {
-  ok(git(`diff --name-only ${base} -- main electron-builder.yml build`).trim() === '', '(γ) main/ untouched (no new IPC, no new system query)');
-  const add = git(`diff -U0 ${base} -- app main`).split('\n').filter((l) => /^\+(?!\+\+)/.test(l));
+  // v2.7.1: the guards check the 2.7.0 release itself (296da39 → e1c4387); 2.7.1's own guards are in v271-unit
+  const rel = git('cat-file -e e1c4387') !== null ? ' e1c4387' : '';
+  ok(git(`diff --name-only ${base}${rel} -- main electron-builder.yml build`).trim() === '', '(γ) main/ untouched (no new IPC, no new system query)');
+  const add = git(`diff -U0 ${base}${rel} -- app main`).split('\n').filter((l) => /^\+(?!\+\+)/.test(l));
   ok(!add.some((l) => /https?:\/\//.test(l)), '(γ) no new URL', add.filter((l) => /https?:\/\//.test(l)));
   ok(!add.some((l) => /\b(spawn|execFile|exec|fork)\s*\(/.test(l)), '(γ) no new spawn / exec');
   ok(!add.some((l) => /localStorage\.removeItem|delete Store\.state\.settings|delete S\.settings/.test(l)), '(γ) no setting removed');
@@ -90,9 +92,9 @@ const used = new Set([...(read('app/js/v27/widgets.js') + read('app/js/v2/hub-ta
 const miss = [...used].filter((k) => !el[k] || !en[k]);
 ok(used.size > 40 && !miss.length, `(γ) every v270.* string used exists in el + en (${used.size})`, miss);
 const pkg = JSON.parse(read('package.json')), lock = JSON.parse(read('package-lock.json')), CH = JSON.parse(read('CHANGELOG.json'));
-ok(pkg.version === '2.7.0' && lock.version === '2.7.0' && lock.packages[''].version === '2.7.0', '(γ) version 2.7.0 (package.json + package-lock)');
+ok(['2.7.0', '2.7.1'].includes(pkg.version) && lock.version === pkg.version && lock.packages[''].version === pkg.version, '(γ) version 2.7.0 / 2.7.x (package.json + package-lock)');
 ok(pkg.devDependencies.electron === '45.2.3', '(γ) Electron 45.2.3');
-ok(Object.keys(CH)[0] === '2.7.0' && CH['2.7.0'].el.length === CH['2.7.0'].en.length && CH['2.6.13.1'], '(γ) CHANGELOG 2.7.0 first, el/en same length');
+ok(['2.7.0', '2.7.1'].includes(Object.keys(CH)[0]) && CH['2.7.0'].el.length === CH['2.7.0'].en.length && CH['2.6.13.1'], '(γ) CHANGELOG 2.7.0 first (2.7.x), el/en same length');
 const addAll = (git(`diff -U0 ${base} -- app main`) || '').split('\n').filter((l) => /^\+(?!\+\+)/.test(l)).join('\n');
 ok(!/models-max|servers\.llama\.(ctx|extra|exe|model)\s*=|ai:routerStart|proc:start/.test(addAll), '(γ) router / models / ctx 32768 / models-max 1: nothing in the new lines touches them');
 const idx = read('app/index.html');

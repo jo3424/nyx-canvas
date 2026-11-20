@@ -27,7 +27,7 @@ const X = (...a) => cp.execFileSync(XDO, a.map(String));
   const ids = await win.evaluate(() => {
     document.querySelectorAll('.toast').forEach((t) => t.remove());
     Store.state.boards.push({ id: 'wx', name: 'Widgets', emoji: '🧩', color: '#7c8cff', view: { x: 0, y: 0, z: 1 }, items: [] }); Store.save(true); App.switchBoard('wx');
-    const a = Widgets.add('today', 'm'); a.x = -400; a.y = -200; const c = Widgets.add('calendar', 'm'); c.x = 100; c.y = -200; Items.mount(a); Items.mount(c);
+    const a = Widgets.add('today', 'm'); a.x = -400; a.y = -200; const c = Widgets.add('calendar', 'm'); c.x = 300; c.y = -200; /* 2.7.1: Σήμερα is wider (480) */ Items.mount(a); Items.mount(c);
     Canvas.view = { x: innerWidth / 2, y: innerHeight / 2, z: 1 }; Canvas.applyView(); Canvas.deselect && Canvas.deselect(); Store.save(true); return { a: a.id, c: c.id };
   });
   await sleep(500);
@@ -68,7 +68,7 @@ const X = (...a) => cp.execFileSync(XDO, a.map(String));
   await xclick(await pt('#ctxmenu [data-wmi=pin]'));
   ok((await item(ids.a)).pinned === true, 'real click «Καρφίτσωμα στο παράθυρο Widget» → pinned');
   await xclick(await pt(`.item[data-id="${ids.a}"] .wg-more`)); await xclick(await pt('#ctxmenu [data-wmi=sz-s]'));
-  const A5 = await item(ids.a); ok(A5.wsize === 's' && A5.w === 240, 'real click «Μέγεθος: Μικρό» → 240 wide', A5);
+  const A5 = await item(ids.a); const S5 = await win.evaluate(() => NyxWidgetData.sizeFor('today', 's').w); /* 2.7.0: 240 · 2.7.1: 380 */ ok(A5.wsize === 's' && A5.w === S5, 'real click «Μέγεθος: Μικρό» → ' + S5 + ' wide', A5);
   // 4) calendar › real click
   const mon = () => win.evaluate((id) => (document.querySelector(`.item[data-id="${id}"] .wg-cal-head b`) || {}).textContent, ids.c);
   const C0 = await item(ids.c); const m0 = await mon();
