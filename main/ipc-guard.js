@@ -117,6 +117,8 @@ const SCHEMA = {
   'web:auto': ['wc', 's', 'o?'], 'web:press': ['wc'], 'web:grab': ['url', 'o?'], 'web:inspect': ['url', 's?', 'o?'], 'web:robots': ['url'],
   // v2.6 drag & drop in (app/js/v26/dnd.js)
   'web:dropImage': ['url', 'o?'], 'file:importImage': ['fname?', 'buf'],
+  // v2.7.1 «Σήμερα» widget: weather (fixed Open-Meteo URL, main/today271.js) + name day
+  'app:today271': ['o?'],
 };
 
 let PAGES = null; // normalised absolute paths of the app's own pages

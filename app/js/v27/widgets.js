@@ -20,7 +20,7 @@ const Widgets = {
     if (it.wkind === 'subs') { const S = this.subsSummary(); if (!S) throw new Error(t('v270.err_calc')); return S; }
     const subsUp = (() => { const S = this.subsSummary(); return S ? S.upcoming : null; })();
     if (it.wkind === 'reminders') return D.reminders(st, now, it.wsize === 'l' ? 5 : 3);
-    if (it.wkind === 'today') return D.today(st, now, { subsUpcoming: subsUp });
+    if (it.wkind === 'today') return this.today271(it); // v2.7.1: weather + name day (main process, cached)
     if (it.wkind === 'calendar') { const off = this.months.get(it.id) || 0; const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + off); return D.calendar(st, d.getFullYear(), d.getMonth() + 1, now, { subsUpcoming: subsUp }); }
     if (it.wkind === 'tag') return { ...D.tagged(st, it.wtag, it.wsize === 's' ? 3 : it.wsize === 'l' ? 9 : 5), tags: D.allTags(st).slice(0, 8) };
     throw new Error(t('v270.err_kind', { v0: it.wkind }));
@@ -29,6 +29,7 @@ const Widgets = {
   render(n, it) {
     const kind = NyxWidgetData.KINDS.includes(it.wkind) ? it.wkind : 'today';
     n.classList.add('wg-' + kind, 'wsz-' + (it.wsize || 'm')); n.classList.toggle('wg-collapsed', !!it.wcollapsed);
+    if (kind === 'today') { this.migrate271(n, it); const acc = NyxToday271.ACC[it.waccent] || ''; n.innerHTML = `<div class="card wg-card t271 t271-sz-${esc(it.wsize || 'm')}" data-wkind="today" data-wsize="${esc(it.wsize || 'm')}" data-waccent="${esc(NyxToday271.ACC[it.waccent] !== undefined ? it.waccent : 'nyx')}"${acc ? ` style="--accent:${acc}"` : ''}><div class="wg-head"><span class="wg-ico t271-hico">${iconSvg(this.ICON.today, 15)}</span><b class="wg-title">${esc(this.title(it))}</b><span class="t271-slot"></span><span class="wg-chip" hidden></span><button class="live mini act wg-more" data-act="w-menu" title="${esc(t('v270.menu'))}">${iconSvg('ellipsis', 15)}</button></div><div class="wg-body live" data-wstate="loading">${this.skeleton()}</div></div>`; n._t271 = ''; this.fill(n, it); return; }
     n.innerHTML = `<div class="card wg-card" data-wkind="${esc(kind)}" data-wsize="${esc(it.wsize || 'm')}"><div class="wg-head"><span class="wg-ico">${iconSvg(this.ICON[kind], 15)}</span><b class="wg-title">${esc(this.title(it))}</b><span class="wg-chip" hidden></span><button class="live mini act wg-more" data-act="w-menu" title="${esc(t('v270.menu'))}">${iconSvg('ellipsis', 15)}</button></div><div class="wg-body live" data-wstate="loading">${this.skeleton()}</div></div>`;
     this.fill(n, it);
   },
@@ -38,10 +39,11 @@ const Widgets = {
     const tok = (n._wTok = (n._wTok || 0) + 1);
     const done = (d) => { if (n._wTok !== tok) return; try { this.paint(n, it, body, d); } catch (e) { this.fail(body, e); } };
     let r; try { r = this.data(it); } catch (e) { this.fail(body, e); return; }
-    if (r && typeof r.then === 'function') { body.setAttribute('data-wstate', 'loading'); body.innerHTML = this.skeleton(); r.then(done, (e) => { if (n._wTok === tok) this.fail(body, e); }); }
+    if (r && typeof r.then === 'function') { if (!(it.wkind === 'today' && n._t271)) { body.setAttribute('data-wstate', 'loading'); body.innerHTML = this.skeleton(); } r.then(done, (e) => { if (n._wTok === tok) this.fail(body, e); }); }
     else done(r);
   },
   fail(body, e) {
+    const nn = body.closest && body.closest('.item'); if (nn) nn._t271 = ''; // v2.7.1: repaint «Σήμερα» after an error
     body.setAttribute('data-wstate', 'error');
     body.innerHTML = `<div class="wg-err"><span class="wg-err-ico">${iconSvg('triangle-alert', 22)}</span><b>${esc(t('v270.err_title'))}</b><span class="muted small">${esc(String((e && e.message) || e || '').slice(0, 160))}</span><button class="btn sm ghost act" data-act="w-retry">${iconSvg('refresh-cw', 13)} ${esc(t('v270.retry'))}</button></div>`;
   },
@@ -64,10 +66,14 @@ const Widgets = {
       html = d.items.length ? `<div class="wg-list">${d.items.map((e) => this.row(e, this.relText(e.rel), e.rel.soon)).join('')}</div>` + (d.more ? `<div class="wg-more-line muted small">${esc(t('v270.more_week', { n: d.more }))}</div>` : '') : `<div class="wg-empty muted">${esc(t('v270.rem_empty'))}</div>`;
       const f = d.items[0]; chip = f ? t('v270.chip_rem', { n: d.total, v0: this.relText(f.rel) }) : ''; hot = !!(f && f.rel.soon);
     } else if (k === 'today') {
-      const now = new Date(); const date = now.toLocaleDateString(LANG === 'el' ? 'el-GR' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
-      html = `<div class="wg-date"><b>${esc(date.charAt(0).toUpperCase() + date.slice(1))}</b></div>` + (d.items.length ? `<div class="wg-list">${d.items.slice(0, sz === 's' ? 2 : sz === 'l' ? 6 : 4).map((e) => this.row({ ...e, sub: e.kind === 'sub' ? (e.amount || '') + ' · ' + t('v270.charge') : this.whenText(e) }, e.kind === 'sub' ? '' : this.relText(e.rel), e.rel.soon)).join('')}</div>` : `<div class="wg-empty muted">${esc(t('v270.today_empty'))}</div>`)
-        + `<div class="wg-more-line muted small">${esc(d.tomorrow ? t('v270.tomorrow_n', { n: d.tomorrow }) : d.next ? t('v270.next_on', { v0: fmtDay(new Date(d.next.at)), v1: d.next.title }) : t('v270.nothing_next'))}</div>`;
-      chip = d.items.length ? t('v270.chip_today', { n: d.items.length }) : '';
+      // v2.7.1 Variant C: current weather in the header line, 8 boxes every 3 hours, name day · update time · Open-Meteo
+      const P = NyxToday271.parts(d, { now: Date.now(), online: navigator.onLine }, t);
+      const key = P.ico + P.inl + P.off + P.body; if (n._t271 === key) return; n._t271 = key;
+      const card = n.querySelector('.wg-card'); card.classList.toggle('t271-stale', P.state === 'stale'); card.setAttribute('data-t271-state', P.state);
+      const ico = n.querySelector('.t271-hico'); if (ico) ico.innerHTML = P.ico;
+      const slot = n.querySelector('.t271-slot'); if (slot) slot.innerHTML = P.inl + P.off;
+      body.setAttribute('data-wstate', P.state === 'down' ? 'error' : 'ok'); body.innerHTML = P.body; this.chip(n, '', false);
+      return;
     } else if (k === 'calendar') {
       const mn = new Date(d.year, d.month - 1, 1).toLocaleDateString(LANG === 'el' ? 'el-GR' : 'en-GB', { month: 'long', year: 'numeric' });
       const wd = t('v270.wd').split(',');
@@ -91,13 +97,28 @@ const Widgets = {
   // ---------- actions (clicks inside a widget) ----------
   action(act, it, el) {
     if (act === 'w-menu') return this.menu(it, el);
-    if (act === 'w-retry') { const n = Items.el(it); if (n) this.fill(n, it); return; }
+    if (act === 'w-retry') { if (it.wkind === 'today') this._force271 = true; const n = Items.el(it); if (n) this.fill(n, it); return; }
     if (act === 'w-prev' || act === 'w-next') { this.months.set(it.id, (this.months.get(it.id) || 0) + (act === 'w-next' ? 1 : -1)); this.picked.delete(it.id); const n = Items.el(it); if (n) this.fill(n, it); return; }
     if (act === 'w-day') { const d = el && el.dataset.day; this.picked.get(it.id) === d ? this.picked.delete(it.id) : this.picked.set(it.id, d); const n = Items.el(it); if (n) this.fill(n, it); return; }
     if (act === 'w-subs') return Panels.subs();
     if (act === 'w-settag') return this.setTag(it, el && el.dataset.tag);
     if (act === 'w-open') { const id = el && el.dataset.ref; if (!id) return; if (el.dataset.rkind === 'sub') return Panels.subs(); if (Store.get && Store.get(id)) return Canvas.focusItem(id); if (typeof App !== 'undefined' && App.goToItem) return App.goToItem(id); const b = (Store.state.boards || []).find((x) => (x.items || []).some((i) => i.id === id)); if (b && App.switchBoard) { App.switchBoard(b.id); setTimeout(() => Canvas.focusItem(id), 120); } }
   },
+  // ---------- v2.7.1 «Σήμερα» ----------
+  // the status from main (weather cached there, refreshed every 30′ / retried 10′ → 30′) + the name day for today
+  today271(it) {
+    const force = !!this._force271; this._force271 = false;
+    if (typeof API === 'undefined' || !API.inv) return Promise.reject(new Error(t('v271.down')));
+    return API.inv('app:today271', { day: NyxWidgetData.ymd(this.now271 ? this.now271() : Date.now()), ...(force ? { force: true } : {}) });
+  },
+  // a 2.7.0 «Σήμερα» card becomes the 2.7.1 one in place: same id, place, board, pin, lock, collapse; only the size
+  // follows the new layout (S/M/L kept). Silent (no undo step); saved once.
+  migrate271(n, it) {
+    if (it.w271) return; const g = NyxWidgetData.sizeFor('today', it.wsize || 'm');
+    it.w271 = 1; it.w = g.w; if (it.wcollapsed) it.wh = g.h; else it.h = g.h;
+    n.style.width = it.w + 'px'; n.style.height = it.h + 'px'; clearTimeout(this._mt); this._mt = setTimeout(() => Store.save(), 0);
+  },
+  setAccent(it, a) { if (NyxToday271.ACC[a] === undefined) return; Store.change(() => { if (a === 'nyx') delete it.waccent; else it.waccent = a; }, t('v271.lbl_accent')); Items.mount(it); },
   setTag(it, tag) { const v = NyxWidgetData.normTag(tag); if (!v) return; Store.change(() => { it.wtag = v; it.title = '#' + v; }, t('v270.lbl_tag')); Items.mount(it); },
   setSize(it, s) { const g = NyxWidgetData.sizeFor(it.wkind, s); Store.change(() => { it.wsize = s; it.w = g.w; it.h = g.h; }, t('v270.lbl_size')); Items.mount(it); Canvas.select && Canvas.select([it.id]); },
   toggleCollapse(it) { Store.change(() => { it.wcollapsed = !it.wcollapsed; if (it.wcollapsed) { it.wh = it.h; it.h = 46; } else { it.h = it.wh || NyxWidgetData.sizeFor(it.wkind, it.wsize).h; delete it.wh; } }, t('v270.lbl_collapse')); Items.mount(it); },
@@ -112,6 +133,7 @@ const Widgets = {
       [I(it.locked ? 'lock' : 'lock-open'), t('lock') + ck(!!it.locked), () => { Canvas.select([it.id]); Actions.toggleLock ? Actions.toggleLock() : null; }, 'w-lock'],
     ];
     if (it.wkind === 'tag') rows.push([I('hash'), t('v270.tag_change'), () => this.tagDialog(it), 'w-tag']);
+    if (it.wkind === 'today') { rows.push('-'); for (const a of Object.keys(NyxToday271.ACC)) rows.push([I('palette'), t('v271.accent') + ': ' + t('v271.acc_' + a) + ck((NyxToday271.ACC[it.waccent] !== undefined ? it.waccent : 'nyx') === a), () => this.setAccent(it, a), 'w-acc-' + a]); }
     rows.push('-', [I('trash-2'), t('v270.remove_bin'), () => { Canvas.select([it.id]); Actions.del(); }, 'w-del danger']);
     Panels.menu(r.right - 220, r.bottom + 4, rows);
     const m = $('#ctxmenu'); m.dataset.menu = 'widget'; m.querySelectorAll('.mi').forEach((b, i) => { const cls = [...b.classList].find((c) => c.startsWith('w-')); if (cls) b.setAttribute('data-wmi', cls.slice(2)); });
@@ -131,7 +153,7 @@ const Widgets = {
     const tiles = [['today', 'ready'], ['subs', 'ready'], ['reminders', 'ready'], ['calendar', 'ready'], ['tag', 'ready'], ...this.LATER.map(([k, , c, v]) => [k, c, v])];
     const count = (c) => tiles.filter((x) => c === 'all' || x[1] === c).length;
     const grid = h('div', { class: 'wg-gal-grid' });
-    const prev = (k) => { const P = { today: '<b>☀ </b><i></i><i class="s"></i>', subs: '<b>42,97 €</b><u></u><i></i>', reminders: '<i></i><i class="s"></i><i></i>', calendar: '<em></em>', tag: '<b>#</b><i></i><i class="s"></i>', rss: '<i></i><i></i><i class="s"></i>', youtube: '<span class="yt">▶</span>', weather: '<b>☁ —°</b>', water: '<b>5 / 8</b>', custom: '<b>＋</b>', feed: '<i class="url"></i>' }; return `<div class="wg-prev p-${k}">${P[k] || ''}</div>`; };
+    const prev = (k) => { const P = { today: '<b>☀ 15°</b><i></i><i class="s"></i>', subs: '<b>42,97 €</b><u></u><i></i>', reminders: '<i></i><i class="s"></i><i></i>', calendar: '<em></em>', tag: '<b>#</b><i></i><i class="s"></i>', rss: '<i></i><i></i><i class="s"></i>', youtube: '<span class="yt">▶</span>', weather: '<b>☁ —°</b>', water: '<b>5 / 8</b>', custom: '<b>＋</b>', feed: '<i class="url"></i>' }; return `<div class="wg-prev p-${k}">${P[k] || ''}</div>`; };
     const paint = () => {
       grid.innerHTML = '';
       for (const sec of ['ready', 'live', 'mine']) {
@@ -144,7 +166,7 @@ const Widgets = {
           row.append(h('div', { class: 'wg-tile' + (ready ? '' : ' later'), 'data-gkind': k },
             h('div', { html: prev(k) }),
             h('div', { class: 'wg-tname' }, h('span', { html: iconSvg(this.ICON[k] || (this.LATER.find((x) => x[0] === k) || [])[1] || 'square', 14) }), ' ' + t('v270.k_' + k)),
-            h('div', { class: 'wg-tdesc muted small' }, t('v270.d_' + k)),
+            h('div', { class: 'wg-tdesc muted small' }, t(k === 'today' ? 'v271.d_today' : 'v270.d_' + k)),
             h('div', { class: 'wg-tfoot' }, szb('s'), szb('m'), szb('l'), h('span', { class: 'grow' }),
               ready ? h('button', { class: 'btn sm primary', 'data-gadd': k, onclick: () => { close(); this.add(k, sizes[k]); } }, '+ ' + t('v270.add'))
                 : h('span', { class: 'wg-later', 'data-glater': ver }, ver === 'decide' ? t('v270.later_decide') : t('v270.later_in', { v0: ver })))));
@@ -171,6 +193,8 @@ const Widgets = {
     const sv = Store.save.bind(Store); Store.save = (...a) => { const r = sv(...a); this.soon(); return r; };
     const tb = document.getElementById('btn-widgets'); if (tb) tb.onclick = () => this.gallery();
     setInterval(() => this.refreshAll(), 60000);
+    if (!document.getElementById('t271-sun')) document.body.insertAdjacentHTML('beforeend', NyxToday271.SPRITE); // v2.7.1 static icons
+    window.addEventListener('online', () => { this._force271 = true; this.refreshAll(); }); window.addEventListener('offline', () => this.refreshAll());
     window.__nyxWidgets270 = true;
   }
 };

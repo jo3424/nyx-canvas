@@ -13,7 +13,7 @@
   // the kinds of widget that exist in 2.7.0 (the gallery lists the later ones as «coming», they cannot be added)
   const KINDS = ['today', 'subs', 'reminders', 'calendar', 'tag'];
   const SIZES = { s: { w: 240, h: 240 }, m: { w: 320, h: 300 }, l: { w: 440, h: 380 } };
-  const SIZE_OF = { calendar: { s: { w: 240, h: 256 }, m: { w: 300, h: 330 }, l: { w: 400, h: 380 } }, subs: { s: { w: 260, h: 190 }, m: { w: 320, h: 330 }, l: { w: 420, h: 400 } } };
+  const SIZE_OF = { today: { s: { w: 380, h: 204 }, m: { w: 480, h: 186 }, l: { w: 600, h: 186 } } /* v2.7.1 Variant C */, calendar: { s: { w: 240, h: 256 }, m: { w: 300, h: 330 }, l: { w: 400, h: 380 } }, subs: { s: { w: 260, h: 190 }, m: { w: 320, h: 330 }, l: { w: 420, h: 400 } } };
   const sizeFor = (kind, size) => ({ ...((SIZE_OF[kind] || SIZES)[size] || (SIZE_OF[kind] || SIZES).m) });
   function titleOf(it) { return strip(it.reminder && it.reminder.msg) || it.title || strip(it.html) || it.name || it.type || ''; }
 

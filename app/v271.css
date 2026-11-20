@@ -1,0 +1,37 @@
+/* v2.7.1 — «Σήμερα» widget, Variant C «Μίνιμαλ». Plain Nyx card: no blur, no filter, no animation, no transition. */
+.item.t-widget>.wg-card.t271{backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--panel-solid);gap:7px;padding:11px 14px 10px;color:var(--text);overflow:hidden;container-type:size}
+.t271,.t271 *{animation:none!important;transition:none!important}
+.t271 .t271-i{width:22px;height:22px;flex:none;display:block}
+.t271 .t271-hico .t271-i,.t271 .t271-hico svg{width:16px;height:16px}
+.t271 .wg-ico.t271-hico{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.1)}
+.t271 .wg-title{flex:0 0 auto}
+.t271 .t271-slot{display:flex;align-items:center;gap:6px;min-width:0;flex:1 1 auto;overflow:hidden}
+.t271 .t271-inl{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:0 1 auto}
+.t271 .t271-inl b{font-size:14px;font-weight:700}
+.t271 .t271-mu{color:var(--muted)}
+.t271 .t271-off{font-size:10.5px;padding:2px 7px;border-radius:999px;background:rgba(255,255,255,.07);color:var(--muted);white-space:nowrap;flex:none;margin-left:auto}
+.t271 .wg-more{margin-left:0}
+.t271 .wg-body{gap:8px}
+.t271 .t271-wx{display:flex;flex-direction:column;gap:8px;min-height:0}
+.t271 .t271-dim{opacity:.55}
+.t271 .t271-strip{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin-bottom:2px}
+.t271 .t271-c{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0 4px;border-radius:9px;border:1px solid transparent;min-width:0}
+.t271 .t271-c b{font-size:13px;font-weight:650}
+.t271 .t271-c.t271-cur{background:color-mix(in srgb,var(--accent) 14%,transparent);border-color:color-mix(in srgb,var(--accent) 40%,transparent)}
+.t271 .t271-hl{font-size:11px;color:var(--muted);white-space:nowrap}
+.t271 .t271-cur .t271-hl{color:var(--accent);font-weight:650}
+.t271 .t271-pop{font-size:10.5px;font-weight:600;color:#6db3ff;min-height:13px;line-height:13px;display:inline-flex;align-items:center;gap:2px;white-space:nowrap}
+.t271 .t271-pop:not(.t271-z)::before{content:'';width:6px;height:8px;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 16'%3E%3Cpath d='M6 0S0 7 0 10.5a6 6 0 0 0 12 0C12 7 6 0 6 0z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 16'%3E%3Cpath d='M6 0S0 7 0 10.5a6 6 0 0 0 12 0C12 7 6 0 6 0z'/%3E%3C/svg%3E") center/contain no-repeat}
+.t271 .t271-ft{margin-top:auto;display:flex;flex-wrap:wrap;align-items:center;gap:2px 6px;font-size:10.5px;color:var(--muted)}
+.t271 .t271-nd{display:inline-flex;align-items:baseline;gap:5px;min-width:0;font-size:12.5px}
+.t271 .t271-ndl{font-size:11px;color:var(--accent);font-weight:650;white-space:nowrap}
+.t271 .t271-nd b{font-weight:650;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t271 .t271-none{color:var(--muted)}
+.t271 .t271-om{white-space:nowrap}
+.t271 .t271-dot{opacity:.5}.t271 .t271-old{color:#f0b35a;font-weight:600}
+.t271 .t271-down{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07)}
+.t271 .t271-down div{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}.t271 .t271-down b{font-size:13px}.t271 .t271-down span{font-size:11.5px;color:var(--muted)}
+.t271 .t271-btn{font:inherit;font-size:12px;padding:5px 12px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);cursor:pointer;flex:none}
+@container (max-width:420px){.t271 .t271-strip{grid-template-columns:repeat(6,1fr)}.t271 .t271-c:nth-child(n+7){display:none}}
+@container (max-width:360px){.t271 .t271-inl .t271-mu{display:none}}
+.wg-collapsed .t271 .wg-body{display:none}

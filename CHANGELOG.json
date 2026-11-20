@@ -1,4 +1,18 @@
 {
+ "2.7.1": {
+  "el": [
+   "Νέο «Σήμερα» widget (σχέδιο «Μίνιμαλ»): ο τρέχων καιρός της Θεσσαλονίκης σε μία γραμμή στην κεφαλίδα (εικονίδιο, °C, περιγραφή, άνεμος π.χ. «12 km/h ΒΔ») και 8 κουτάκια ανά 3 ώρες για το επόμενο 24ωρο (εικονίδιο, θερμοκρασία, πιθανότητα βροχής). Από κάτω η γιορτή της ημέρας από το Εορτολόγιο («Δεν υπάρχει καταχώριση» όταν δεν έχει), η ώρα ενημέρωσης και «Weather data by Open-Meteo.com».",
+   "Ελαφρύ: χωρίς animation, χωρίς θόλωμα (blur), χωρίς νέους χρονομετρητές στην οθόνη. Ο καιρός ανανεώνεται κάθε 30′ από το παρασκήνιο (αν αποτύχει: ξανά σε 10′, μετά σε 30′) και μόνο όταν υπάρχει «Σήμερα» widget. Μόνο °C, χωρίς πυξίδα.",
+   "Μία νέα διεύθυνση internet, σταθερή: api.open-meteo.com (μόνο ανάγνωση, όριο 8″ και 64 KB). Οι τελευταίες τιμές κρατιούνται στον υπολογιστή: πάνω από 60′ παλιές φαίνονται αχνές με «Τελευταία διαθέσιμα · ΩΩ:ΛΛ», χωρίς internet «Χωρίς σύνδεση», κι αν δεν υπάρχει καμία τιμή «Ο καιρός δεν ήρθε» με κουμπί «Ξανά».",
+   "Μενού ⋯ του «Σήμερα»: μέγεθος Μικρό / Μεσαίο (προεπιλογή) / Μεγάλο και χρώμα (Nyx, Τιρκουάζ, Κεχριμπάρι, Ροζ). Τα «Σήμερα» widgets που ήδη έχεις στους πίνακες γίνονται το νέο στην ίδια θέση· δεν σβήνεται τίποτα. Τα Ημερολόγιο, Συνδρομές, Υπενθυμίσεις και τα δεδομένα σου δεν αλλάζουν."
+  ],
+  "en": [
+   "New “Today” widget (the “Minimal” design): Thessaloniki's current weather in one header line (icon, °C, description, wind e.g. “12 km/h NW”) and 8 boxes every 3 hours for the next 24 hours (icon, temperature, chance of rain). Below: today's name day from the Name-day plugin (“No entry” when there is none), the update time and “Weather data by Open-Meteo.com”.",
+   "Light: no animation, no blur, no new on-screen timers. The weather refreshes every 30′ in the background (on failure: again in 10′, then 30′) and only while a Today widget exists. °C only, no compass.",
+   "One new, fixed internet address: api.open-meteo.com (read only, 8 s and 64 KB limits). The last values are kept on the PC: older than 60′ they are dimmed with “Last available · HH:MM”, without internet “Offline”, and with no value at all “The weather did not arrive” with “Retry”.",
+   "Today's ⋯ menu: size Small / Medium (default) / Large and colour (Nyx, Teal, Amber, Rose). The Today widgets already on your boards become the new one in place; nothing is deleted. Calendar, Subscriptions, Reminders and your data are unchanged."
+  ]
+ },
  "2.7.0": {
   "el": [
    "Νέα widgets πάνω στον καμβά: Σήμερα, Συνδρομές, Υπενθυμίσεις, Ημερολόγιο και #tag. Παίρνουν τα στοιχεία από τις κάρτες και τις συνδρομές σου (τίποτα από το internet) και ανανεώνονται μόνα τους.",

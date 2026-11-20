@@ -416,6 +416,7 @@ function wireIpc() {
     return text;
   });
   ipcMain.handle('web:fetch', async (_e, url, opts) => { const r = await fetchText(url, opts || {}); return r; });
+  require('./main/today271').register(ipcMain, { dataDir: DATA_DIR, net }); // v2.7.1 «Σήμερα»: fixed Open-Meteo URL only
   ipcMain.handle('web:linkInfo', async (_e, url) => {
     try {
       const r = await fetchText(url, { timeout: 8000 });
