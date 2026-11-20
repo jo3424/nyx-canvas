@@ -25,7 +25,7 @@
 .t271 .t271-ft{margin-top:auto;display:flex;flex-wrap:wrap;align-items:center;gap:2px 6px;font-size:10.5px;color:var(--muted)}
 .t271 .t271-nd{display:inline-flex;align-items:baseline;gap:5px;min-width:0;font-size:12.5px}
 .t271 .t271-ndl{font-size:11px;color:var(--accent);font-weight:650;white-space:nowrap}
-.t271 .t271-nd b{font-weight:650;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t271 .t271-nd b{font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .t271 .t271-none{color:var(--muted)}
 .t271 .t271-om{white-space:nowrap}
 .t271 .t271-dot{opacity:.5}.t271 .t271-old{color:#f0b35a;font-weight:600}
