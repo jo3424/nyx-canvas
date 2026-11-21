@@ -346,5 +346,5 @@ Features.dropMemes = async function (files) {
     n.insertAdjacentHTML('beforeend', t('extras.002', { v0: iconSvg('hand-grab', 13) }));
   };
   const _sm = Canvas.startMove.bind(Canvas);
-  Canvas.startMove = function (e) { DnD.armEdge(e); return _sm(e); };
+  Canvas.startMove = function (e, ...a) { DnD.armEdge(e); return _sm(e, ...a); }; // v2.7.1.1: pass the widget threshold / late capture through
 }

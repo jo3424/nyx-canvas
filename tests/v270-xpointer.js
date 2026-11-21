@@ -49,9 +49,11 @@ const X = (...a) => cp.execFileSync(XDO, a.map(String));
   if (SHOTS) await win.screenshot({ path: path.join(SHOTS, 'v270x-drag.png') });
   await win.evaluate(() => document.body.focus()); await win.keyboard.press('Control+z'); await sleep(500);
   const A2 = await item(ids.a); ok(Math.abs(A2.x - A0.x) <= 1 && Math.abs(A2.y - A0.y) <= 1, 'Ctrl+Z puts it back (one undo step)', { A0, A2 });
-  // a drag that starts inside the content (a row / the body) does not move the card
+  // v2.7.1.1: a drag that starts inside the content (a row / the body) moves the card too (it did not before 2.7.1.1)
   await xdrag(await pt(`.item[data-id="${ids.a}"] .wg-body`, 0.5, 0.4), { x: (await pt(`.item[data-id="${ids.a}"] .wg-body`, 0.5, 0.4)).x + 120, y: (await pt(`.item[data-id="${ids.a}"] .wg-body`, 0.5, 0.4)).y + 60 });
-  const A3 = await item(ids.a); ok(A3.x === A2.x && A3.y === A2.y, 'a drag inside the content does not move it', { A2, A3 });
+  const A3m = await item(ids.a); ok(Math.abs(A3m.x - A2.x - 120) <= 12 && Math.abs(A3m.y - A2.y - 60) <= 12, 'v2.7.1.1: a drag inside the content moves it too', { A2, A3m });
+  await win.evaluate(() => document.body.focus()); await win.keyboard.press('Control+z'); await sleep(500);
+  const A3 = await item(ids.a); ok(Math.abs(A3.x - A2.x) <= 1 && Math.abs(A3.y - A2.y) <= 1, 'Ctrl+Z puts it back', { A2, A3 });
   // 2) resize: select with a header click, then pull the se handle
   await xclick(await pt(`.item[data-id="${ids.a}"] .wg-title`)); await sleep(200);
   const hp = await pt('.hdl[data-h=se]');

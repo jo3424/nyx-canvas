@@ -1,6 +1,6 @@
 'use strict';
 // v2.7.1 — «Σήμερα» widget with a REAL pointer (xdotool → XTest, like a physical mouse). Weather answer mocked.
-//  1) drag by the header (title and the weather line) → it moves; one undo step; a drag on the boxes does not move it
+//  1) drag by the header (title and the weather line) → it moves; one undo step; v2.7.1.1: a drag on the boxes moves it too
 //  2) resize by the bottom-right handle → bigger (8 boxes), then narrow (6 boxes) → nothing spills out of the card
 //  3) real clicks: ⋯ → «Μέγεθος: Μικρό» → 380 wide; ⋯ → «Χρώμα: Κεχριμπάρι» → accent saved
 // Needs an X server (xvfb-run -a -s "-screen 0 1600x1000x24") and xdotool.
@@ -54,7 +54,9 @@ const X = (...a) => cp.execFileSync(XDO, a.map(String));
   p = await pt(`.item[data-id="${id}"] [data-t271-cur]`, 0.3, 0.5); await xdrag(p, { x: p.x - 100, y: p.y + 50 });
   const A2b = await item(); ok(Math.abs(A2b.x - A2.x + 100) <= 12 && Math.abs(A2b.y - A2.y - 50) <= 12, 'drag by the weather line in the header also moves it', { A2, A2b });
   p = await pt(`.item[data-id="${id}"] .t271-strip`, 0.5, 0.5); await xdrag(p, { x: p.x + 120, y: p.y + 60 });
-  const A3 = await item(); ok(A3.x === A2b.x && A3.y === A2b.y, 'a drag on the hourly boxes does not move it', { A2b, A3 });
+  const A3m = await item(); ok(Math.abs(A3m.x - A2b.x - 120) <= 12 && Math.abs(A3m.y - A2b.y - 60) <= 12, 'v2.7.1.1: a drag on the hourly boxes also moves it', { A2b, A3m });
+  await win.evaluate(() => document.body.focus()); await win.keyboard.press('Control+z'); await sleep(500);
+  const A3 = await item(); ok(Math.abs(A3.x - A2b.x) <= 1 && Math.abs(A3.y - A2b.y) <= 1, 'Ctrl+Z puts it back', { A2b, A3 });
   // 2) resize
   await xclick(await pt(`.item[data-id="${id}"] .wg-title`)); await sleep(200);
   let hp = await pt('.hdl[data-h=se]'); ok(!!hp, 'header click selects it (resize handles shown)');

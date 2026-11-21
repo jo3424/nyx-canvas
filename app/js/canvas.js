@@ -172,15 +172,28 @@ const Canvas = {
       const id = node.dataset.id; const it = Store.get(id); if (!it) return;
       if (e.shiftKey || e.ctrlKey) { this.toggleSel(id); return; }
       if (!this.sel.has(id)) this.select([id]);
-      if (live) return; // let native controls work
+      // v2.7.1.1: a widget moves from ANY point (rows, buttons, days too): under 4 px it stays a click, from 4 px it is a move
+      // (the click is then swallowed). Inputs / scrollbars keep working; a locked widget does not move.
+      if (live && !(it.type === 'widget' && this.widgetDragOk(e))) return; // let native controls work
       if (this.selItems().some(i => i.locked)) return;
+      if (it.type === 'widget') return this.startMove(e, 4, !!live);
       return this.startMove(e);
     }
     if (!e.shiftKey) this.deselect();
     this.startMarquee(e);
   },
-  track(e, move, up) {
-    const id = e.pointerId; try { this.vp.setPointerCapture(id); } catch (_) {}
+  widgetDragOk(e) {
+    const tg = e.target; if (!tg || !tg.closest) return false;
+    if (tg.closest('input,textarea,select,option,[contenteditable=""],[contenteditable="true"],.wg-nodrag')) return false;
+    for (let el = tg; el && el.classList && !el.classList.contains('item'); el = el.parentElement) {
+      if (el.scrollHeight > el.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(el).overflowY)) { const r = el.getBoundingClientRect(); if (e.clientX >= r.left + el.clientLeft + el.clientWidth) return false; } // on its scrollbar
+    }
+    return true;
+  },
+  // after a real move that started on a button / row: the click that follows must not run its action
+  eatClick() { const until = performance.now() + 500; const f = (ev) => { removeEventListener('click', f, true); if (performance.now() < until) { ev.stopPropagation(); ev.preventDefault(); } }; addEventListener('click', f, true); setTimeout(() => removeEventListener('click', f, true), 60); },
+  track(e, move, up, late) {
+    const id = e.pointerId; if (!late) try { this.vp.setPointerCapture(id); } catch (_) {}
     const mv = (ev) => { if (ev.pointerId === id) move(ev); };
     const fin = (ev) => { if (ev.pointerId !== id) return; removeEventListener('pointermove', mv); removeEventListener('pointerup', fin); removeEventListener('pointercancel', fin); this.vp.classList.remove('moving'); up && up(ev); };
     addEventListener('pointermove', mv); addEventListener('pointerup', fin); addEventListener('pointercancel', fin);
@@ -227,7 +240,7 @@ const Canvas = {
   // the host under a point that an item may attach to (never itself or one of its own attachments)
   hostFor(c) { const ex = new Set([c.id, ...this.kids(new Set([c.id])).map(k => k.id)]); const cx = c.x1 != null ? (c.x1 + c.x2) / 2 : c.x + c.w / 2, cy = c.y1 != null ? (c.y1 + c.y2) / 2 : c.y + (c.h || 34) / 2; return this.hostAt(cx, cy, ex); },
   reattach(items) { for (const c of items) { if (!this.ATTACHABLE.includes(c.type)) continue; if (c.type !== 'text' && !c.parent) continue; const host = this.hostFor(c); if (host) c.parent = host.id; else if (c.parent) c.parent = null; Items.mount(c); } },
-  startMove(e) {
+  startMove(e, thr = 3, late = false) {
     const start = this.s2w(e.clientX, e.clientY); let items = this.selItems();
     // frames carry their contents
     const extra = []; for (const f of items.filter(i => i.type === 'frame')) for (const it of Store.items()) if (it.type !== 'frame' && !this.sel.has(it.id) && it.x >= f.x && it.y >= f.y && it.x + it.w <= f.x + f.w && it.y + it.h <= f.y + f.h) extra.push(it);
@@ -237,13 +250,13 @@ const Canvas = {
     const bb0 = bounds(this.selItems()); let started = false;
     const sx = e.clientX, sy = e.clientY;
     this.track(e, (ev) => {
-      if (!started) { if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 3) return; started = true; Store.begin(); this.vp.classList.add('moving', 'dragging'); Panels.hideStylebar(); }
+      if (!started) { if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < thr) return; started = true; Store.begin(); this.vp.classList.add('moving', 'dragging'); Panels.hideStylebar(); if (late) { try { this.vp.setPointerCapture(e.pointerId); } catch (_) {} try { getSelection().removeAllRanges(); } catch (_) {} } }
       const p = this.s2w(ev.clientX, ev.clientY); let dx = p.x - start.x, dy = p.y - start.y;
       if (ev.shiftKey) { if (Math.abs(dx) > Math.abs(dy)) dy = 0; else dx = 0; }
       if (Store.state.settings.snap && !ev.altKey) { const s = Guides.snap({ x: bb0.x + dx, y: bb0.y + dy, w: bb0.w, h: bb0.h }, new Set(items.map(i => i.id))); dx += s.dx; dy += s.dy; } else Guides.clear();
       for (const o of orig) { o.i.x = o.x + dx; o.i.y = o.y + dy; if (o.x1 != null) { o.i.x1 = o.x1 + dx; o.i.y1 = o.y1 + dy; o.i.x2 = o.x2 + dx; o.i.y2 = o.y2 + dy; } Items.place(Items.el(o.i), o.i); }
       this.drawSel();
-    }, () => { Guides.clear(); this.vp.classList.remove('dragging'); if (started) { const moved = new Set(items.map(i => i.id)); this.reattach(this.selItems().filter(i => this.ATTACHABLE.includes(i.type) && !(i.parent && moved.has(i.parent)))); Store.commit(); Minimap.drawSoon(); Panels.stylebar(); } });
+    }, () => { Guides.clear(); this.vp.classList.remove('dragging'); if (started && late) this.eatClick(); if (started) { const moved = new Set(items.map(i => i.id)); this.reattach(this.selItems().filter(i => this.ATTACHABLE.includes(i.type) && !(i.parent && moved.has(i.parent)))); Store.commit(); Minimap.drawSoon(); Panels.stylebar(); } }, late);
   },
   startHandle(e, k) {
     e.stopPropagation(); const items = this.selItems().filter(i => !i.locked); if (!items.length) return;
