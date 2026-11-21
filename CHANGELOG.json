@@ -1,4 +1,18 @@
 {
+ "2.7.1.1": {
+  "el": [
+   "Τα widgets (Σήμερα, Συνδρομές, Υπενθυμίσεις, Ημερολόγιο, #tag) μετακινούνται πιάνοντάς τα από οποιοδήποτε σημείο. Κλικ (κίνηση κάτω από 4 px) σε γραμμή, κουμπί ή μέρα κάνει την ενέργειά του· από 4 px και πάνω το widget μετακινείται και η ενέργεια δεν γίνεται. Τα πεδία κειμένου δεν σέρνονται, το κλειδωμένο widget δεν κινείται και κάθε μετακίνηση είναι ένα βήμα αναίρεσης (Ctrl+Z).",
+   "Ελαφρύτερο Nyx: το φόντο δεν ξαναζωγραφίζεται συνεχώς όταν τίποτα δεν κινείται (τρεμοπαίζει για λίγα δευτερόλεπτα μετά από κίνηση ποντικιού/πλήκτρο και μετά μένει ακίνητο, με την ίδια εμφάνιση) και σταματά όταν το παράθυρο κρύβεται στο tray ή ελαχιστοποιείται. Οι χρονομετρητές της εφαρμογής παγώνουν όσο το παράθυρο δεν φαίνεται και συνεχίζουν όταν επιστρέψει (εκτός από Pomodoro και αυτοματισμούς που τρέχουν).",
+   "Πάνελ Απόδοσης: ανάγνωση κάθε 10 δευτερόλεπτα (αντί για 2,5) και καμία ανάγνωση όταν το πάνελ είναι κλειστό. Τα εικονίδια φορτώνουν μόνο όσα χρησιμοποιεί η εφαρμογή (~60 KB αντί για 648 KB)· η πλήρης βιβλιοθήκη φορτώνει μόνο όταν χρειαστεί.",
+   "Νέα ρύθμιση «Ελαφριά εμφάνιση» (Πάντα / Αυτόματα / Ποτέ, προεπιλογή Αυτόματα): χωρίς θολώματα (backdrop-filter) και χωρίς κίνηση φόντου· στο «Αυτόματα» ενεργοποιείται όσο γράφει το μοντέλο."
+  ],
+  "en": [
+   "Widgets (Today, Subscriptions, Reminders, Calendar, #tag) can be moved by grabbing any point. A click (under 4 px of movement) on a row, button or day runs its action; from 4 px on the widget moves and the action does not run. Text fields don't drag, a locked widget doesn't move, and each move is one undo step (Ctrl+Z).",
+   "Lighter Nyx: the background is no longer redrawn continuously when nothing moves (it twinkles for a few seconds after mouse/key activity, then holds still with the same look) and stops when the window is hidden to the tray or minimized. App timers pause while the window is not shown and resume when it returns (except a running Pomodoro and active automations).",
+   "Performance panel: reads every 10 seconds (instead of 2.5) and none while the panel is closed. Icons load only the ones the app uses (~60 KB instead of 648 KB); the full library loads only when needed.",
+   "New setting «Light appearance» (Always / Auto / Never, default Auto): no blur (backdrop-filter) and no background motion; in Auto it turns on while the model is writing."
+  ]
+ },
  "2.7.1": {
   "el": [
    "Νέο «Σήμερα» widget (σχέδιο «Μίνιμαλ»): ο τρέχων καιρός της Θεσσαλονίκης σε μία γραμμή στην κεφαλίδα (εικονίδιο, °C, περιγραφή, άνεμος π.χ. «12 km/h ΒΔ») και 8 κουτάκια ανά 3 ώρες για το επόμενο 24ωρο (εικονίδιο, θερμοκρασία, πιθανότητα βροχής). Από κάτω η γιορτή της ημέρας από το Εορτολόγιο («Δεν υπάρχει καταχώριση» όταν δεν έχει), η ώρα ενημέρωσης και «Weather data by Open-Meteo.com».",

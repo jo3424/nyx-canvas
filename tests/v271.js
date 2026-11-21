@@ -40,7 +40,7 @@ const W = (win, id) => win.evaluate((id) => {
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setBounds({ x: 0, y: 0, width: 1440, height: 900 }));
   await win.waitForFunction(() => window.__nyxLook2611 === true && window.__nyxWidgets270 === true, null, { timeout: 30000 }); await sleep(600);
   const ver = await win.evaluate(() => (Store.info && Store.info.version) || '');
-  ok(ver === '2.7.1', 'app version 2.7.1', ver);
+  ok(['2.7.1', '2.7.1.1'].includes(String(ver)), 'app version 2.7.1 (or 2.7.1.1)', ver);
   ok(await win.evaluate(() => typeof NyxToday271 === 'object' && !!document.getElementById('t271-sun') && document.querySelectorAll('.t271-sprite').length === 1), 'Variant C module + one static icon sprite');
   ok(calls().length === 0, 'no request before a «Σήμερα» widget exists', calls());
   await win.evaluate(() => { document.querySelectorAll('.toast').forEach((t) => t.remove()); Canvas.view.x = 0; Canvas.view.y = 0; Canvas.view.z = 1; Canvas.applyView(); });

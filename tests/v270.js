@@ -71,7 +71,7 @@ const seed = (now) => {
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setBounds({ x: 0, y: 0, width: 1440, height: 900 }));
   await win.waitForFunction(() => window.__nyxLook2611 === true, null, { timeout: 30000 }); await sleep(600);
   const ver = await win.evaluate(() => (Store.info && Store.info.version) || '');
-  ok(['2.7.0', '2.7.1'].includes(ver), 'app version 2.7.0 / 2.7.x', ver);
+  ok(['2.7.0', '2.7.1', '2.7.1.1'].includes(ver), 'app version 2.7.0 / 2.7.x', ver);
   ok(await win.evaluate(() => window.__nyxWidgets270 === true && typeof Widgets === 'object' && typeof Items.R.widget === 'function'), 'widgets module loaded, a «widget» card type exists');
   const keys0 = await win.evaluate((a) => {
     const A = Store.state.settings.ai; const L = A.providers.find((p) => p.id === 'llama'); L.enabled = true; L.base = 'http://127.0.0.1:' + a.port + '/v1';

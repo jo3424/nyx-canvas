@@ -181,8 +181,8 @@ const oldMsgs = [{ role: 'system', content: 'INST' }, { role: 'user', content: '
   ok(Object.keys(el).filter((k) => k.startsWith('v2691.')).length >= 30, 'el/en strings present');
 
   const pkg = require('../package.json');
-  ok(['2.6.9.1', '2.6.9.2', '2.6.9.3', '2.6.10', '2.6.10.1', '2.6.11', '2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1', '2.7.0', '2.7.1'].includes(pkg.version) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.9.1, Electron 45.2.3', pkg.version);
-  const CH = require('../CHANGELOG.json'); ok(['2.6.9.1', '2.6.9.2', '2.6.9.3', '2.6.10', '2.6.10.1', '2.6.11', '2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1', '2.7.0', '2.7.1'].includes(Object.keys(CH)[0]) && CH['2.6.9.1'].el.length === 3 && CH['2.6.9.1'].en.length === 3, 'CHANGELOG 2.6.9.1 first, 3 deliverables');
+  ok(['2.6.9.1', '2.6.9.2', '2.6.9.3', '2.6.10', '2.6.10.1', '2.6.11', '2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1', '2.7.0', '2.7.1', '2.7.1.1'].includes(pkg.version) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.9.1, Electron 45.2.3', pkg.version);
+  const CH = require('../CHANGELOG.json'); ok(['2.6.9.1', '2.6.9.2', '2.6.9.3', '2.6.10', '2.6.10.1', '2.6.11', '2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1', '2.7.0', '2.7.1', '2.7.1.1'].includes(Object.keys(CH)[0]) && CH['2.6.9.1'].el.length === 3 && CH['2.6.9.1'].en.length === 3, 'CHANGELOG 2.6.9.1 first, 3 deliverables');
   console.log(`\nv2.6.9.1 unit: ${passes} passed, ${fails} failed`);
   process.exit(fails ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

@@ -1,7 +1,7 @@
 {
   "name": "nyx-canvas",
   "productName": "Nyx Canvas",
-  "version": "2.7.1",
+  "version": "2.7.1.1",
   "description": "Nyx Canvas v2 — μαύρος άπειρος καμβάς με AI βοηθό, browser, βίντεο, plugins",
   "main": "boot.js",
   "author": "jonh",
