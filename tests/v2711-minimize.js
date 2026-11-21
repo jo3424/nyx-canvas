@@ -35,6 +35,15 @@ const has = (b) => cp.spawnSync('sh', ['-c', 'command -v ' + b]).status === 0;
     await app.evaluate(({ BrowserWindow }) => { const w = BrowserWindow.getAllWindows()[0]; w.show(); w.focus(); }); await sleep(1500);
     ok(!(await win.evaluate(() => NyxLite.paused)), 'back from the tray → resumes');
     await win.evaluate(() => clearInterval(__iv));
+    // Performance panel open + minimized → no reading (each reading starts PowerShell gpu.ps1 on Windows)
+    await win.evaluate(async () => { window.__pr = 0; await Lazy.run('perf', () => {}); const r = Perf.render.bind(Perf); Perf.render = (...a) => { __pr++; return r(...a); }; Perf.open(); }); await sleep(1500);
+    const p0 = await win.evaluate(() => __pr);
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].minimize()); await sleep(4000);
+    const p1 = await win.evaluate(() => __pr); await sleep(12000); const p2 = await win.evaluate(() => __pr);
+    ok(p0 >= 1 && p2 === p1 && await win.evaluate(() => NyxLite.paused), 'perf panel open + minimized: no reading for 12 s (no PowerShell)', { p0, p1, p2 });
+    await app.evaluate(({ BrowserWindow }) => { const w = BrowserWindow.getAllWindows()[0]; w.restore(); w.focus(); }); await sleep(1500);
+    ok(await win.evaluate(() => __pr) > p2, 'restored → the missed reading runs at once');
+    await win.evaluate(() => Panels.closeDrawer());
     ok(errs.length === 0, 'no page errors', errs);
   } finally {
     await app.close().catch(() => {}); try { WM.kill(); X.kill(); } catch (e) {} fs.rmSync(DATA, { recursive: true, force: true });
