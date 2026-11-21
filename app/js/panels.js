@@ -281,6 +281,8 @@ const Panels = {
         h('label', { class: 'sfield' }, h('span', {}, t('set_zoomspeed')), h('input', { type: 'range', min: .3, max: 2.5, step: .1, value: S.zoomSpeed || 1, oninput: (e) => { S.zoomSpeed = +e.target.value; sv(); } })),
         chk(t('set_snap'), S.snap, (v) => { S.snap = v; sv(); }),
         chk(t('set_anim'), S.anim !== false, (v) => { S.anim = v; sv(); Theme.apply(S); }),
+        selField(t('v2711.lite'), [['auto', t('v2711.lite_auto')], ['always', t('v2711.lite_always')], ['never', t('v2711.lite_never')]], NyxLite.mode(), (v) => { S.liteMode = v; sv(); NyxLite.apply(); }), // v2.7.1.1
+        h('p', { class: 'muted small set-lite-hint' }, t('v2711.lite_hint')),
         chk(t('set_tray'), S.closeToTray !== false, (v) => { S.closeToTray = v; sv(); }),
         chk(t('set_login'), Store.info.loginItem, async (v) => { if (API) Store.info.loginItem = await API.setLogin(v); }),
         selField(LANG === 'el' ? t('panels.030') : 'Subscription sound', Object.entries(SOUNDS), S.subSound || 'soft', (v) => { S.subSound = v; sv(); playSound(v); }),

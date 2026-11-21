@@ -2256,5 +2256,10 @@
  "v271.acc_teal": "Teal",
  "v271.acc_amber": "Amber",
  "v271.acc_rose": "Rose",
- "v271.lbl_accent": "Widget colour"
+ "v271.lbl_accent": "Widget colour",
+ "v2711.lite": "Light look",
+ "v2711.lite_auto": "Automatic",
+ "v2711.lite_always": "Always",
+ "v2711.lite_never": "Never",
+ "v2711.lite_hint": "No blur and a still background. «Automatic»: turns on by itself while the LLM writes a reply (and, later, while it makes an image or a video)."
 }

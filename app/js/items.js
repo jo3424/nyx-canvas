@@ -96,7 +96,7 @@ const Items = {
     sticker(n, it) { n.innerHTML = `<img draggable="false" class="stk" src="assets/twemoji/${esc(it.hex)}.svg" alt="">`; },
     reaction(n, it) { n.innerHTML = `<div class="reaction r-${it.variant || 0}" style="--rc:${it.color || '#ff3d6e'}"><span>${esc(it.text)}</span></div>`; },
     icon(n, it) {
-      const pack = NYX_DATA[it.pack] || NYX_DATA.lucide; const d = pack && pack[it.name];
+      const pack = NYX_DATA[it.pack] || NYX_DATA.lucide; let d = pack && pack[it.name]; if (!d && (!it.pack || it.pack === 'lucide') && NYX_DATA.lucideUi) d = NYX_DATA.lucideUi[it.name]; // v2.7.1.1: the start-up subset first, the full pack only if the icon is not in it
       const filled = it.pack === 'tablerFilled';
       n.innerHTML = `<svg class="icon-svg" viewBox="0 0 24 24" fill="${filled ? it.color : 'none'}" stroke="${filled ? 'none' : it.color}" stroke-width="${it.sw || 1.75}" stroke-linecap="round" stroke-linejoin="round" style="filter:drop-shadow(0 0 ${it.glow ? 10 : 0}px ${it.color})">${d ? d[0] : ''}</svg>`;
       if (!d) Library.ensurePack(it.pack).then(() => { n._sig = ''; Items.render(n, it); });

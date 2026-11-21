@@ -76,7 +76,7 @@ Hub.paintHubTabs = function (panes, show) {
       if (!lines.length) { pre.textContent = t('v2612.router_log_none'); pre.dataset.empty = '1'; return; }
       delete pre.dataset.empty; pre.textContent = NyxUI.redactLog(lines.join('\n'), t('v2612.redacted'));
     };
-    fill(); const iv = setInterval(() => { if (!pre.isConnected) return clearInterval(iv); fill(); }, 4000);
+    fill(); const iv = setInterval(() => { if (!NyxLite.alive(pre)) return clearInterval(iv); fill(); }, 4000);
     return pre;
   };
   const infoDot = (text, attrs) => h('span', { class: 'hub-info', title: text, tabindex: '0', ...(attrs || {}) }, h('span', { html: iconSvg('info', 13), 'aria-hidden': 'true' }), h('span', { class: 'sr-only' }, text));
@@ -435,9 +435,9 @@ Hub.paintHubTabs = function (panes, show) {
           syncDot();
         };
         ping();
-        const ivH = setInterval(() => { if (!document.contains(box)) return clearInterval(ivH); ping(); }, 2500);
+        const ivH = setInterval(() => { if (!NyxLite.alive(box)) return clearInterval(ivH); ping(); }, 2500);
       }
-      const iv = setInterval(() => { if (!document.contains(box)) return clearInterval(iv); syncDot(); }, 800);
+      const iv = setInterval(() => { if (!NyxLite.alive(box)) return clearInterval(iv); syncDot(); }, 800);
       setTimeout(syncDot, 200);
       box._setSummary = (txt) => { sumEl.textContent = txt; };
       return box;
@@ -465,11 +465,11 @@ Hub.paintHubTabs = function (panes, show) {
         warn.hidden = !msg; warn.textContent = msg ? '⚠️ ' + msg : '';
       };
       check();
-      const iv = setInterval(() => { if (!document.contains(box)) return clearInterval(iv); check(); }, 20000);
+      const iv = setInterval(() => { if (!NyxLite.alive(box)) return clearInterval(iv); check(); }, 20000);
       // re-check at once when the router comes up / goes down (public /health — no «unauthorized» lines in its log)
       let lastUp = null;
       const ivU = setInterval(async () => {
-        if (!document.contains(box)) return clearInterval(ivU);
+        if (!NyxLite.alive(box)) return clearInterval(ivU);
         const hh = await API.inv('proc:health', 'http://127.0.0.1:' + port + '/health', 800).catch(() => null);
         const up = !!(hh && (hh.ok || hh.status));
         if (lastUp !== null && up !== lastUp) check();

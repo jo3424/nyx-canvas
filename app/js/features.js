@@ -41,7 +41,7 @@ const Clip = {
 };
 
 const Library = {
-  async ensurePack(p) { if (!p || NYX_DATA[p]) return; await loadScript(`assets/data/${p}.js`); }
+  async ensurePack(p) { if (!p || NYX_DATA[p]) return; if (p === 'lucide') return lucideFull(); await loadScript(`assets/data/${p}.js`); } // v2.7.1.1: lucide = the late full pack
 };
 
 const Features = {

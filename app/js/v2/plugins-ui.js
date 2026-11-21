@@ -211,7 +211,7 @@ const Automations = {
       if (w.type === 'every' && (+w.min || 0) >= 1 && Date.now() - (a.last || 0) >= w.min * 60e3) this.run(a); }
     PluginStore.syncCards();
   },
-  init() { setTimeout(() => { for (const a of this.list()) if (a.on && a.when?.type === 'startup') this.run(a); }, 4000); setInterval(() => this.tick(), 30e3); },
+  init() { setTimeout(() => { for (const a of this.list()) if (a.on && a.when?.type === 'startup') this.run(a); }, 4000); NyxLite.keep(setInterval(() => this.tick(), 30e3), () => this.list().some((a) => a.on && a.when && a.when.type && a.when.type !== 'startup')); }, // v2.7.1.1: off screen only while an automation waits for a time / event
   ui(body) {
     const wrap = h('div', { class: 'autos' }); body.append(wrap);
     const draw = () => {

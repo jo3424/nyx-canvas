@@ -1,12 +1,14 @@
 'use strict';
 // v2.5 Performance panel (lazy): RAM per Nyx process + servers, system RAM, VRAM, GPU load & temperature (7900 XTX).
 const Perf = {
-  iv: null,
+  iv: null, EVERY: 10000,
   open() {
     Panels.openDrawer('perf', '<span class="ti">' + iconSvg('gauge', 20) + '</span> ' + t('v25.perf_title'), (body) => {
       const box = h('div', { class: 'perf' }, h('p', { class: 'muted small' }, '…')); body.append(box);
-      const tick = async () => { if (!document.contains(box)) { clearInterval(this.iv); this.iv = null; return; } try { this.render(box, await API.inv('perf:snapshot')); } catch (e) { box.innerHTML = ''; box.append(h('p', { class: 'err' }, cleanErr(e))); } };
-      clearInterval(this.iv); tick(); this.iv = setInterval(tick, 2500);
+      // v2.7.1.1: one reading every 10 s (each reading starts the hidden PowerShell gpu.ps1 on Windows), and none once the
+      // panel is closed (the drawer only hides, so «still in the page» is not enough) or Nyx is off screen (NyxLite pauses it).
+      const tick = async () => { if (!NyxLite.alive(box) || Panels.drawerKind !== 'perf') { clearInterval(this.iv); this.iv = null; return; } try { this.render(box, await API.inv('perf:snapshot')); } catch (e) { box.innerHTML = ''; box.append(h('p', { class: 'err' }, cleanErr(e))); } };
+      clearInterval(this.iv); tick(); this.iv = setInterval(tick, this.EVERY);
     });
   },
   bar(v, max, cls = '') { const p = max ? Math.min(100, v / max * 100) : 0; return h('div', { class: 'pbar ' + cls + (p > 90 ? ' hot' : p > 75 ? ' warm' : '') }, h('i', { style: `width:${p.toFixed(1)}%` })); },

@@ -1,0 +1,9 @@
+/* v2.7.1.1 «Ελαφρύ Nyx» */
+/* «Ελαφριά εμφάνιση» (Πάντα, or Αυτόματα while the LLM writes): no blur anywhere; panels a little more solid so text stays readable */
+body.nyx-lite{--panel:color-mix(in srgb,var(--panel-solid) 95%,transparent)}
+body.nyx-lite *,body.nyx-lite *::before,body.nyx-lite *::after{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+/* the Aurora theme's two glow layers rest whenever the background holds a still frame (idle, off screen, light look) */
+body.bg-still .aurora,body.nyx-lite .aurora{animation-play-state:paused!important}
+.set-lite-hint{margin:-2px 0 10px}
+/* moving a widget by a row / button must not select its text */
+#viewport.dragging .item.t-widget,#viewport.dragging .item.t-widget *{user-select:none}

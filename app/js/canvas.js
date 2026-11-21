@@ -389,8 +389,25 @@ const Stars = {
     const rnd = mulberry(7);
     this.layers = [0.04, 0.1, 0.22, 0.4].map((depth, li) => ({ depth, stars: Array.from({ length: [520, 300, 140, 50][li] }, () => ({ x: rnd() * 2400, y: rnd() * 2400, r: (0.35 + rnd() * [0.6, 0.9, 1.2, 1.6][li]), a: 0.25 + rnd() * 0.75, tw: rnd() * 6.28, c: Math.floor(rnd() * 4) })) }));
     this.blobs = Array.from({ length: 5 }, (_, i) => ({ x: rnd() * 3000 - 500, y: rnd() * 2000 - 300, r: 500 + rnd() * 700, c: i }));
-    const loop = () => { this.raf = requestAnimationFrame(loop); if (document.hidden || document.body.classList.contains('no-anim') || !(Theme.current?.fx.stars > 0 || Theme.current?.fx.kind) || Canvas.vp.classList.contains('moving')) return; this.t += 1; if (this.t % 2) return; this.draw(true); };
-    loop();
+    // v2.7.1.1 «Ελαφρύ Nyx»: no endless 30 fps loop any more. The background twinkles (same drawing, same speed) at 15 fps while
+    // you use Nyx, and holds a still frame 15 s after the last mouse / keyboard input. Nothing is drawn while Nyx is minimized /
+    // in the tray / behind other windows, or with «Ελαφριά εμφάνιση» on. Pan / zoom still redraw at once (applyView → draw).
+    const wake = () => this.wake();
+    for (const ev of ['pointermove', 'pointerdown', 'wheel', 'keydown']) addEventListener(ev, wake, { capture: true, passive: true });
+    addEventListener('nyx-theme', () => { this.draw(); this.wake(); });
+    if (window.NyxLite) NyxLite.onChange(() => this.wake());
+    if (!this.animOn()) document.body.classList.add('bg-still');
+    this.wake();
+  },
+  IDLE_MS: 15000, FPS: 15, tm: 0, activeUntil: 0,
+  animOn() { const th = Theme.current; return !!th && !!this.ctx && !document.body.classList.contains('no-anim') && (th.fx.stars > 0 || !!th.fx.kind) && !(window.NyxLite && (NyxLite.lite || NyxLite.offscreen)); },
+  wake() { this.activeUntil = performance.now() + this.IDLE_MS; if (!this.tm && this.animOn()) { document.body.classList.remove('bg-still'); this.next(); } },
+  next() {
+    this.tm = setTimeout(() => requestAnimationFrame(() => {
+      this.tm = 0; if (!this.animOn()) { document.body.classList.add('bg-still'); return; }
+      if (!Canvas.vp.classList.contains('moving')) { this.t = performance.now() * 0.06; this.draw(true); }
+      if (performance.now() < this.activeUntil) this.next(); else document.body.classList.add('bg-still');
+    }), Math.round(1000 / this.FPS));
   },
   resize() { this.dpr = Math.min(devicePixelRatio || 1, 2); this.cv.width = innerWidth * this.dpr; this.cv.height = innerHeight * this.dpr; this.cv.style.width = innerWidth + 'px'; this.cv.style.height = innerHeight + 'px'; },
   draw() {

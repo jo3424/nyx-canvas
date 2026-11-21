@@ -20,13 +20,21 @@ function h(tag, attrs = {}, ...kids) {
 }
 const ICON_ALIAS = { 'music': 'eighth-notes', 'bold': 'type-outline', 'align-left': 'text-align-start', 'align-center': 'text-align-center', 'align-right': 'text-align-end', 'plus-square': 'square-plus', 'box-select': 'square-dashed', 'trash-2': 'trash', 'history': 'clock-arrow-up', 'github': 'git-branch', 'file-json': 'file-braces', 'smile-plus': 'face-slightly-smiling-plus', 'smile': 'face-slightly-smiling', 'frown': 'face-slightly-frowning', 'meh': 'face-neutral', 'angry': 'face-angry', 'laugh': 'face-grinning', 'edit': 'square-pen', 'edit-2': 'pencil', 'more-horizontal': 'ellipsis', 'more-vertical': 'ellipsis-vertical', 'help-circle': 'circle-question-mark', 'circle-help': 'circle-question-mark', 'alert-triangle': 'triangle-alert', 'check-circle': 'circle-check', 'x-circle': 'circle-x', 'play-circle': 'circle-play', 'stop-circle': 'circle-stop' };
 const __svgOut = new Set(); // exact strings produced by iconSvg → h() renders them as markup (never arbitrary text)
+// v2.7.1.1: at start-up only the icons the UI names are loaded (assets/data/lucide-ui.js, ~60 KB); the full Lucide pack (648 KB)
+// is loaded later, only when needed — an icon outside the subset is drawn as a circle, then fixed in place once the pack arrives.
 function iconSvg(name, size = 18, extra = '') {
-  const L = (window.NYX_DATA && NYX_DATA.lucide) || {};
-  let d = L[name] || L[ICON_ALIAS[name]];
-  if (!d) { (window.__missingIcons ||= new Set()).add(name); d = L['circle']; }
-  const out = `<svg class="ico ${extra}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="var(--icon-sw,1.75)" stroke-linecap="round" stroke-linejoin="round">${d ? d[0] : ''}</svg>`;
+  const full = window.NYX_DATA && NYX_DATA.lucide; const L = full || (window.NYX_DATA && NYX_DATA.lucideUi) || {};
+  let d = L[name] || L[ICON_ALIAS[name]]; let miss = '';
+  if (!d && !full && window.NYX_DATA && NYX_DATA.lucideUi) { miss = String(name || ''); (window.__iconLate ||= new Set()).add(miss); lucideFull(); d = L['circle']; }
+  else if (!d) { (window.__missingIcons ||= new Set()).add(name); d = L['circle']; }
+  const out = `<svg class="ico ${extra}"${miss ? ` data-imiss="${esc(miss)}"` : ''} width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="var(--icon-sw,1.75)" stroke-linecap="round" stroke-linejoin="round">${d ? d[0] : ''}</svg>`;
   if (__svgOut.size < 5000) __svgOut.add(out);
   return out;
+}
+let __lucideP = null;
+function lucideFull() {
+  if (window.NYX_DATA && NYX_DATA.lucide) return Promise.resolve();
+  return __lucideP ||= new Promise((res) => { const sc = document.createElement('script'); sc.src = 'assets/data/lucide.js'; sc.onload = () => { for (const e of document.querySelectorAll('svg[data-imiss]')) { const n = e.getAttribute('data-imiss'); const d = NYX_DATA.lucide && (NYX_DATA.lucide[n] || NYX_DATA.lucide[ICON_ALIAS[n]]); if (d) e.innerHTML = d[0]; else (window.__missingIcons ||= new Set()).add(n); e.removeAttribute('data-imiss'); } (window.__lucideLate ||= []).push(Date.now()); res(); }; sc.onerror = () => { __lucideP = null; res(); }; document.head.append(sc); });
 }
 function icon(name, size) { const s = document.createElement('span'); s.className = 'i'; s.innerHTML = iconSvg(name, size); return s; }
 function hydrateIcons(root = document) { for (const e of root.querySelectorAll('i[data-i]')) { e.outerHTML = `<span class="i">${iconSvg(e.dataset.i, +e.dataset.s || 18)}</span>`; } }

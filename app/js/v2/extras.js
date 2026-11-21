@@ -242,7 +242,7 @@ const Pomodoro = {
 };
 Items.R.pomodoro = function (n, it) { const p = it.pomo || { mode: 'work', left: (it.work || 25) * 60e3, run: false, done: 0 }; const left = p.run ? p.end - Date.now() : p.left;
   n.innerHTML = t('extras.095', { mode: p.mode, v1: p.mode === 'work' ? t('extras.096') : t('extras.097'), v2: p.done || 0, v3: fmtTime(left / 1000), v4: iconSvg(p.run ? 'pause' : 'play', 18), v5: iconSvg('rotate-ccw', 16), v6: iconSvg('skip-forward', 16) }); };
-setInterval(() => Pomodoro.tick(), 1000);
+NyxLite.keep(setInterval(() => Pomodoro.tick(), 1000), () => allItems().some((it) => it.pomo && it.pomo.run)); // v2.7.1.1: keeps ticking off screen only while a Pomodoro runs
 
 // ---------------- JSON Canvas (Obsidian) import ----------------
 const V2Import = {
