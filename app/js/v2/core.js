@@ -380,7 +380,7 @@ const NyxLimits = {
 function stripThink(s, r) { return NyxLimits.stripThink(s, r); }
 function newStreamId() { return 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 // v2.7.1.1: while the LLM writes, NyxLite knows it («Ελαφριά εμφάνιση» → Αυτόματα turns on; timers keep running off screen)
-async function invokeChat(p, body, onNotice, onDelta) { const end = window.NyxLite ? NyxLite.begin('llm') : () => {}; try { return await invokeChat0(p, body, onNotice, onDelta); } finally { end(); } }
+async function invokeChat(p, body, onNotice, onDelta) { const end = typeof NyxLite !== 'undefined' ? NyxLite.begin('llm') : () => {}; try { return await invokeChat0(p, body, onNotice, onDelta); } finally { end(); } }
 async function invokeChat0(p, body, onNotice, onDelta) {
   const useStream = body.stream !== false;
   if (!useStream) return API.inv('ai:chat', p, body);

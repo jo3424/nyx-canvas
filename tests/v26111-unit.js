@@ -87,7 +87,7 @@ const W = (n, w = 120) => Array.from({ length: n }, () => w);
   ok(['2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1', '2.7.0', '2.7.1', '2.7.1.1'].includes(pkg.version) && pkg.devDependencies.electron === '45.2.3', 'version 2.6.11.1, Electron 45.2.3', pkg.version);
   ok(['2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1', '2.7.0', '2.7.1', '2.7.1.1'].includes(lock.version) && lock.packages[''].version === lock.version, 'package-lock version 2.6.11.1', [lock.version, lock.packages[''].version]);
   const lockDiff = cp.execSync('git diff b271669 -- package-lock.json', { cwd: R }).toString().split('\n').filter((l) => /^[+-]\s/.test(l));
-  ok(lockDiff.length <= 4 && lockDiff.every((l) => /"version": "2\.(6\.(5\.1|11\.1|12|12\.1|12\.2|13|13\.1)|7\.[01])"/.test(l)), 'package-lock: only the version fields changed', lockDiff);
+  ok(lockDiff.length <= 4 && lockDiff.every((l) => /"version": "2\.(6\.(5\.1|11\.1|12|12\.1|12\.2|13|13\.1)|7\.[01]|7\.1\.1)"/.test(l)), 'package-lock: only the version fields changed', lockDiff);
   const CH = JSON.parse(read('CHANGELOG.json'));
   ok(['2.6.11.1', '2.6.12', '2.6.12.1', '2.6.12.2', '2.6.13', '2.6.13.1', '2.7.0', '2.7.1', '2.7.1.1'].includes(Object.keys(CH)[0]) && CH['2.6.11.1'].el.length === 3 && CH['2.6.11.1'].en.length === 3 && CH['2.6.11'], 'CHANGELOG 2.6.11.1 first (3 items), 2.6.11 kept');
   const mainDiff = cp.execSync('git diff --name-only b271669 -- main main.js preload.js boot.js', { cwd: R }).toString().trim();

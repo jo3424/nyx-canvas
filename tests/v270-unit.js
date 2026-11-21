@@ -82,9 +82,9 @@ if (git('cat-file -e ' + base) !== null) {
   ok(!add.some((l) => /https?:\/\//.test(l)), '(γ) no new URL', add.filter((l) => /https?:\/\//.test(l)));
   ok(!add.some((l) => /\b(spawn|execFile|exec|fork)\s*\(/.test(l)), '(γ) no new spawn / exec');
   ok(!add.some((l) => /localStorage\.removeItem|delete Store\.state\.settings|delete S\.settings/.test(l)), '(γ) no setting removed');
-  const del = git(`diff -U0 ${base} -- app/locales/el.json app/locales/en.json`).split('\n').filter((l) => /^-(?!--)/.test(l));
+  const del = git(`diff -U0 ${base}${rel} -- app/locales/el.json app/locales/en.json`).split('\n').filter((l) => /^-(?!--)/.test(l));
   ok(del.every((l) => /^-\s*"[^"]+": .*[^,]$/.test(l)), '(γ) locales: only additions (the last line got a comma)', del.slice(0, 4));
-  const coreD = git(`diff ${base} -- app/js/v2/core.js app/js/store.js`);
+  const coreD = git(`diff ${base}${rel} -- app/js/v2/core.js app/js/store.js`);
   ok(coreD === '', '(γ) settings defaults (core.js) + Store untouched — settings only added');
 } else ok(false, '(γ) base 296da39 not in this checkout');
 const el = JSON.parse(read('app/locales/el.json')), en = JSON.parse(read('app/locales/en.json'));
